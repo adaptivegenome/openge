@@ -146,6 +146,9 @@ std::string BamReader::GetHeaderText(void) const {
 bool BamReader::GetNextAlignment(BamAlignment& alignment) {
     return d->GetNextAlignment(alignment);
 }
+BamAlignment * BamReader::GetNextAlignment() {
+    return d->GetNextAlignment();
+}
 
 /*! \fn bool BamReader::GetNextAlignmentCore(BamAlignment& alignment)
     \brief Retrieves next available alignment, without populating the alignment's string data fields.
@@ -163,6 +166,9 @@ bool BamReader::GetNextAlignment(BamAlignment& alignment) {
 */
 bool BamReader::GetNextAlignmentCore(BamAlignment& alignment) {
     return d->GetNextAlignmentCore(alignment);
+}
+BamAlignment * BamReader::GetNextAlignmentCore() {
+    return d->GetNextAlignmentCore();
 }
 
 /*! \fn int BamReader::GetReferenceCount(void) const

@@ -150,3 +150,8 @@ bool BamWriter::SaveAlignment(const BamAlignment& alignment) {
 void BamWriter::SetCompressionMode(const BamWriter::CompressionMode& compressionMode) {
     d->SetWriteCompressed( compressionMode == BamWriter::Compressed );
 }
+
+
+void BamWriter::SetCompressionLevel(const int level){
+  d->SetCompressionLevel( level );
+}

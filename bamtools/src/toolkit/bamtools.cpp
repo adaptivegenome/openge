@@ -7,6 +7,7 @@
 // Integrates a number of BamTools functionalities into a single executable.
 // ***************************************************************************
 
+#include "bamtools_compress.h"
 #include "bamtools_convert.h"
 #include "bamtools_count.h"
 #include "bamtools_coverage.h"
@@ -14,6 +15,7 @@
 #include "bamtools_header.h"
 #include "bamtools_index.h"
 #include "bamtools_merge.h"
+#include "bamtools_mergesort.h"
 #include "bamtools_random.h"
 #include "bamtools_resolve.h"
 #include "bamtools_revert.h"
@@ -30,6 +32,7 @@ using namespace BamTools;
 using namespace std;
 
 // bamtools subtool names
+static const string COMPRESS  = "compress";
 static const string CONVERT  = "convert";
 static const string COUNT    = "count";
 static const string COVERAGE = "coverage";
@@ -37,6 +40,7 @@ static const string FILTER   = "filter";
 static const string HEADER   = "header";
 static const string INDEX    = "index";
 static const string MERGE    = "merge";
+static const string MERGESORT= "mergesort";
 static const string RANDOM   = "random";
 static const string RESOLVE  = "resolve";
 static const string REVERT   = "revert";
@@ -69,7 +73,8 @@ static bool IsVersion(char* str) {
 // subtool factory method
 AbstractTool* CreateTool(const string& arg) {
   
-    // determine tool type based on arg
+  // determine tool type based on arg
+    if ( arg == COMPRESS ) return new CompressTool;
     if ( arg == CONVERT )  return new ConvertTool;
     if ( arg == COUNT )    return new CountTool;
     if ( arg == COVERAGE ) return new CoverageTool;
@@ -77,6 +82,7 @@ AbstractTool* CreateTool(const string& arg) {
     if ( arg == HEADER )   return new HeaderTool;
     if ( arg == INDEX )    return new IndexTool;
     if ( arg == MERGE )    return new MergeTool;
+    if ( arg == MERGESORT ) return new MergeSortTool;
     if ( arg == RANDOM )   return new RandomTool;
     if ( arg == RESOLVE )  return new ResolveTool;
     if ( arg == REVERT )   return new RevertTool;
@@ -106,6 +112,7 @@ int Help(int argc, char* argv[]) {
     cerr << "usage: bamtools [--help] COMMAND [ARGS]" << endl;
     cerr << endl;
     cerr << "Available bamtools commands:" << endl;
+    cerr << "\tcompress        Compresses a SAM file to a BAM file" << endl;
     cerr << "\tconvert         Converts between BAM and a number of other formats" << endl;
     cerr << "\tcount           Prints number of alignments in BAM file(s)" << endl;
     cerr << "\tcoverage        Prints coverage statistics from the input BAM file" << endl;    
@@ -113,6 +120,7 @@ int Help(int argc, char* argv[]) {
     cerr << "\theader          Prints BAM header information" << endl;
     cerr << "\tindex           Generates index for BAM file" << endl;
     cerr << "\tmerge           Merge multiple BAM files into single file" << endl;
+    cerr << "\tmergesort       Merge multiple BAM files into single sorted file" << endl;
     cerr << "\trandom          Select random alignments from existing BAM file(s), intended more as a testing tool." << endl;
     cerr << "\tresolve         Resolves paired-end reads (marking the IsProperPair flag as needed)" << endl;
     cerr << "\trevert          Removes duplicate marks and restores original base qualities" << endl;

@@ -13,6 +13,7 @@ include_directories( ${BamTools_SOURCE_DIR}/src/api
 
 # compile main bamtools application
 add_executable( bamtools_cmd
+                bamtools_compress.cpp
                 bamtools_convert.cpp
                 bamtools_count.cpp
                 bamtools_coverage.cpp
@@ -20,6 +21,7 @@ add_executable( bamtools_cmd
                 bamtools_header.cpp
                 bamtools_index.cpp
                 bamtools_merge.cpp
+                bamtools_mergesort.cpp
                 bamtools_random.cpp
                 bamtools_resolve.cpp
                 bamtools_revert.cpp

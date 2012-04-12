@@ -56,6 +56,8 @@ class BamMultiReaderPrivate {
         // access alignment data
         bool GetNextAlignment(BamAlignment& al);
         bool GetNextAlignmentCore(BamAlignment& al);
+        BamAlignment * GetNextAlignment();
+        BamAlignment * GetNextAlignmentCore();
         bool HasOpenReaders(void);
 
         // access auxiliary data
@@ -79,9 +81,10 @@ class BamMultiReaderPrivate {
 
         bool CloseFiles(const std::vector<std::string>& filenames);
         IMultiMerger* CreateAlignmentCache(void) const;
-        bool PopNextCachedAlignment(BamAlignment& al, const bool needCharData);
+        //bool PopNextCachedAlignment(BamAlignment& al, const bool needCharData);
+        BamAlignment * PopNextCachedAlignment(const bool needCharData);
         bool RewindReaders(void);
-        void SaveNextAlignment(BamReader* reader, BamAlignment* alignment);
+        void SaveNextAlignment(BamReader* reader);
         void SetErrorString(const std::string& where, const std::string& what) const; //
         bool UpdateAlignmentCache(void);
         bool ValidateReaders(void) const;

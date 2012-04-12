@@ -62,8 +62,10 @@ class API_EXPORT BamReader {
 
         // retrieves next available alignment
         bool GetNextAlignment(BamAlignment& alignment);
+        BamAlignment * GetNextAlignment();
         // retrieves next available alignmnet (without populating the alignment's string data fields)
         bool GetNextAlignmentCore(BamAlignment& alignment);
+        BamAlignment * GetNextAlignmentCore();
 
         // ----------------------
         // access header data

@@ -17,7 +17,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
-
+#include <iostream>
 namespace BamTools {
 
 //! \cond
@@ -191,13 +191,13 @@ inline bool BamAlignment::AddTag(const std::string& tag, const std::string& type
 
     // check tag/type size
     if ( !IsValidSize(tag, type) ) {
-        // TODO: set error string?
+        std::cerr << "Invalid size error" << std::endl;
         return false;
     }
 
     // check that storage type code is OK for T
-    if ( !TagTypeHelper<T>::CanConvertTo(type.at(0)) ) {
-        // TODO: set error string?
+  if ( !TagTypeHelper<T>::CanConvertTo(type.at(0)) ) {
+	std::cerr << "Can convert to error" << std::endl;
         return false;
     }
 
@@ -208,8 +208,8 @@ inline bool BamAlignment::AddTag(const std::string& tag, const std::string& type
 
     // if tag already exists, return false
     // use EditTag explicitly instead
-    if ( FindTag(tag, pTagData, tagDataLength, numBytesParsed) ) {
-        // TODO: set error string?
+  if ( FindTag(tag, pTagData, tagDataLength, numBytesParsed) ) {
+        std::cerr << "Find tag error" << std::endl;
         return false;
     }
 

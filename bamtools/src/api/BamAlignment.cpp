@@ -102,6 +102,7 @@ BamAlignment::BamAlignment(const BamAlignment& other)
     , InsertSize(other.InsertSize)
     , Filename(other.Filename)
     , SupportData(other.SupportData)
+    , ErrorString(other.ErrorString)
 { }
 
 /*! \fn BamAlignment::~BamAlignment(void)

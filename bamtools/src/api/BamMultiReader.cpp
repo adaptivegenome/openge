@@ -142,9 +142,12 @@ std::string BamMultiReader::GetHeaderText(void) const {
     \param[out] alignment destination for alignment record data
     \returns \c true if a valid alignment was found
     \sa GetNextAlignmentCore(), SetRegion(), BamReader::GetNextAlignment()
-*/
+ */
 bool BamMultiReader::GetNextAlignment(BamAlignment& nextAlignment) {
     return d->GetNextAlignment(nextAlignment);
+}
+BamAlignment * BamMultiReader::GetNextAlignment() {
+    return d->GetNextAlignment();
 }
 
 /*! \fn bool BamMultiReader::GetNextAlignmentCore(BamAlignment& alignment)
@@ -162,6 +165,9 @@ bool BamMultiReader::GetNextAlignment(BamAlignment& nextAlignment) {
 */
 bool BamMultiReader::GetNextAlignmentCore(BamAlignment& nextAlignment) {
     return d->GetNextAlignmentCore(nextAlignment);
+}
+BamAlignment * BamMultiReader::GetNextAlignmentCore() {
+    return d->GetNextAlignmentCore();
 }
 
 /*! \fn int BamMultiReader::GetReferenceCount(void) const

@@ -10,6 +10,7 @@
 #include "api/SamSequenceDictionary.h"
 using namespace BamTools;
 
+#include <cassert>
 #include <iostream>
 using namespace std;
 
@@ -196,6 +197,19 @@ SamSequenceConstIterator SamSequenceDictionary::End(void) const {
     return m_data.end();
 }
 
+/*! \fn int IndexOfString(const std::string & sequenceName)
+    Retrieves the index of an elements stored in the dictionary. Opposite of 
+    the operator[].
+ \brief Returns -1 if the dictionary contains no sequences.
+ */
+int SamSequenceDictionary::IndexOfString(const std::string & sequenceName)
+{
+  if ( !Contains(sequenceName) )
+    return -1;
+  else
+    return m_lookupData[sequenceName];
+}
+
 /*! \fn bool SamSequenceDictionary::IsEmpty(void) const
     \brief Returns \c true if dictionary contains no sequences
     \sa Size()
@@ -298,4 +312,16 @@ SamSequence& SamSequenceDictionary::operator[](const std::string& sequenceName) 
 
     const size_t index = m_lookupData[sequenceName];
     return m_data.at(index);
+}
+
+/*! \fn SamSequence& SamSequenceDictionary::operator[](const int sequenceNumber)
+ \brief Retrieves the modifiable SamSequence that matches \a sequenceNumber.
+ 
+ \param[in] sequenceNumber number of sequence to retrieve
+ \return a modifiable reference to the SamSequence associated with the name
+ */
+SamSequence& SamSequenceDictionary::operator[](const int sequenceNumber)
+{
+  assert(sequenceNumber >= 0 && sequenceNumber < m_data.size());
+  return m_data.at(sequenceNumber);
 }

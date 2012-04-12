@@ -79,6 +79,9 @@ struct API_EXPORT Sort {
         bool operator()(const BamTools::BamAlignment& lhs, const BamTools::BamAlignment& rhs) {
             return sort_helper(m_order, lhs.Name, rhs.Name);
         }
+        bool operator()(const BamTools::BamAlignment * lhs, const BamTools::BamAlignment * rhs) {
+            return sort_helper(m_order, lhs->Name, rhs->Name);
+        }
 
         // used by BamMultiReader internals
         static inline bool UsesCharData(void) { return true; }
@@ -125,6 +128,10 @@ struct API_EXPORT Sort {
             // otherwise sort on reference ID
             return sort_helper(m_order, lhs.RefID, rhs.RefID);
         }
+        bool operator()(const BamTools::BamAlignment * lhs, const BamTools::BamAlignment * rhs) {
+            return operator()(*lhs, *rhs);
+        }
+
 
         // used by BamMultiReader internals
         static inline bool UsesCharData(void) { return false; }

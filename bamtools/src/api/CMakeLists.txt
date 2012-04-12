@@ -19,8 +19,10 @@ add_subdirectory ( internal )
 set( BamToolsAPISources
         BamAlignment.cpp
         BamMultiReader.cpp
+        BamParallelismSettings.cpp
         BamReader.cpp
         BamWriter.cpp
+        SamReader.cpp
         SamHeader.cpp
         SamProgram.cpp
         SamProgramChain.cpp
@@ -45,9 +47,9 @@ set_target_properties( BamTools-static PROPERTIES
 
 # link libraries automatically with zlib (and Winsock2, if applicable)
 if( _WIN32 )
-    set( APILibs z ws2_32 )
+    set( APILibs z pthread ws2_32 )
 else( _WIN32 )
-    set( APILibs z )
+    set( APILibs z pthread )
 endif( _WIN32 )
 
 target_link_libraries( BamTools ${APILibs} )
@@ -69,11 +71,13 @@ ExportHeader(APIHeaders BamIndex.h               ${ApiIncludeDir})
 ExportHeader(APIHeaders BamMultiReader.h         ${ApiIncludeDir})
 ExportHeader(APIHeaders BamReader.h              ${ApiIncludeDir})
 ExportHeader(APIHeaders BamWriter.h              ${ApiIncludeDir})
+ExportHeader(APIHeaders BamParallelismSettings.h ${ApiIncludeDir})
 ExportHeader(APIHeaders IBamIODevice.h           ${ApiIncludeDir})
 ExportHeader(APIHeaders SamConstants.h           ${ApiIncludeDir})
 ExportHeader(APIHeaders SamHeader.h              ${ApiIncludeDir})
 ExportHeader(APIHeaders SamProgram.h             ${ApiIncludeDir})
 ExportHeader(APIHeaders SamProgramChain.h        ${ApiIncludeDir})
+ExportHeader(APIHeaders SamReader.h              ${ApiIncludeDir})
 ExportHeader(APIHeaders SamReadGroup.h           ${ApiIncludeDir})
 ExportHeader(APIHeaders SamReadGroupDictionary.h ${ApiIncludeDir})
 ExportHeader(APIHeaders SamSequence.h            ${ApiIncludeDir})

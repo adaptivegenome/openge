@@ -199,6 +199,12 @@ bool BamWriterPrivate::SaveAlignment(const BamAlignment& al) {
     }
 }
 
+void BamWriterPrivate::SetCompressionLevel(int compressionLevel)
+{
+	if ( !IsOpen() )
+		m_stream.SetCompressionLevel(compressionLevel);
+}
+
 void BamWriterPrivate::SetWriteCompressed(bool ok) {
     // modifying compression is not allowed if BAM file is open
     if ( !IsOpen() )

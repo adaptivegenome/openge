@@ -48,6 +48,7 @@ class BamWriterPrivate {
                   const BamTools::RefVector& referenceSequences);
         bool SaveAlignment(const BamAlignment& al);
         void SetWriteCompressed(bool ok);
+        void SetCompressionLevel(int compressionLevel);
 
     // 'internal' methods
     public:
