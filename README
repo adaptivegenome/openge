@@ -1,0 +1,33 @@
+Open Genomics Engine
+
+1. Introduction
+See http://www.nvidia.com/object/compute-the-cure.html for more details about this project.
+
+2. Build instructions
+
+Building OpenGE depends on a few external packages:
+boost_programoptions
+zlib
+pthreads
+cmake
+
+Once these are installed your system, you may compile OpenGE by dong the following:
+
+* Inside the top level OpenGE folder, create a directory to build the source files in, and open that directory:
+mkdir build
+cd build
+
+* Run cmake to generate makefiles for the projects:
+cmake ..
+
+* Compile bamtools and openge
+make
+
+Binaries will be created in the bin/ directory. On systems with  multiple processors, building multiple files in parallel may greatly reduce build times. Use the -j parameter for make- e.g. "make -j 16".
+
+3. License
+
+OpenGE is (C) 2012 Virginia Bioinformatics Institute. All rights reserved.
+
+License may change at a later date.
+
