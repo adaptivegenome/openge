@@ -120,12 +120,12 @@ Parameters:
 Flag&Long flag&Description\\ \hline
 -c \textit{level}&{-}{-}compression \textit{level}&Compression level- defaults to 6. Valid levels are 0-9, and correspond to zlib's deflate compression levels. \\
 -r \textit{region}&{-}{-}region \textit{region}&Genomic region to use\\
--n \textit{alignments}&{-}{-}n \textit{alignments}&Number of alignments to use per temporary file. Defaults to 500,000.\\
+-n \textit{reads}&{-}{-}n \textit{reads}&Number of reads to use per temporary file. Defaults to 500,000.\\
 -C&{-}{-}compresstempfiles&Compress temp files. By default, temporary files are uncompressed.\\
 \end{tabular}
 \end{center}
 
-The number of alignments per temporary file has a large effect on speed when processing large datasets. Adjusting the number of alignments upwards produces larger (and fewer) temporary files at the expense of memory, but reduces the processing time.
+The number of reads per temporary file has a large effect on speed when processing large datasets. Adjusting the number of reads upwards produces larger (and fewer) temporary files at the expense of memory, but reduces the processing time.
 
 \section {License}
 \copyright 2012 Virginia Bioinformatics Institute. All rights reserved.
