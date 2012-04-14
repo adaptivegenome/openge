@@ -19,12 +19,10 @@ void HeadCommand::getOptions()
 int HeadCommand::runCommand()
 {
     BamMultiReader reader;
-    vector<string> filenames_in;
     
-    filenames_in = vm["in"].as<vector<string> >();
     size_t count_limit = vm["limit"].as<size_t>();
     
-    if(!reader.Open(filenames_in)) {
+    if(!reader.Open(input_filenames)) {
         cerr << "Error opening bam files." << endl;
         return -1;
     }
