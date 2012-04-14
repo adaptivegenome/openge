@@ -12,7 +12,6 @@ else()
   cmake_policy(SET CMP0015 NEW)
   include_directories(../include)
   get_property(BAMTOOLS_LIBRARIES TARGET BamTools-static PROPERTY LOCATION)
-  message (STATUS "fancy_lib_location == ${BAMTOOLS_LIBRARIES}")
 endif()
 
 
