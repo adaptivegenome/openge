@@ -43,6 +43,7 @@ void * prefetch_start(void * reader_ptr)
     prctl(PR_SET_NAME,"bt_brprefetch",0,0,0);
 #endif
     BamReaderPrivate * reader = (BamReaderPrivate *) reader_ptr;
+    int count = 0;
 
     while(reader->do_prefetch)
     {
@@ -56,7 +57,6 @@ void * prefetch_start(void * reader_ptr)
             al = NULL;
         }
         reader->prefetch_alignments.push(al);
-        reader->prefetch_alignment_produced_spinlock++;
         if(!al)
             break;
 
@@ -68,7 +68,7 @@ void * prefetch_start(void * reader_ptr)
         // from disk- when using slower seeking disks (ie, non-SSD), the system can grind to a 
         // halt as a result of tons of threads causing reads trying to fill up their queues constantly.
         // This will send the load average through the roof.
-        if(reader->prefetch_alignment_produced_spinlock % 1000 == 0)    //don't check often
+        if(count % 300 == 0)    //don't check often
         {
             double load;
             getloadavg(&load, 1);
@@ -79,6 +79,7 @@ void * prefetch_start(void * reader_ptr)
                 while (reader->prefetch_alignments.size() > 5000) usleep(20000);
             }
         }
+        count++;
     }
 
     return NULL;
@@ -89,8 +90,6 @@ BamReaderPrivate::BamReaderPrivate(BamReader* parent)
     : m_alignmentsBeginOffset(0)
     , m_parent(parent)
     , do_prefetch(false)
-    , prefetch_alignment_produced_spinlock(0)
-    , prefetch_alignment_consumed_spinlock(0)
 {
     m_isBigEndian = BamTools::SystemIsBigEndian();
 }
@@ -299,7 +298,7 @@ BamAlignment * BamReaderPrivate::GetNextAlignmentCore() {
         
         // if alignment starts after region, no need to keep reading
         if ( state == BamRandomAccessController::AfterRegion )
-            return false;
+            return NULL;
         
         // read until overlap is found
         while ( state != BamRandomAccessController::OverlapsRegion ) {
@@ -372,7 +371,7 @@ bool BamReaderPrivate::LoadNextAlignment(BamAlignment& alignment) {
         bool retval = false;
         
         //wait for something to be prefetched
-        while(prefetch_alignment_produced_spinlock == prefetch_alignment_consumed_spinlock) sched_yield();
+        while(prefetch_alignments.size() == 0) usleep(5000);
         
         BamAlignment * al = prefetch_alignments.pop();
         
@@ -385,8 +384,6 @@ bool BamReaderPrivate::LoadNextAlignment(BamAlignment& alignment) {
         
         delete al;
         
-        prefetch_alignment_consumed_spinlock++;
-        
         return retval;
     }
     else
@@ -395,11 +392,9 @@ bool BamReaderPrivate::LoadNextAlignment(BamAlignment& alignment) {
 BamAlignment * BamReaderPrivate::LoadNextAlignment() {
     if(do_prefetch) {        
         //wait for something to be prefetched
-        while(prefetch_alignment_produced_spinlock == prefetch_alignment_consumed_spinlock) sched_yield();
+        while(prefetch_alignments.size() == 0) usleep(5000);
         
         BamAlignment * al = prefetch_alignments.pop();
-
-        prefetch_alignment_consumed_spinlock++;
         
         return al;
     } else {

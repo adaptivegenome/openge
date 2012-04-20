@@ -135,9 +135,6 @@ class BamReaderPrivate {
     
     public:
       bool do_prefetch; //should we continue doing prefetch? Starts as true, and is set to false
-      //signal when a prefetched alignment is ready
-      //and then when it can be overwritten
-      volatile int64_t prefetch_alignment_produced_spinlock, prefetch_alignment_consumed_spinlock;
       SynchronizedQueue<BamAlignment *> prefetch_alignments;
 
       // Store the position in the file as it would be without prefetching so that we can move the file pointer back to the correct location if we have to stop prefetching. 

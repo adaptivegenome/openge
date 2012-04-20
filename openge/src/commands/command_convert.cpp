@@ -1,11 +1,10 @@
 #include "commands.h"
 
-using namespace std;
-
 #include <api/SamReader.h>
 #include <api/BamWriter.h>
 using namespace BamTools;
 namespace po = boost::program_options;
+using namespace std;
 
 void ConvertCommand::getOptions()
 {

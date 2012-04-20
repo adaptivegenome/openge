@@ -37,6 +37,7 @@ protected:
     
     // Automatically filled with filenames to be used as input. Can also include stdin.
     std::vector<std::string> input_filenames;
+    std::string output_filename;
     
     // Multithreading is disabled
     bool nothreads;
@@ -69,6 +70,13 @@ protected:
     virtual int runCommand();
 };
 
+class DedupCommand: public OpenGECommand
+{
+protected:
+    virtual int runCommand();
+    void getOptions();
+};
+
 class HeadCommand : public OpenGECommand
 {
 protected:
@@ -91,6 +99,21 @@ protected:
     
     class MergeSortCommandImplementation;
     MergeSortCommandImplementation * impl;
+};
+
+class StatsCommand: public OpenGECommand
+{
+protected:
+    virtual int runCommand();
+    void getOptions();
+};
+
+
+class ViewCommand: public OpenGECommand
+{
+protected:
+    virtual int runCommand();
+    void getOptions();
 };
 
 #endif

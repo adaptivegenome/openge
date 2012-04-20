@@ -248,7 +248,6 @@ string BamMultiReaderPrivate::GetHeaderText(void) const {
     return mergedHeader.ToString();
 }
 
-#if 1
 // get next alignment among all files
 bool BamMultiReaderPrivate::GetNextAlignment(BamAlignment& al) {
     BamAlignment * ret = PopNextCachedAlignment(true);
@@ -277,17 +276,6 @@ bool BamMultiReaderPrivate::GetNextAlignmentCore(BamAlignment& al) {
 BamAlignment * BamMultiReaderPrivate::GetNextAlignmentCore() {
     return PopNextCachedAlignment(false);
 }
-#else
-// get next alignment among all files
-bool BamMultiReaderPrivate::GetNextAlignment(BamAlignment& al) {
-    return PopNextCachedAlignment(al, true);
-}
-
-// get next alignment among all files without parsing character data from alignments
-bool BamMultiReaderPrivate::GetNextAlignmentCore(BamAlignment& al) {
-    return PopNextCachedAlignment(al,false);
-}
-#endif
 
 // ---------------------------------------------------------------------------------------
 //
