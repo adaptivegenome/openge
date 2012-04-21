@@ -97,13 +97,7 @@ public:
         m.erase(key);
         return ret;
     }
-    /*
-    ~ReadEndsMap()
-    {
-        for (map<pair<int, string>, ReadEnds *>::iterator iter = m.begin(); iter != m.end(); ++iter)
-            cerr << "Missing: " << iter->first.first << "::" << iter->first.second << endl;
-    }*/
-    
+
     size_t size() { return m.size();};
     
 };
@@ -115,27 +109,38 @@ protected:
     vector<ReadEnds *> fragSort;
     set<int> duplicateIndexes;
     int numDuplicateIndices;
-    
-    bool removeDuplicates;
-    
+
     map<string,short> libraryIds;
     short nextLibraryId;
     
 public:
     string filename_out;
     vector<string> filenames_in;
+    bool removeDuplicates;
+    bool verbose;
+    bool buffer_input_to_file;
     MarkDuplicates()
     : numDuplicateIndices(0)
-    , removeDuplicates(false)
     , nextLibraryId(1)
+    , removeDuplicates(false)
+    , verbose(false)
+    , buffer_input_to_file(false)
     {}
+    
+    string getBufferFilename()
+    {
+        char filename[48];
+        sprintf(filename, "/tmp/dedup_%8x.bam",  (uint32_t)(0xffffffff & (uint64_t)this));
+        
+        return string(filename);
+    }
+    
     /////////////////
     // From Samtools' SAMRecord.java:
-#if 1
-    
-    int getReferenceLength(const BamAlignment * rec) {
+
+    int getReferenceLength(const BamAlignment &rec) {
         int length = 0;
-        for(vector<CigarOp>::const_iterator i = rec->CigarData.begin(); i != rec->CigarData.end(); i++) {
+        for(vector<CigarOp>::const_iterator i = rec.CigarData.begin(); i != rec.CigarData.end(); i++) {
             switch (i->Type) {
                 case 'M':
                 case 'D':
@@ -153,15 +158,15 @@ public:
     /**
      * @return 1-based inclusive leftmost position of the clippped sequence, or 0 if there is no position.
      */
-    int getAlignmentStart(const BamAlignment * rec) {
-        return rec->Position;
+    int getAlignmentStart(const BamAlignment & rec) {
+        return rec.Position;
     }
     
     /**
      * @return 1-based inclusive rightmost position of the clippped sequence, or 0 read if unmapped.
      */
-    int getAlignmentEnd(const BamAlignment * rec) {
-        if (!rec->IsMapped() ) {
+    int getAlignmentEnd(const BamAlignment & rec) {
+        if (!rec.IsMapped() ) {
             return -1;
         } else {
             return getAlignmentStart(rec) + getReferenceLength(rec)-1;
@@ -175,10 +180,10 @@ public:
      *
      * Invalid to call on an unmapped read.
      */
-    int getUnclippedStart(const BamAlignment * rec) {
+    int getUnclippedStart(const BamAlignment & rec) {
         int pos = getAlignmentStart(rec);
         
-        for (vector<CigarOp>::const_iterator op = rec->CigarData.begin(); op != rec->CigarData.end(); op++ ) {
+        for (vector<CigarOp>::const_iterator op = rec.CigarData.begin(); op != rec.CigarData.end(); op++ ) {
             if (op->Type == 'S' || op->Type == 'H') {
                 pos -= op->Length;
             }
@@ -197,11 +202,11 @@ public:
      *
      * Invalid to call on an unmapped read.
      */
-    int getUnclippedEnd(const BamAlignment * rec) {
+    int getUnclippedEnd(const BamAlignment & rec) {
         int pos = getAlignmentEnd(rec);
         
-        for (int i=rec->CigarData.size() - 1; i>=0; --i) {
-            const CigarOp & op = rec->CigarData[i];
+        for (int i=rec.CigarData.size() - 1; i>=0; --i) {
+            const CigarOp & op = rec.CigarData[i];
             
             if (op.Type == 'S' || op.Type =='H') {
                 pos += op.Length;
@@ -216,31 +221,30 @@ public:
     
     // end Samtools
     /////////////////
-#endif
 
     /** Calculates a score for the read which is the sum of scores over Q20. */
-    short getScore(const BamAlignment * rec) {
+    short getScore(const BamAlignment & rec) {
         short score = 0;
-        for (int i = 0; i < rec->Qualities.size(); i++) {
-            uint8_t b = rec->Qualities[i]-33;   //33 comes from the conversion in BamAlignment
+        for (int i = 0; i < rec.Qualities.size(); i++) {
+            uint8_t b = rec.Qualities[i]-33;   //33 comes from the conversion in BamAlignment
             if (b >= 15) score += b;
         }
         
         return score;
     }
-    
+
     /** Builds a read ends object that represents a single read. */
-    ReadEnds * buildReadEnds(SamHeader & header, long index, BamAlignment * rec) {
+    ReadEnds * buildReadEnds(SamHeader & header, long index, const BamAlignment & rec) {
         ReadEnds * ends = new ReadEnds();
-        ends->read1Sequence    = rec->RefID;
-        ends->read1Coordinate  = rec->IsReverseStrand() ? getUnclippedEnd(rec) : getUnclippedStart(rec);
-        ends->orientation = rec->IsReverseStrand() ? RE_R : RE_F;
+        ends->read1Sequence    = rec.RefID;
+        ends->read1Coordinate  = rec.IsReverseStrand() ? getUnclippedEnd(rec) : getUnclippedStart(rec);
+        ends->orientation = rec.IsReverseStrand() ? RE_R : RE_F;
         ends->read1IndexInFile = index;
         ends->score = getScore(rec);
         
         // Doing this lets the ends object know that it's part of a pair
-        if (rec->IsPaired() && rec->IsMateMapped()) {
-            ends->read2Sequence = rec->MateRefID;
+        if (rec.IsPaired() && rec.IsMateMapped()) {
+            ends->read2Sequence = rec.MateRefID;
         }
         
         // Fill in the library ID
@@ -277,26 +281,33 @@ public:
         reader.Open(filenames_in.front());
         SamHeader header = reader.GetHeader();
         
+        BamWriter writer;
+        
+        if(buffer_input_to_file) {
+            writer.Open(getBufferFilename(), reader.GetHeader(), reader.GetReferenceData());
+        }
+        
         while (true) {
-            BamAlignment * rec = reader.GetNextAlignment();
-            if(!rec) break;
+            BamAlignment rec;
+            if(!reader.GetNextAlignment(rec))
+                break;
             
-            if (!rec->IsMapped()) {
-                if (rec->RefID == -1) {
+            if (!rec.IsMapped()) {
+                if (rec.RefID == -1) {
                     // When we hit the unmapped reads with no coordinate, no reason to continue.
                     break;
                 }
                 // If this read is unmapped but sorted with the mapped reads, just skip it.
             }
-            else if (rec->IsPrimaryAlignment()){
+            else if (rec.IsPrimaryAlignment()){
                 ReadEnds * fragmentEnd = buildReadEnds(header, index, rec);
                 fragSort.push_back(fragmentEnd);
                 
-                if (rec->IsPaired() && rec->IsMateMapped()) {
+                if (rec.IsPaired() && rec.IsMateMapped()) {
                     string read_group;
-                    rec->GetTag("RG", read_group);
-                    string key = read_group + ":" + rec->Name;
-                    ReadEnds * pairedEnds = tmp.remove(rec->RefID, key);
+                    rec.GetTag("RG", read_group);
+                    string key = read_group + ":" + rec.Name;
+                    ReadEnds * pairedEnds = tmp.remove(rec.RefID, key);
                     
                     // See if we've already seen the first end or not
                     if (pairedEnds == NULL) {
@@ -313,7 +324,7 @@ public:
                             pairedEnds->read2Sequence    = sequence;
                             pairedEnds->read2Coordinate  = coordinate;
                             pairedEnds->read2IndexInFile = index;
-                            pairedEnds->orientation = getOrientationByte(pairedEnds->orientation == RE_R, rec->IsReverseStrand());
+                            pairedEnds->orientation = getOrientationByte(pairedEnds->orientation == RE_R, rec.IsReverseStrand());
                         }
                         else {
                             pairedEnds->read2Sequence    = pairedEnds->read1Sequence;
@@ -322,7 +333,7 @@ public:
                             pairedEnds->read1Sequence    = sequence;
                             pairedEnds->read1Coordinate  = coordinate;
                             pairedEnds->read1IndexInFile = index;
-                            pairedEnds->orientation = getOrientationByte(rec->IsReverseStrand(), pairedEnds->orientation == RE_R);
+                            pairedEnds->orientation = getOrientationByte(rec.IsReverseStrand(), pairedEnds->orientation == RE_R);
                         }
 
                         pairedEnds->score += getScore(rec);
@@ -332,22 +343,26 @@ public:
             }
             
             // Print out some stats every 1m reads
-            if (++index % 100000 == 0) {
-                cerr << "Read " << index << " records. Tracking " << tmp.size() << " as yet unmatched pairs. Last sequence index: " << rec->Position << "\r" << endl;
+            if (verbose && ++index % 100000 == 0) {
+                cerr << "Read " << index << " records. Tracking " << tmp.size() << " as yet unmatched pairs. Last sequence index: " << rec.Position << "\r" << endl;
             }
             
-            delete rec;
+            if(buffer_input_to_file)
+                writer.SaveAlignment(rec);
         }
         
         reader.Close();
+        if(buffer_input_to_file)
+            writer.Close();
         
-        cerr << "Read " << index << " records. " << tmp.size() << " pairs never matched." << endl;
+        if(verbose)
+            cerr << "Read " << index << " records. " << tmp.size() << " pairs never matched." << endl;
         sort(pairSort.begin(), pairSort.end(), compareReadEnds());
         sort(fragSort.begin(), fragSort.end(), compareReadEnds());
     }
     
     /** Get the library ID for the given SAM record. */
-    short getLibraryId(SamHeader & header, const BamAlignment * rec) {
+    short getLibraryId(SamHeader & header, const BamAlignment & rec) {
         string library = getLibraryName(header, rec);
         
         short libraryId;
@@ -366,10 +381,10 @@ public:
      * the record, or the library isn't denoted on the read group, a constant string is
      * returned.
      */
-    string getLibraryName(SamHeader & header, const BamAlignment * rec) {     
+    string getLibraryName(SamHeader & header, const BamAlignment & rec) {     
 
         string read_group;
-        rec->GetTag("RG", read_group);
+        rec.GetTag("RG", read_group);
 
         if (read_group.size() > 0 && header.ReadGroups.Contains(read_group)) {
             SamReadGroupDictionary & d = header.ReadGroups;
@@ -396,7 +411,9 @@ public:
         nextChunk.reserve(200);
 
         // First just do the pairs
-        cerr << "Traversing read pair information and detecting duplicates." << endl;
+        if(verbose)
+            cerr << "Traversing read pair information and detecting duplicates." << endl;
+
         for (int i = 0;i < pairSort.size(); i++) {
             ReadEnds * next = pairSort[i];
             if (firstOfNextChunk == NULL) {
@@ -425,7 +442,9 @@ public:
         pairSort.clear();
         
         // Now deal with the fragments
-        cerr << "Traversing fragment information and detecting duplicates." << endl;
+        if(verbose)
+            cerr << "Traversing fragment information and detecting duplicates." << endl;
+
         bool containsPairs = false;
         bool containsFrags = false;
         
@@ -456,7 +475,8 @@ public:
         }
         fragSort.clear();
 
-        cerr << "Sorting list of duplicate records." << endl;
+        if(verbose)
+            cerr << "Sorting list of duplicate records." << endl;
     }
     
     bool areComparableForDuplicates(const ReadEnds & lhs, const ReadEnds & rhs, bool compareRead2) {
@@ -481,15 +501,23 @@ public:
      */
     int doWork() {
         
-        cerr << "Reading input file and constructing read end information." << endl;
+        if(verbose)
+            cerr << "Reading input file and constructing read end information." << endl;
         buildSortedReadEndLists();
         
         generateDuplicateIndexes();
         
-        cerr << "Marking " << numDuplicateIndices << " records as duplicates." << endl;
+        if(verbose)
+            cerr << "Marking " << numDuplicateIndices << " records as duplicates." << endl;
         
         BamMultiReader in;
-        in.Open(filenames_in);
+        if(buffer_input_to_file) {
+            vector<string> filenames;
+            filenames.push_back(getBufferFilename());
+            in.Open(filenames);
+        }
+        else
+            in.Open(filenames_in);
         
         BamWriter out;
         out.Open(filename_out,in.GetHeader(),in.GetReferenceData());
@@ -516,7 +544,7 @@ public:
             }
             else {
                 out.SaveAlignment(rec);
-                if (++written % 100000 == 0) {
+                if (verbose && ++written % 100000 == 0) {
                     cerr << "Written " << written << " records.\r" << endl;
                 }
             }
@@ -524,6 +552,9 @@ public:
         
         in.Close();
         out.Close();
+        
+        if(buffer_input_to_file)
+            remove(getBufferFilename().c_str());
         
         return 0;
     }
@@ -614,6 +645,7 @@ void DedupCommand::getOptions()
 {
     options.add_options()
     ("out,o", po::value<string>()->default_value("stdout"), "Output filename. Omit for stdout.")
+    ("remove,r", "Remove duplicates")
     ;
 }
 
@@ -622,20 +654,22 @@ int DedupCommand::runCommand()
     MarkDuplicates md;
     md.filename_out = vm["out"].as<string>();
     md.filenames_in = input_filenames;
-    
+    md.removeDuplicates = vm.count("remove") > 0;
+    md.verbose = verbose;
+    md.buffer_input_to_file = false;
+
     if(input_filenames.size() == 1 && input_filenames[0] == string("stdin"))
     {
-        cerr << "The current deduplication algorithm does not support reading from" << endl << "stdin. Please provide a filename to read from." << endl;
-        return -1;
+        md.buffer_input_to_file = true;
+        cerr << "Info: Using stdin for input requires creation of a temporary file, which may result in slower running times." << endl;
     }
-    
+
     if(input_filenames.size() != 1)
     {
         cerr << "One input file is required. You supplied " << input_filenames.size() << endl;
         return -1;
     }
 
-    
     md.doWork();
     
     return 0;
