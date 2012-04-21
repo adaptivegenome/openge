@@ -78,7 +78,7 @@ ostream& operator<< (ostream& out, const ReadEnds & re )
 }
 
 struct compareReadEnds {
-    bool operator ()(const ReadEnds const *lhs, const ReadEnds const *rhs) { return *lhs < *rhs; }
+    bool operator ()(const ReadEnds *lhs, const ReadEnds *rhs) { return *lhs < *rhs; }
     bool operator ()(const ReadEnds & lhs, const ReadEnds & rhs) { return lhs < rhs; }
 };
 
