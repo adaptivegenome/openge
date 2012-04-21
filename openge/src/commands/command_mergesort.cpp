@@ -31,9 +31,6 @@ using namespace std;
 #include <api/algorithms/Sort.h>
 #include <api/BamParallelismSettings.h>
 
-//#include "api/internal/utils/ThreadPool.h"
-//#include "api/internal/io/BgzfStream_p.h"
-
 #ifdef __linux__
 #include <sys/prctl.h>
 #endif
