@@ -281,10 +281,11 @@ public:
         reader.Open(filenames_in.front());
         SamHeader header = reader.GetHeader();
         
-        BamWriter writer;
+        BamWriter * writer = NULL;
         
         if(buffer_input_to_file) {
-            writer.Open(getBufferFilename(), reader.GetHeader(), reader.GetReferenceData());
+            writer = new BamWriter();
+            writer->Open(getBufferFilename(), reader.GetHeader(), reader.GetReferenceData());
         }
         
         while (true) {
@@ -348,12 +349,15 @@ public:
             }
             
             if(buffer_input_to_file)
-                writer.SaveAlignment(rec);
+                writer->SaveAlignment(rec);
         }
         
         reader.Close();
-        if(buffer_input_to_file)
-            writer.Close();
+        if(buffer_input_to_file) {
+            writer->Close();
+            delete writer;
+            writer = NULL;
+        }
         
         if(verbose)
             cerr << "Read " << index << " records. " << tmp.size() << " pairs never matched." << endl;

@@ -534,6 +534,7 @@ BgzfStream::BgzfStream(void)
   , m_uncompressedBlock(Constants::BGZF_DEFAULT_BLOCK_SIZE)
   , m_compressedBlock(Constants::BGZF_MAX_BLOCK_SIZE)
   , m_thread_pool(NULL)
+  , m_lastWriteLock(NULL)
   , m_cache(NULL)
 { }
 
