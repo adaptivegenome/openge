@@ -1,6 +1,7 @@
 \documentclass[11pt]{article}
 
 \usepackage[parfill]{parskip}
+\usepackage{comment}
 
 \setlength{\topmargin}{-.5in}
 \setlength{\textheight}{9in}
@@ -10,20 +11,20 @@
 \newcommand {\cmd}[1] {\begin{quote}#1\end{quote}}
 
 \begin{document}
-\title{Open Genomics Engine - Command Documentation}
-\author{Lee Baker\\
-Virginia Bioinformatics Instutute\\
-lee@leecbaker.com}
+\title{Open Genomics Engine - Framework Documentation}
+\author{Lee Baker and David Mittelman\\
+Virginia Bioinformatics Institute \\
+lee@leecbaker.com, david.mittelman@vt.edu}
 \maketitle
 
 \section {Introduction}
+The Open Genomics Engine (OpenGE) is a open software framework for manipulating and interpreting high-throughput sequencing data. This documentation describes core functions that are integrated into the official distribution of the framework. For a background on the project visit http://www.openge.org. OpenGE is available as binaries for Linux and MacOS or as source. The source distribution contains further instructions for compiling and installing the software. Future releases will include VMware and Amazon EC2 images.
 \section {Commands}
-OpenGE consists of a collection of operations that can be invoked using the 
-OpenGE should be called with the following syntax:
+OpenGE consists of a collection of operations that can be invoked on the command line using the following syntax:
 
 \cmd{openge \textit{command [options]}}
 
-where command is one of the commands listed in the following table, and options are various flags and parameters that may be supplied depending on the command:
+where \textit{command} is one of the commands listed in the following table, and \textit{options} are various flags and parameters that may be supplied depending on the command:
 
 \begin{center}
 \begin{tabular}{lp{3.5in}}
@@ -31,34 +32,33 @@ where command is one of the commands listed in the following table, and options 
 Command&Description\\ \hline
 convert&Convert a SAM file to a BAM file\\
 count&Count reads in a BAM file\\
-dedup&Mark duplicates\\
-head&Create a BAM file with the first \textit{n} reads of another BAM file\\
-help&Get help for any OpenGE command\\
-mergesort&Merges and sorts multiple bamfiles\\
-stats&Displays statistics about one or more bamfiles\\
-view&Generate a new bamfile by filtering an existing bamfile\\
+dedup&Mark (or remove) duplicate reads\\
+help&View detailed help for any OpenGE command\\
+mergesort&Merge and sort multiple input BAM files\\
+stats&Generate statistics for one or more BAM files\\
+view&View a filtered subset of a BAM file\\
 \end{tabular}
 \end{center}
 
 \subsection {General}
-The following flags are common between for all commands. Additional flags and parameters are available for individual commands, depending on the command.
+The following flags are common for all OpenGE commands. Additional flags and parameters may be available for individual commands.
 \begin{center}
 \begin{tabular}{llp{3.5in}}
 \hline
 Flag&Long flag&Description\\ \hline
--i \textit{filename}&{-}{-}in \textit{filename}&Input filename. Input files can also be specified without this flag. Optional.\\
+-i \textit{filename}&{-}{-}in \textit{filename}&Input filename. Input files can also be specified without this flag. Defaults to stein if no input is specified.\\
 -o \textit{filename}&{-}{-}out \textit{filename}&Output filename. Defaults to stdout if omitted. \\
--v&{-}{-}verbose&Display additional information to stderr while processing, including progress indicators and informational messages. Optional.\\
--t&{-}{-}threads&Select the number of threads to be used when doing parallel processing. Optional.\\
--d&{-}{-}nothreads&Disable multithreaded processing.\\
+-v&{-}{-}verbose&Display additional information to stderr during operation (e.g. progress indicators and other informational messages). Optional.\\
+-t&{-}{-}threads&Set the number of threads to be used for multithreaded operations. Optional.\\
+-d&{-}{-}nothreads&Disable multithreading.\\
 \end{tabular}
 \end{center}
 
-When input or output files are required, stdin or stdout may be used by simply omitting the input filename or output filename. For instance, the following command:
+When input or output files are required, stdin or stdout may be used by simply omitting \textit{filename}. For example, the following command:
 
 \cmd{openge mergesort}
 
-by itself will read a BAM file from command line, process it, and print the results to stdout. This enables commands to be chained together. For instance:
+with no input specified, will read a BAM file from stdin, operate on the file, and write the results to stdout. This enables commands to be chained together. For instance:
 
 \cmd{openge convert in.sam $|$ openge count}
 
@@ -68,7 +68,7 @@ will count the number of lines in a SAM file. Console redirection can be used as
 \cmd{openge mergesort $<$ a.bam $>$ c.bam}
 
 \subsection {convert}
-Converts a SAM file to a BAM file.
+Converts (compresses) a SAM file to a BAM file.
 
 Example:
 \cmd{openge convert in.sam -o out.bam}
@@ -80,8 +80,23 @@ Example:
 \cmd{openge count b.bam c.bam d.bam}
 
 \subsection {dedup}
-To be completed at a later date.
+The dedup command either marks duplicate reads (compatible with Picard) or removes the duplicate reads. 
 
+Duplicates are marked by setting the 'duplicate' bitflag for each read found to be a duplicate. If the -r or --remove flags are specified, the read is omitted from the output bamfile. The duplicate identification 
+
+\begin{center}
+\begin{tabular}{llp{3.5in}}
+\hline
+Flag&Long flag&Description\\ \hline
+-r&{-}{-}remove&Remove duplicates instead of only marking them.\\
+\end{tabular}
+\end{center}
+
+For example,
+\cmd{openge dedup a.bam -o z.bam} 
+identifies duplicates in a.bam, and writes all reads to z.bam with duplicates identified.
+
+\begin{comment}
 \subsection {head}
 A single bamfile is generated from the first \textit{n} reads in the provided file. The header information saved is the same as in the input file.
 
@@ -94,12 +109,13 @@ Parameters:
 \begin{tabular}{llp{3.5in}}
 \hline
 Flag&Long flag&Description\\ \hline
--n&--n&Number of reads to include in the generated file\\
+-n \textit{number}&{-}{-}count \textit{number}&Number of reads to include in the generated file\\
 \end{tabular}
 \end{center}
+\end{comment}
 
 \subsection {help}
-The help command shows available options for any available command. 
+The help command shows available options for any OpenGE command. 
 
 \cmd{openge help \textit{[command]}}
 
@@ -113,7 +129,7 @@ Available commands can be seen in the table at the top of this section.
 
 
 \subsection {mergesort}
-This command generates a single bamfile from one or more input files. The supplied input files are merged and then sorted by read position or region.
+This command generates a single BAM file from one or more input files. The supplied input files are merged and then sorted by read position or region.
 
 Parameters:
 \begin{center}
@@ -123,14 +139,48 @@ Flag&Long flag&Description\\ \hline
 -c \textit{level}&{-}{-}compression \textit{level}&Compression level- defaults to 6. Valid levels are 0-9, and correspond to zlib's deflate compression levels. \\
 -r \textit{region}&{-}{-}region \textit{region}&Genomic region to use\\
 -n \textit{reads}&{-}{-}n \textit{reads}&Number of reads to use per temporary file. Defaults to 500,000.\\
--C&{-}{-}compresstempfiles&Compress temp files. By default, temporary files are uncompressed.\\
+-C&{-}{-}compresstempfiles&Compress temporary files. By default, temporary files are not compressed.\\
 \end{tabular}
 \end{center}
 
-The number of reads per temporary file has a large effect on speed when processing large datasets. Adjusting the number of reads upwards produces larger (and fewer) temporary files at the expense of memory, but reduces the processing time.
+The number of reads per temporary file can have a substantial effect on speed when processing large datasets. Increasing the number of reads per file produces larger (and fewer) temporary files at the expense of memory, but reduces the processing time.
 
 \subsection{stats}
+Prints out statistics about a bamfile. No flags are required.
+The stats command generates statistics for one or more input BAM files. The computed statistics are summarized below.
+
+Example:
+
+\cmd{openge stats a.bam}
+\cmd{openge stats a.bam b.bam c.bam}
 \subsection{view}
+The view command returns a portion of a bamfile optionally filtered by region, and then optionally limited to a smaller number of reads.
+
+Parameters:
+\begin{center}
+\begin{tabular}{llp{3.5in}}
+\hline
+Flag&Long flag&Description\\ \hline
+-n \textit{number}&{-}{-}count\textit{number}&Number of reads to include in the generated file. Defaults to include the entire file.\\
+-r\textit{region}&{-}{-}region \textit{region}&Region string (see below for format)\\
+\end{tabular}
+\end{center}
+
+\subsubsection{Region string format}
+Region strings are formatted exactly like the equivalent bamtools region strings, and this section is an excerpt from the bamtools documentation.
+
+A proper REGION string can be formatted like any of the following examples (where 'chr1' is the name of a reference (not its ID)and '' is any valid integer position within that reference.):
+
+\begin{center}
+\begin{tabular}{lp{3.5in}}
+{-}{-}region chr1&only alignments on (entire) reference 'chr1'\\
+{-}{-}region chr1:500&only alignments overlapping the region starting at chr1:500 and continuing to the end of chr1\\
+{-}{-}region chr1:500..1000&only alignments overlapping the region starting at chr1:500 and continuing to chr1:1000\\
+{-}{-}region chr1:500..chr3:750&only alignments overlapping the region starting at chr1:500 and continuing to chr3:750.\\
+\end{tabular}
+\end{center}
+
+This 'spanning' region assumes that the reference specified as the right boundary will occur somewhere in the file after the left boundary. On a sorted BAM, a region of 'chr4:500..chr2:1500' will produce undefined (incorrect) results. So don't do it. :)
 
 \section {License}
 \copyright 2012 Virginia Bioinformatics Institute. All rights reserved.
