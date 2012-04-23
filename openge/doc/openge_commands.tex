@@ -1,6 +1,7 @@
 \documentclass[11pt]{article}
 
 \usepackage[parfill]{parskip}
+\usepackage{comment}
 
 \setlength{\topmargin}{-.5in}
 \setlength{\textheight}{9in}
@@ -32,7 +33,6 @@ Command&Description\\ \hline
 convert&Convert a SAM file to a BAM file\\
 count&Count reads in a BAM file\\
 dedup&Mark duplicates\\
-head&Create a BAM file with the first \textit{n} reads of another BAM file\\
 help&Get help for any OpenGE command\\
 mergesort&Merges and sorts multiple bamfiles\\
 stats&Displays statistics about one or more bamfiles\\
@@ -80,8 +80,23 @@ Example:
 \cmd{openge count b.bam c.bam d.bam}
 
 \subsection {dedup}
-To be completed at a later date.
+A bamfile is generated with identified duplicates from the input file marked or removed.
 
+Duplicates are marked by setting the 'duplicate' bitflag for each read found to be a duplicate. If the -r or --remove flags are specified, the read is omitted from the output bamfile. The duplicate identification 
+
+\begin{center}
+\begin{tabular}{llp{3.5in}}
+\hline
+Flag&Long flag&Description\\ \hline
+-r&{-}{-}remove&Remove duplicates instead of only marking them.\\
+\end{tabular}
+\end{center}
+
+For example,
+\cmd{openge dedup a.bam -o z.bam} 
+identifies duplicates in a.bam, and writes all reads to z.bam with duplicates identified.
+
+\begin{comment}
 \subsection {head}
 A single bamfile is generated from the first \textit{n} reads in the provided file. The header information saved is the same as in the input file.
 
@@ -94,9 +109,10 @@ Parameters:
 \begin{tabular}{llp{3.5in}}
 \hline
 Flag&Long flag&Description\\ \hline
--n&--n&Number of reads to include in the generated file\\
+-n \textit{number}&{-}{-}count \textit{number}&Number of reads to include in the generated file\\
 \end{tabular}
 \end{center}
+\end{comment}
 
 \subsection {help}
 The help command shows available options for any available command. 
@@ -130,7 +146,38 @@ Flag&Long flag&Description\\ \hline
 The number of reads per temporary file has a large effect on speed when processing large datasets. Adjusting the number of reads upwards produces larger (and fewer) temporary files at the expense of memory, but reduces the processing time.
 
 \subsection{stats}
+Prints out statistics about a bamfile. No flags are required.
+
+Example:
+
+\cmd{openge stats a.bam}
+\cmd{openge stats a.bam b.bam c.bam}
 \subsection{view}
+The view command returns a portion of a bamfile optionally filtered by region, and then optionally limited to a smaller number of reads.
+\begin{center}
+\begin{tabular}{llp{3.5in}}
+\hline
+Flag&Long flag&Description\\ \hline
+-n \textit{number}&{-}{-}count\textit{number}&Number of reads to include in the generated file. Defaults to include the entire file.\\
+-r\textit{region}&{-}{-}region \textit{region}&Region string (see below for format)\\
+\end{tabular}
+\end{center}
+
+\subsubsection{Region string format}
+Region strings are formatted exactly like the equivalent bamtools region strings, and this section is an excerpt from the bamtools documentation.
+
+A proper REGION string can be formatted like any of the following examples (where 'chr1' is the name of a reference (not its ID)and '' is any valid integer position within that reference.):
+
+\begin{center}
+\begin{tabular}{lp{3.5in}}
+{-}{-}region chr1&only alignments on (entire) reference 'chr1'\\
+{-}{-}region chr1:500&only alignments overlapping the region starting at chr1:500 and continuing to the end of chr1\\
+{-}{-}region chr1:500..1000&only alignments overlapping the region starting at chr1:500 and continuing to chr1:1000\\
+{-}{-}region chr1:500..chr3:750&only alignments overlapping the region starting at chr1:500 and continuing to chr3:750.\\
+\end{tabular}
+\end{center}
+
+This 'spanning' region assumes that the reference specified as the right boundary will occur somewhere in the file after the left boundary. On a sorted BAM, a region of 'chr4:500..chr2:1500' will produce undefined (incorrect) results. So don't do it. :)
 
 \section {License}
 \copyright 2012 Virginia Bioinformatics Institute. All rights reserved.
