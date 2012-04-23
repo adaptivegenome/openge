@@ -4,6 +4,10 @@
 #include <string>
 using namespace std;
 
+#ifndef SIZE_T_MAX
+#define SIZE_T_MAX ((size_t) -1)
+#endif
+
 #include <api/BamMultiReader.h>
 #include <api/BamWriter.h>
 using namespace BamTools;
@@ -13,11 +17,9 @@ void ViewCommand::getOptions()
 {
     options.add_options()
     ("out,o", po::value<string>()->default_value("stdout"), "Output filename. Omit for stdout.")
-    ("count,n", po::value<size_t>()->default_value(10), "Number of alignments to copy")
+    ("count,n", po::value<size_t>(), "Number of alignments to copy")
     ("region,r", po::value<string>(), "Genomic region to use.");
 }
-
-
 
 // this has been copied from bamtools utilities, since it isn't in the API. Original file is bamtools_utilities.cpp
 bool ParseRegionString(const string& regionString, const BamMultiReader& reader, BamRegion& region)
@@ -132,8 +134,8 @@ int ViewCommand::runCommand()
     
     size_t count_limit = SIZE_T_MAX;
     
-    if(vm.count("limit"))
-        count_limit = vm["limit"].as<size_t>();
+    if(vm.count("count"))
+        count_limit = vm["count"].as<size_t>();
     
     if(!reader.Open(input_filenames)) {
         cerr << "Error opening bam files." << endl;
