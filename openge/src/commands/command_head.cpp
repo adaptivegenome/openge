@@ -13,7 +13,7 @@ void HeadCommand::getOptions()
 {
     options.add_options()
     ("out,o", po::value<string>()->default_value("stdout"), "Output filename. Omit for stdout.")
-    ("limit,n", po::value<size_t>()->default_value(10), "Number of alignments to copy");
+    ("count,n", po::value<size_t>()->default_value(10), "Number of alignments to copy");
 }
 
 int HeadCommand::runCommand()

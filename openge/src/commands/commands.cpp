@@ -36,14 +36,17 @@ int OpenGECommand::runWithParameters(int argc, const char ** argv)
     BamParallelismSettings::setNumberThreads(num_threads);
     
     nothreads = vm.count("nothreads") != 0;
-
-    if(verbose)
-        cerr << num_threads << " cores for use in thread pool." << endl;
     
-    if(nothreads)
+    if(nothreads) {
+        if(verbose)
+            cerr << "Multithreading disabled." << endl;
+
         BamParallelismSettings::disableMultithreading();
-    else
+    } else {
+        if(verbose)
+            cerr << num_threads << " cores for use in thread pool." << endl;
         BamParallelismSettings::enableMultithreading();
+    }
     
     return runCommand();
 }
