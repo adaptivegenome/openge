@@ -1,6 +1,8 @@
 #include "mark_duplicates.h"
 #include <api/BamMultiReader.h>
 #include <api/BamWriter.h>
+
+#include <algorithm>
 using namespace BamTools;
 using namespace std;
 
