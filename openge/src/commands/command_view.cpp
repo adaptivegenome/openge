@@ -21,7 +21,7 @@ void ViewCommand::getOptions()
     ("region,r", po::value<string>(), "Genomic region to use.");
 }
 
-// this has been copied from bamtools utilities, since it isn't in the API. Original file is bamtools_utilities.cpp
+// this has been copied from bamtools utilities, since it isn't in the API. Original file is bamtools_utilities.cpp .
 bool ParseRegionString(const string& regionString, const BamMultiReader& reader, BamRegion& region)
 {
     // -------------------------------

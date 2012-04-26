@@ -31,6 +31,10 @@ using namespace std;
 #include <api/algorithms/Sort.h>
 #include <api/BamParallelismSettings.h>
 
+#include "../algorithms/algorithm_module_adaptor.h"
+#include "../algorithms/mark_duplicates.h"
+#include "../algorithms/file_writer.h"
+
 #ifdef __linux__
 #include <sys/prctl.h>
 #endif
@@ -76,7 +80,7 @@ public:
     , alignment_available_spinlock(0)
     , alignment_consumed_spinlock(0)
     { 
-        use_spinlocks = true; ThreadPool::availableCores() > 6;
+        use_spinlocks = true; //ThreadPool::availableCores() > 6;
     }
     
     ~MergeSortCommandImplementation(void) { }
@@ -125,6 +129,8 @@ private:
     
     //options:
     bool sort_by_names;
+    bool mark_duplicates;
+    bool remove_duplicates;
     bool compresstempfiles;
     int compression_level;
     size_t alignments_per_tempfile;
@@ -193,7 +199,12 @@ bool MergeSortCommand::MergeSortCommandImplementation::Run(void)
     compression_level = command.vm["compression"].as<int>();
     compresstempfiles = command.vm.count("compresstempfiles") != 0;
     alignments_per_tempfile = command.vm["n"].as<int>();
-    
+
+    mark_duplicates = command.vm.count("markduplicates") != 0;
+    remove_duplicates = command.vm.count("removeduplicates") != 0;
+    if(remove_duplicates)
+        mark_duplicates = true;
+
     if(!command.nothreads) {
         thread_pool = new ThreadPool();
         sort_thread_pool = new ThreadPool();
@@ -204,10 +215,7 @@ bool MergeSortCommand::MergeSortCommandImplementation::Run(void)
     alignment_available = sem_open(ALIGNMENT_QUEUE_NAME, O_CREAT | O_EXCL, 0, 0);
     if(alignment_available == 0)
         perror("Failed creating alignment queue semaphore.");
-    
-    // We use a fifo to communicate data between the merge thread and the sort thread.
-    // This enables us to use much of the merge / sort code as is.
-    
+
     //create threads to do the work
     pthread_t merge_thread, sort_thread;
     pthread_create(&merge_thread, NULL, MergeSortCommand::MergeSortCommandImplementation::RunMergeThread, this);
@@ -382,7 +390,7 @@ BamAlignment * MergeSortCommand::MergeSortCommandImplementation::GetMergedAlignm
 {
     if(use_spinlocks) {
         //give up our timeslice if the queue is empty
-        while(alignment_available_spinlock == alignment_consumed_spinlock) sched_yield();
+        while(alignment_available_spinlock == alignment_consumed_spinlock) usleep(2000);
         alignment_consumed_spinlock++;
     } else
         if(0 != sem_wait(alignment_available))
@@ -669,53 +677,60 @@ bool MergeSortCommand::MergeSortCommandImplementation::CreateSortedTempFile(vect
 // merges sorted temp BAM files into single sorted output BAM file
 bool MergeSortCommand::MergeSortCommandImplementation::MergeSortedRuns(void) {
     string filename_out = command.vm["out"].as<string>();
-    // In case we just have one temp file, no use in reading it in and then
-    // writing the same thing back out.
-    if(m_tempFilenames.size() == 1 && compresstempfiles) {
-        if(command.verbose)
-            cerr << "Since only one temp file was create, we will use it as the final output." << endl;
-        
-        if(0 != rename(m_tempFilenames[0].c_str(), filename_out.c_str())) {
-            cerr << "bamtools mergesort ERROR: could not move temporary file for output... Aborting." << endl;
-            return false;
-        }
-    } else {
-        cerr << "Combining temp files for final output...";
-        
-        // open up multi reader for all of our temp files
-        // this might get broken up if we do a multi-pass system later ??
-        BamMultiReader multiReader;
-        if ( !multiReader.Open(m_tempFilenames) ) {
-            cerr << "bamtools mergesort ERROR: could not open BamMultiReader for merging temp files... Aborting."
-            << endl;
-            return false;
-        }
-        
-        // open writer for our completely sorted output BAM file
-        BamWriter mergedWriter;
-        mergedWriter.SetCompressionLevel(compression_level);
-        
-        if ( !mergedWriter.Open(filename_out, m_header, m_references) ) {
-            cerr << "bamtools mergesort ERROR: could not open " << filename_out
-            << " for writing... Aborting." << endl;
-            multiReader.Close();
-            return false;
-        }
-        
-        // while data available in temp files
-        BamAlignment al;
-        int count = 0;
-        while ( multiReader.GetNextAlignmentCore(al) ) {
-            mergedWriter.SaveAlignment(al);
-            if(count++ % 1000000 == 0)
-                cerr << ".";  //progress indicator every 1M alignments written.
-        }
-        
-        // close files
-        multiReader.Close();
-        mergedWriter.Close();
-        cerr << "done." << endl << "Clearing " << m_tempFilenames.size() << " temp files...";
+
+    cerr << "Combining temp files for final output...";
+    
+    // open up multi reader for all of our temp files
+    BamMultiReader multiReader;
+    if ( !multiReader.Open(m_tempFilenames) ) {
+        cerr << "mergesort ERROR: could not open BamMultiReader for merging temp files... Aborting."
+        << endl;
+        return false;
     }
+    
+    AlgorithmModuleAdaptor adaptor(multiReader.GetHeader(), multiReader.GetReferenceData());
+    MarkDuplicates md;
+    FileWriter writer;
+    
+    md.removeDuplicates = remove_duplicates;
+    md.verbose = command.verbose;
+    writer.setFilename(filename_out);
+    writer.setCompressionLevel(compression_level);
+    
+    if(mark_duplicates)
+    {
+        adaptor.addSink(&md);
+        md.addSink(&writer);
+
+        adaptor.startAsync();
+        md.startAsync();
+    } else {
+        adaptor.addSink(&writer);
+
+        adaptor.startAsync();
+    }
+    writer.startAsync();
+
+    // while data available in temp files
+    BamAlignment * al;
+    int count = 0;
+    while (NULL != (al = multiReader.GetNextAlignment()) ) {
+        adaptor.putAlignment(al);
+        if(count++ % 1000000 == 0)
+            cerr << ".";  //progress indicator every 1M alignments written.
+    }
+
+    // close files
+    multiReader.Close();
+    
+    adaptor.done();
+    
+    writer.finishAsync();
+    if(mark_duplicates)
+        md.finishAsync();
+    adaptor.finishAsync();
+    
+    cerr << "done." << endl << "Clearing " << m_tempFilenames.size() << " temp files...";
     
     // delete all temp files
     vector<string>::const_iterator tempIter = m_tempFilenames.begin();
@@ -725,6 +740,7 @@ bool MergeSortCommand::MergeSortCommandImplementation::MergeSortedRuns(void) {
         remove(tempFilename.c_str());
     }
     cerr << "done." << endl;
+
     // return success
     return true;
 }
@@ -909,6 +925,8 @@ void MergeSortCommand::getOptions()
     ("byname,b", "Sort by name. Otherwise, sorts by position.")
     ("n,n", po::value<int>()->default_value(5e5), "Alignments per temp file.")
     ("compresstempfiles,C", "Compress temp files. By default, uncompressed")
+    ("markduplicates,d", "Mark duplicates after sorting.")
+    ("removeduplicates,R", "Remove duplicates.")
     ;
 }
 
