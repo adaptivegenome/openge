@@ -44,7 +44,7 @@ jobs_current(0)
 		perror("Error opening threadpool semaphore");
 		assert(0);
 	}
-    
+
     sprintf(sem_submission_name, "bam_tpjs_%x",sem_id);
     sem_unlink(sem_submission_name);
     job_submission_semaphore = sem_open(sem_submission_name, O_CREAT | O_EXCL,0700,THREADPOOL_MAX_JOBS_IN_QUEUE);
@@ -53,9 +53,9 @@ jobs_current(0)
 		perror("Error opening threadpool job submission semaphore");
 		assert(0);
 	}
-    
+
 	int retval = pthread_mutex_init(&jobs_mutex,NULL);
-    
+
 	if(0 != retval)
 		perror("Error opening threadpool mutex");
 	assert(0 == retval);
