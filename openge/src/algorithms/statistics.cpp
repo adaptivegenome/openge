@@ -10,6 +10,7 @@
 
 #include "statistics.h"
 
+#include <algorithm>
 #include <numeric>
 
 using namespace BamTools;
