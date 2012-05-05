@@ -1,8 +1,8 @@
 #include "commands.h"
 
-#include <api/SamReader.h>
-#include <api/BamWriter.h>
-using namespace BamTools;
+#include "../algorithms/file_reader.h"
+#include "../algorithms/file_writer.h"
+
 namespace po = boost::program_options;
 using namespace std;
 
@@ -24,36 +24,18 @@ int ConvertCommand::runCommand()
     if(verbose)
         cerr << "Converting " << filename_in << " from SAM to BAMfile " << filename_out << "." << endl;
     
-    SamReader reader;
+    FileReader reader;
+    FileWriter writer;
+    reader.addSink(&writer);
     
-    if(!reader.Open(filename_in)) {
-        cerr << "Error opening " << filename_in << " for reading" << endl;
-        return -1;
-    }
+    reader.setFormat(FileReader::FORMAT_SAM);
+    reader.addFile(input_filenames[0]);
+    writer.setFilename(filename_out);
     
-    BamWriter writer;
-    
-    if(!writer.Open(filename_out, reader.GetHeader(), reader.GetRefData()))
-    {
-        cerr << "Error opening " << filename_out << " for writing" << endl;
-        return -1;
-    }
-    
-    size_t count = 0;
-    while(true)
-    {
-        BamAlignment al;
-        if(!reader.GetNextAlignment(al))
-            break;
-        writer.SaveAlignment(al);
-        count++;
-    }
-    
-    reader.Close();
-    writer.Close();
+    reader.runChain();
     
     if(verbose)
-        cout << count << " alignments written to " << filename_out << endl;
+        cout << writer.getCount() << " alignments written to " << filename_out << endl;
     
-    return count;
+    return 0;
 }

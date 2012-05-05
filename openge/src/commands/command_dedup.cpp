@@ -42,6 +42,11 @@ int DedupCommand::runCommand()
 
     mark_duplicates.removeDuplicates = vm.count("remove") > 0;
     mark_duplicates.verbose = verbose;
+    
+    
+    char filename[48];
+    sprintf(filename, "/dedup_%8x.bam",  (uint32_t)(0xffffffff & (uint64_t)this));
+    mark_duplicates.setBufferFileName(tmpdir + string(filename));
 
     if(input_filenames.size() != 1)
     {
@@ -49,13 +54,7 @@ int DedupCommand::runCommand()
         return -1;
     }
 
-    reader.startAsync();
-    mark_duplicates.startAsync();
-    writer.startAsync();
-    
-    reader.finishAsync();
-    mark_duplicates.finishAsync();
-    writer.finishAsync();
+    reader.runChain();
     
     return 0;
 }

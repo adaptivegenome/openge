@@ -25,6 +25,7 @@ int FileWriter::runInternal()
 
         writer.SaveAlignment(*al);
         putOutputAlignment(al);
+        count++;
     }
     
     writer.Close();

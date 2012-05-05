@@ -154,7 +154,16 @@ The stats command generates statistics for one or more input BAM files. The comp
 Example:
 
 \cmd{openge stats a.bam}
-\cmd{openge stats a.bam b.bam c.bam}
+\cmd{openge stats a.bam b.bam c.bam {-}{-}inserts {-}{-}verbose}
+Parameters:
+\begin{center}
+\begin{tabular}{llp{3.5in}}
+\hline
+Flag&Long flag&Description\\ \hline
+-I \textit{level}&{-}{-}inserts \textit{level}&Include detailed stats about inserts.\\
+\end{tabular}
+\end{center}
+
 \subsection{view}
 The view command returns a portion of a bamfile optionally filtered by region, and then optionally limited to a smaller number of reads.
 

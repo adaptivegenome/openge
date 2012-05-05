@@ -1,5 +1,5 @@
-#ifndef ALGORITHM_MODULE_H
-#define ALGORITHM_MODULE_H
+#ifndef OGE_ALGO_MODULE_H
+#define OGE_ALGO_MODULE_H
 
 #include <api/SamHeader.h>
 #include <api/BamAlignment.h>
@@ -25,11 +25,11 @@ public:
     // should not be called after run() has been called (on any algorithm module).
     void addSink(AlgorithmModule * sink) { sinks.insert(sink); sink->setSource(this);}
     bool removeSink(AlgorithmModule * sink) { sink->setSource(NULL); return sinks.erase(sink); }
-    
-    // Once the data flow between modules has been set up, call this function on all modules
-    // to begin processing.
-    int run();
-    
+
+    // Once the data flow between modules has been set up, call this function on any module in 
+    // the chain to begin processing
+    int runChain();
+
     // Start module in its own thread and return.
     int startAsync();
     
@@ -59,6 +59,9 @@ public:
 protected:
     // All data processing should be performed in this function.
     virtual int runInternal() = 0;
+    
+    // Do not override this function.
+    int runChildren();
     
     // Internal
     static void * algorithm_module_run(void * in);
