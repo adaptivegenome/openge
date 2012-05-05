@@ -99,8 +99,7 @@ bool SamReader::LoadNextAlignment(BamAlignment& alignment)
   int & tlen = alignment.InsertSize;
   string & seq = alignment.QueryBases;
   string & qual = alignment.Qualities;
-    
-#if 1
+
     char * line = (char *) malloc(sizeof(char) * (line_s.length() + 1));
     memcpy(line, line_s.c_str(), line_s.length());
     line[line_s.length()] = 0;  //null terminate
@@ -110,12 +109,16 @@ bool SamReader::LoadNextAlignment(BamAlignment& alignment)
     {
         field_starts[ct] = line;
         line = strchr(line, '\t');
-        if(!line || line >= line + line_s.length()) {
-            return NULL;
+        if(ct < 10) {
+            if(!line || line >= line + line_s.length())
+                return NULL;    
+            if(*line) {
+                *line = 0;
+                line++;
+            }
         }
-        *line = 0;
-        line++;
     }
+
     qname.assign(field_starts[0]);
     flag = atoi(field_starts[1]);
     rname.assign(field_starts[2]);
@@ -159,7 +162,7 @@ bool SamReader::LoadNextAlignment(BamAlignment& alignment)
     {
         int cigar_ct = 0;
         char * cigar_p = (char *) cigar.c_str();    //cast away const-ness, because we will be changing the ptr (not the data)
-        while(isnumber(*cigar_p))
+        while(isdigit(*cigar_p))
         {
             int num;
             char c;
@@ -172,127 +175,73 @@ bool SamReader::LoadNextAlignment(BamAlignment& alignment)
         }
     }
     
-    stringstream line_str(line);
+    if(!line)
+        return true;
+    
+    vector<char *> additional_parameters;
+    
+    while(line && *line)
+    {
+        additional_parameters.push_back(line);
+        line = strchr(line, '\t');
+        if(!line)
+            break;
+        *line = 0;
+        line++;
+    }
+
+    //optional attributes
+    for (int i = 1; i < additional_parameters.size(); i++) {
+        char * segment = additional_parameters[i];
+
+        //null terminate field separators (:) in the segment so we can use to construct strings
+        segment[2] = 0;
+        segment[4] = 0;
+
+        string tag(segment);
+        string type(&segment[3]);
+        string value(&segment[5]);
+        
+        bool retval = false;
+        switch(type[0])
+        {
+            case 'i': //int
+            {
+                int i = atoi(value.c_str());
+                retval = alignment.AddTag(tag, type, i);
+                break;
+            }
+            case 'f': //floating point
+            {
+                float f = atof(value.c_str());
+                retval = alignment.AddTag(tag, type, f);
+                break;
+            }
+            case 'A': //single char
+            {
+                char a = value.c_str()[0];
+                retval = alignment.AddTag(tag, type, a);
+                break;
+            }
+            case 'Z': //string, with spaces
+                retval = alignment.AddTag(tag, type, value);
+                break;
+            case 'B': //byte array
+                retval = alignment.AddTag(tag, type, value);
+                break;
+            case 'H': //array type
+                retval = AddHeaderAttributeArray(alignment, tag, value);
+                break;
+            default:
+                cerr << "Invalid attribute type " << type << endl;
+                break;
+        }
+        
+        if(true != retval)
+            cerr << "Error parsing optional attribute " << tag << " in line " << segment << endl;
+    }
+
     free( field_starts[0] );
-#else
-  stringstream line_str(line_s);
-  line_str >> qname >> flag >> rname >> pos >> mapq >> cigar >> rnext >> pnext >> tlen >> seq >> qual;
-
-  if(line_str.fail())
-    return false;
-
-  // here is an example of what is contained in one line of a sam file.
-  //USI-EAS376_6_PE1_FC30C59AAXX:1:76:66:953
-  //163
-  //YHet
-  //36
-  //150
-  //74M1S
-  //=
-  //147
-  //185
-  //TTTCATTCATGTTGTTGCTCTTGCTTTGATTCCGACTTCTAACGTTTAACCTGTGATCAGACGCTTGACTGCTCA
-  //3::83044799;<;=<;8=9<<5469950.9677(&19782777-8.70()*36-44-.6706'-/(.462,7'+
-
-  //PG:Z:novoalign  AS:i:-123       UQ:i:-123       NM:i:5  MD:Z:13C0C0C47T2C7      PQ:i:-58        SM:i:2  AM:i:2
-    
-  // zero based indexes:
-  alignment.Position--;
-  alignment.MatePosition--;
-
-  // rname
-  if(rname == "*")
-    alignment.RefID = -1;
-  else if(header.Sequences.Contains(rname))
-    alignment.RefID = header.Sequences.IndexOfString(rname);
-  else {
-    cerr << "Rname " << rname << " missing from sequence dictionary" << endl;
-    alignment.RefID = -1;
-  }
-
-  // rnext
-  if(rnext == "=")
-    alignment.MateRefID = alignment.RefID;
-  else if(rnext == "*")
-    alignment.MateRefID = -1;
-  else if(header.Sequences.Contains(rnext))
-    alignment.MateRefID = header.Sequences.IndexOfString(rnext);
-  else {
-    cerr << "RNext " << rnext << " missing from sequence dictionary" << endl;
-    alignment.MateRefID = -1;
-  }
-
-  //CIGAR ops
-  if(cigar.c_str()[0] != '*')
-  {
-    int cigar_ct = 0;
-    stringstream cigar_s(cigar);
-    while(true)
-    {
-      int num;
-      char c;
-      cigar_s >> num >>c;
-      if(cigar_s.eof())
-        break;
-      alignment.CigarData.push_back(CigarOp(c,num));
-      cigar_ct ++;
-      assert(cigar_ct < 100);
-    }
-  }
-    
-  //swallow a tab
-  string s;
-  getline(line_str, s, '\t');
-#endif
-
-  //optional attributes
-  while(!line_str.eof()) {
-    string segment;
-    getline(line_str, segment, '\t');
-
-    string tag = segment.substr(0, 2);
-    string type = segment.substr(3,1);
-    string value = segment.substr(5,segment.size()-1);
-    // stringstream value_ss(value);
-
-    bool retval = false;
-    switch(type[0])
-    {
-      case 'i': //int
-        {
-            int i = atoi(value.c_str());
-            retval = alignment.AddTag(tag, type, i);
-            break;
-        }
-      case 'f': //floating point
-        {
-            float f = atof(value.c_str());
-            retval = alignment.AddTag(tag, type, f);
-            break;
-        }
-      case 'A': //single char
-        {
-            char a = value.c_str()[0];
-            retval = alignment.AddTag(tag, type, a);
-            break;
-        }
-      case 'Z': //string, with spaces
-        retval = alignment.AddTag(tag, type, value);
-        break;
-      case 'B': //byte array
-        retval = alignment.AddTag(tag, type, value);
-        break;
-      case 'H': //array type
-        retval = AddHeaderAttributeArray(alignment, tag, value);
-        break;
-      default:
-        cerr << "Invalid attribute type " << type << endl;
-        break;
-    }
-
-    if(true != retval)
-      cerr << "Error parsing optional attribute " << tag << " in line " << segment << endl;
-  }
 
   return true;
 }
