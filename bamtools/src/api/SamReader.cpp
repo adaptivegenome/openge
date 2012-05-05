@@ -9,6 +9,7 @@
 #include <iostream>
 #include <sstream>
 #include "SamReader.h"
+#include <cstring>
 using namespace std;
 
 SamReader::SamReader()
@@ -82,24 +83,99 @@ bool SamReader::LoadNextAlignment(BamAlignment& alignment)
   if(file.eof())
     return false;
 
-  string line;
-  getline(file, line);
+  string line_s;
+  getline(file, line_s);
+    
 
-  string qname;
-  int flag;
+
+  string & qname = alignment.Name;
+  uint32_t & flag = alignment.AlignmentFlag;
   string rname;
-  int pos;
-  int mapq;
+  int & pos = alignment.Position;
+  uint16_t & mapq = alignment.MapQuality;
   string cigar;
   string rnext;
-  int pnext;
-  int tlen;
-  string seq;
-  string qual;
-
-  string optional_attributes;
-
-  stringstream line_str(line);
+  int & pnext = alignment.MatePosition;
+  int & tlen = alignment.InsertSize;
+  string & seq = alignment.QueryBases;
+  string & qual = alignment.Qualities;
+    
+#if 1
+    char * line = (char *) malloc(sizeof(char) * (line_s.length() + 1));
+    memcpy(line, line_s.c_str(), line_s.length());
+    line[line_s.length()] = 0;  //null terminate
+    char * field_starts[12] = {0};
+    
+    for(int ct = 0; ct < 11; ct++)  //for 11 columns, null terminate each field and put in array of field
+    {
+        field_starts[ct] = line;
+        line = strchr(line, '\t');
+        if(!line || line >= line + line_s.length()) {
+            return NULL;
+        }
+        *line = 0;
+        line++;
+    }
+    qname.assign(field_starts[0]);
+    flag = atoi(field_starts[1]);
+    rname.assign(field_starts[2]);
+    pos = atoi(field_starts[3]);
+    mapq = atoi(field_starts[4]);
+    cigar.assign(field_starts[5]);
+    rnext.assign(field_starts[6]);
+    pnext = atoi(field_starts[7]);
+    tlen = atoi(field_starts[8]);
+    seq.assign(field_starts[9]);
+    qual.assign(field_starts[10]);
+    
+    // zero based indexes:
+    alignment.Position--;
+    alignment.MatePosition--;
+    
+    // rname
+    if(rname == "*")
+        alignment.RefID = -1;
+    else if(header.Sequences.Contains(rname))
+        alignment.RefID = header.Sequences.IndexOfString(rname);
+    else {
+        cerr << "Rname " << rname << " missing from sequence dictionary" << endl;
+        alignment.RefID = -1;
+    }
+    
+    // rnext
+    if(rnext == "=")
+        alignment.MateRefID = alignment.RefID;
+    else if(rnext == "*")
+        alignment.MateRefID = -1;
+    else if(header.Sequences.Contains(rnext))
+        alignment.MateRefID = header.Sequences.IndexOfString(rnext);
+    else {
+        cerr << "RNext " << rnext << " missing from sequence dictionary" << endl;
+        alignment.MateRefID = -1;
+    }
+    
+    //CIGAR ops
+    if(cigar.c_str()[0] != '*')
+    {
+        int cigar_ct = 0;
+        char * cigar_p = (char *) cigar.c_str();    //cast away const-ness, because we will be changing the ptr (not the data)
+        while(isnumber(*cigar_p))
+        {
+            int num;
+            char c;
+            num = strtol(cigar_p, &cigar_p, 10);
+            c = *cigar_p;
+            cigar_p++;
+            alignment.CigarData.push_back(CigarOp(c,num));
+            cigar_ct ++;
+            assert(cigar_ct < 100);
+        }
+    }
+    
+    stringstream line_str(line);
+    free( field_starts[0] );
+#else
+  stringstream line_str(line_s);
   line_str >> qname >> flag >> rname >> pos >> mapq >> cigar >> rnext >> pnext >> tlen >> seq >> qual;
 
   if(line_str.fail())
@@ -119,19 +195,10 @@ bool SamReader::LoadNextAlignment(BamAlignment& alignment)
   //3::83044799;<;=<;8=9<<5469950.9677(&19782777-8.70()*36-44-.6706'-/(.462,7'+
 
   //PG:Z:novoalign  AS:i:-123       UQ:i:-123       NM:i:5  MD:Z:13C0C0C47T2C7      PQ:i:-58        SM:i:2  AM:i:2
-
-  // mandatory attributes
-  alignment.Name = qname;
-  alignment.AlignmentFlag = flag;
-  //rname - dealt with below
-  alignment.Position = pos-1;
-  alignment.MapQuality = mapq;
-  //CIGAR - dealt with below
-  //rnext - dealt with below
-  alignment.MatePosition = pnext-1;
-  alignment.InsertSize = tlen;
-  alignment.QueryBases = seq;
-  alignment.Qualities = qual;
+    
+  // zero based indexes:
+  alignment.Position--;
+  alignment.MatePosition--;
 
   // rname
   if(rname == "*")
@@ -172,10 +239,11 @@ bool SamReader::LoadNextAlignment(BamAlignment& alignment)
       assert(cigar_ct < 100);
     }
   }
-
+    
   //swallow a tab
   string s;
   getline(line_str, s, '\t');
+#endif
 
   //optional attributes
   while(!line_str.eof()) {
@@ -185,27 +253,29 @@ bool SamReader::LoadNextAlignment(BamAlignment& alignment)
     string tag = segment.substr(0, 2);
     string type = segment.substr(3,1);
     string value = segment.substr(5,segment.size()-1);
-    stringstream value_ss(value);
+    // stringstream value_ss(value);
 
-    float f;
-    int i;
-    string s;
-    char a;
     bool retval = false;
     switch(type[0])
     {
       case 'i': //int
-        value_ss >> i;
-        retval = alignment.AddTag(tag, type, i);
-        break;
+        {
+            int i = atoi(value.c_str());
+            retval = alignment.AddTag(tag, type, i);
+            break;
+        }
       case 'f': //floating point
-        value_ss >> f;
-        retval = alignment.AddTag(tag, type, f);
-        break;
+        {
+            float f = atof(value.c_str());
+            retval = alignment.AddTag(tag, type, f);
+            break;
+        }
       case 'A': //single char
-        value_ss >> a;
-        retval = alignment.AddTag(tag, type, a);
-        break;
+        {
+            char a = value.c_str()[0];
+            retval = alignment.AddTag(tag, type, a);
+            break;
+        }
       case 'Z': //string, with spaces
         retval = alignment.AddTag(tag, type, value);
         break;
@@ -273,7 +343,7 @@ bool AddHeaderAttributeArray(BamAlignment & alignment, const string & tag,const 
   }
 }
 
-const RefVector & SamReader::GetRefData(void)
+const RefVector & SamReader::GetReferenceData(void)
 {
   return m_refData;
 }

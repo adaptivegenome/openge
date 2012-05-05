@@ -6,6 +6,9 @@
 #include <boost/exception/all.hpp>
 #include <api/BamParallelismSettings.h>
 
+#include <sys/time.h>
+#include <sys/resource.h>
+
 #include "../util/thread_pool.h"
 
 using namespace std;
@@ -26,6 +29,7 @@ int OpenGECommand::runWithParameters(int argc, const char ** argv)
     }
     
     verbose = 0 < vm.count("verbose");
+    tmpdir = vm["tmpdir"].as<string>();
 
     if(vm.count("in") == 0)
         input_filenames.push_back("stdin");
@@ -48,7 +52,31 @@ int OpenGECommand::runWithParameters(int argc, const char ** argv)
         BamParallelismSettings::enableMultithreading();
     }
     
-    return runCommand();
+    timeval start_time;
+    gettimeofday(&start_time, NULL);
+    
+    int ret = runCommand();
+    
+    if(verbose)
+    {
+        //print cpu usage and time
+        rusage r;
+        getrusage(RUSAGE_SELF, &r);
+        timeval stop_time;
+        gettimeofday(&stop_time, NULL);
+        timeval real_time;
+        real_time.tv_sec = stop_time.tv_sec - start_time.tv_sec;
+        real_time.tv_usec = stop_time.tv_usec - start_time.tv_usec;
+        fprintf(stderr, "Elapsed time: %3ldm%06.3fs\n", real_time.tv_sec /60, float(real_time.tv_sec %60) + (1.e-6 * real_time.tv_usec) );
+        fprintf(stderr, "CPU time: %3ldm%06.3fs (user) / %3ldm%06.3fs (sys)\n", r.ru_utime.tv_sec /60, float(r.ru_utime.tv_sec %60) + (1.e-6 * r.ru_utime.tv_usec), r.ru_stime.tv_sec /60, float(r.ru_stime.tv_sec %60) + (1.e-6 * r.ru_stime.tv_usec));
+#ifndef __linux__
+        // on linux, the max ram consumption is in KB. On Mac, it is in bytes.
+        r.ru_maxrss /= 1024;
+#endif
+        fprintf(stderr, "Max mem: %6ld MB\n", r.ru_maxrss /1024);
+    }
+    
+    return ret;
 }
 
 OpenGECommand::OpenGECommand()
@@ -58,6 +86,7 @@ OpenGECommand::OpenGECommand()
     ("verbose,v" ,"Display detailed messages while processing")
     ("threads,t", po::value<unsigned int>()->default_value(ThreadPool::availableCores()), "Select the number of threads to be used in each threadpool")
     ("nothreads,d", "Disable use of thread pools for parallel processing.")
+    ("tmpdir,T", po::value<string>()->default_value("/tmp"), "Directory to use for temporary files")
     ;
 }
 

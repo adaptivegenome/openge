@@ -32,7 +32,7 @@ public:
   // returns the current file's header data
   SamHeader GetHeader(void) const;
   // get reference data
-  const RefVector & GetRefData(void);
+  const RefVector & GetReferenceData(void);
 protected:
   // retrieves BAM alignment under file pointer
   // (does no overlap checking or character data parsing)

@@ -39,6 +39,9 @@ protected:
     std::vector<std::string> input_filenames;
     std::string output_filename;
     
+    // Directory in which to put temporary files. Recommended to be fast storage.
+    std::string tmpdir;
+    
     // Multithreading is disabled
     bool nothreads;
     

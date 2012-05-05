@@ -11,14 +11,16 @@ MarkDuplicates::MarkDuplicates()
 , nextLibraryId(1)
 , removeDuplicates(false)
 , verbose(false)
-{}
-
-string MarkDuplicates::getBufferFilename()
 {
     char filename[48];
     sprintf(filename, "/tmp/dedup_%8x.bam",  (uint32_t)(0xffffffff & (uint64_t)this));
-    
-    return string(filename);
+
+    setBufferFileName(string(filename));
+}
+
+string MarkDuplicates::getBufferFileName()
+{
+    return bufferFilename;
 }
 
 /////////////////
@@ -167,7 +169,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
     
     BamWriter writer;
 
-    writer.Open(getBufferFilename(), header, source->getReferences());
+    writer.Open(getBufferFileName(), header, source->getReferences());
     
     while (true) {
         BamAlignment * prec = getInputAlignment();
@@ -400,7 +402,7 @@ int MarkDuplicates::runInternal() {
     
     BamReader in;
 
-    in.Open(getBufferFilename());
+    in.Open(getBufferFileName());
 
     // Now copy over the file while marking all the necessary indexes as duplicates
     long recordInFileIndex = 0;
@@ -432,7 +434,7 @@ int MarkDuplicates::runInternal() {
 
     in.Close();
 
-    remove(getBufferFilename().c_str());
+    remove(getBufferFileName().c_str());
     
     return 0;
 }

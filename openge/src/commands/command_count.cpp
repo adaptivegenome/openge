@@ -3,9 +3,7 @@
 #include <vector>
 #include <string>
 using namespace std;
-
-#include <api/BamMultiReader.h>
-using namespace BamTools;
+#include "../algorithms/file_reader.h"
 namespace po = boost::program_options;
 
 void CountCommand::getOptions()
@@ -13,21 +11,12 @@ void CountCommand::getOptions()
 
 int CountCommand::runCommand()
 {
-    BamMultiReader reader;
+    FileReader reader;
     
-    if(!reader.Open(input_filenames)) {
-        cerr << "Error opening bam files." << endl;
-        return -1;
-    }
+    reader.addFiles(input_filenames);
+    reader.runChain();
     
-    size_t count = 0;
-    BamAlignment al;
-    while(reader.GetNextAlignment(al))
-        count++;
+    cout << reader.getCount() << endl;
     
-    reader.Close();
-    
-    cout << count << endl;
-    
-    return count;
+    return 0;
 }

@@ -45,9 +45,6 @@ using namespace std;
 #include <sys/stat.h>
 #include <semaphore.h>
 
-#include <sys/time.h>
-#include <sys/resource.h>
-
 #include <pthread.h>
 
 using namespace BamTools;
@@ -191,9 +188,6 @@ const char * ALIGNMENT_QUEUE_NAME = "mergesort_align_queue";
 //actual run creates threads for other 'run'commands
 bool MergeSortCommand::MergeSortCommandImplementation::Run(void)
 {
-    timeval start_time;
-    gettimeofday(&start_time, NULL);
-    
     // options
     sort_by_names =command.vm.count("byname") != 0;
     compression_level = command.vm["compression"].as<int>();
@@ -235,26 +229,7 @@ bool MergeSortCommand::MergeSortCommandImplementation::Run(void)
         delete thread_pool;
         delete sort_thread_pool;
     }
-    
-    if(command.verbose)
-    {
-        //print cpu usage and time
-        rusage r;
-        getrusage(RUSAGE_SELF, &r);
-        timeval stop_time;
-        gettimeofday(&stop_time, NULL);
-        timeval real_time;
-        real_time.tv_sec = stop_time.tv_sec - start_time.tv_sec;
-        real_time.tv_usec = stop_time.tv_usec - start_time.tv_usec;
-        fprintf(stderr, "Elapsed time: %3ldm%06.3fs\n", real_time.tv_sec /60, float(real_time.tv_sec %60) + (1.e-6 * real_time.tv_usec) );
-        fprintf(stderr, "CPU time: %3ldm%06.3fs (user) / %3ldm%06.3fs (sys)\n", r.ru_utime.tv_sec /60, float(r.ru_utime.tv_sec %60) + (1.e-6 * r.ru_utime.tv_usec), r.ru_stime.tv_sec /60, float(r.ru_stime.tv_sec %60) + (1.e-6 * r.ru_stime.tv_usec));
-#ifndef __linux__
-        // on linux, the max ram consumption is in KB. On Mac, it is in bytes.
-        r.ru_maxrss /= 1024;
-#endif
-        fprintf(stderr, "Max mem: %6ld MB\n", r.ru_maxrss /1024);
-    }
-    
+
     return sort_retval && merge_retval;
 }
 

@@ -3,7 +3,8 @@
 using namespace BamTools;
 
 AlgorithmModule::AlgorithmModule()
-: finished_execution(false)
+: source(NULL)
+, finished_execution(false)
 { }
 
 void * AlgorithmModule::algorithm_module_run(void * in)
@@ -16,10 +17,28 @@ void * AlgorithmModule::algorithm_module_run(void * in)
     return 0;
 }
 
-int AlgorithmModule::run()
+int AlgorithmModule::runChildren()
 {
-    return runInternal();
+    startAsync();
+    
+    for(set<AlgorithmModule *>::iterator i = sinks.begin(); i != sinks.end(); i++)
+        (*i)->runChildren();
+    
+    finishAsync();
+    return 0;
+}
+
+int AlgorithmModule::runChain()
+{
+    AlgorithmModule * root_module = this;
+    while(root_module->source)
+        root_module = root_module->source;
+
+    root_module->runChildren();
+
     finished_execution = true;
+    
+    return 0;
 }
 
 int AlgorithmModule::startAsync()

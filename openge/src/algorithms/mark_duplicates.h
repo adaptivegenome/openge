@@ -16,14 +16,17 @@ protected:
     map<string,short> libraryIds;
     short nextLibraryId;
     
+    string bufferFilename;
+    
 public:
     bool removeDuplicates;
     bool verbose;
     MarkDuplicates();
 
-protected:
-    string getBufferFilename();
+    string getBufferFileName();
+    void setBufferFileName(string filename) { bufferFilename = filename; }
 
+protected:
     /////////////////
     // From Samtools' SAMRecord.java:
     int getReferenceLength(const BamTools::BamAlignment &rec);

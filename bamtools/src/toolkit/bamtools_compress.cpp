@@ -88,7 +88,7 @@ bool CompressTool::CompressToolPrivate::Run(void) {
   reader.Open(m_settings->InputFilename);
   
   BamWriter writer;
-  writer.Open( m_settings->OutputFilename, reader.GetHeader(), reader.GetRefData());
+  writer.Open( m_settings->OutputFilename, reader.GetHeader(), reader.GetReferenceData());
   
   int alignment_ct = 0;
   
