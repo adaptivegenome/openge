@@ -35,6 +35,7 @@ import java.util.List;
 #include <cassert>
 #include <iostream>
 #include <cstdlib>
+#include <cstdio>
 using namespace std;
 
 // --------------------------------------------------------------------------------------------------------------

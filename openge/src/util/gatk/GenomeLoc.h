@@ -23,7 +23,7 @@
 
 #include <string>
 #include <vector>
-
+#include <limits.h>
 class GenomeLoc {
     /**
      * the basic components of a genome loc, its contig index,

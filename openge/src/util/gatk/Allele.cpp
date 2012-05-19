@@ -9,6 +9,7 @@
 #include "Allele.h"
 #include <iostream>
 #include <string>
+#include <cstdlib>
 using namespace std;
 /*
 package org.broadinstitute.sting.utils.variantcontext;

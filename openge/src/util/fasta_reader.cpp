@@ -12,6 +12,7 @@
 #include <string>
 #include <sstream>
 #include <cassert>
+#include <cstring>
 #include <fcntl.h>
 
 #include "fasta_reader.h"
@@ -161,9 +162,9 @@ void FastaReader::Close()
 {
     //remove file mapping
     munmap(file_data, file_length);
-    file = NULL;
 
     close(file);
+    file = 0;
 
     is_open = false;
 }

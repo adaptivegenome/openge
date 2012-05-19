@@ -7,16 +7,16 @@
 
 #include "../util/fasta_reader.h"
 
-#include "../util/GATK/AlignmentUtils.h"
-#include "../util/GATK/GATKFeature.h"
-#include "../util/GATK/GenomeLoc.h"
-#include "../util/GATK/GenomeLocParser.h"
-#include "../util/GATK/ConstrainedMateFixingManager.h"
-#include "../util/GATK/BaseUtils.h"
-#include "../util/GATK/GATKFeature.h"
-#include "../util/GATK/VariantContext.h"
-#include "../util/GATK/ReadMetaDataTracker.h"
-#include "../util/GATK/SequenceUtil.h"
+#include "../util/gatk/AlignmentUtils.h"
+#include "../util/gatk/GATKFeature.h"
+#include "../util/gatk/GenomeLoc.h"
+#include "../util/gatk/GenomeLocParser.h"
+#include "../util/gatk/ConstrainedMateFixingManager.h"
+#include "../util/gatk/BaseUtils.h"
+#include "../util/gatk/GATKFeature.h"
+#include "../util/gatk/VariantContext.h"
+#include "../util/gatk/ReadMetaDataTracker.h"
+#include "../util/gatk/SequenceUtil.h"
 
 
 class LocalRealignment : public AlgorithmModule
