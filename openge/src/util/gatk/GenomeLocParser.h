@@ -38,7 +38,7 @@ public:
 protected:
     int getContigIndexWithoutException(std::string contig) const;
 private:
-    bool validateGenomeLoc(const std::string contig, const int contigIndex, const int start, const int stop, const bool mustBeOnReference, const const bool exceptOnError) const;
+    bool validateGenomeLoc(const std::string contig, const int contigIndex, const int start, const int stop, const bool mustBeOnReference, const bool exceptOnError) const;
 };
 
 #endif

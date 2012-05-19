@@ -50,7 +50,7 @@ struct API_EXPORT CigarOp {
         , Length(length) 
     { }
     
-    bool operator==(const CigarOp & other)
+    bool operator==(const CigarOp & other) const
     { return Type == other.Type && Length == other.Length; }
 };
 

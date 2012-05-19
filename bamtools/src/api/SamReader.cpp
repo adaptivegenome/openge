@@ -250,7 +250,7 @@ BamAlignment * SamReader::ParseAlignment(const string & line_s)
     static const string typeZ("Z");
     static const string typei("i");
     //optional attributes
-    for (int i = 1; i < additional_parameters.size(); i++) {
+    for (size_t i = 1; i < additional_parameters.size(); i++) {
         char * segment = additional_parameters[i];
 
         //null terminate field separators (:) in the segment so we can use to construct strings

@@ -133,6 +133,15 @@ using namespace std;
 static const string ORIGINAL_CIGAR_TAG("OC");
 static const string ORIGINAL_POSITION_TAG("OP");
 static const string PROGRAM_RECORD_NAME("OpenGE LocalRealignment");
+
+
+const int LocalRealignment::MAX_QUAL = 99;
+const double LocalRealignment::MISMATCH_COLUMN_CLEANED_FRACTION = 0.75;
+const double LocalRealignment::SW_MATCH = 30.0;
+const double LocalRealignment::SW_MISMATCH = -10.0;
+const double LocalRealignment::SW_GAP = -10.0;
+const double LocalRealignment::SW_GAP_EXTEND = -2.0;
+const int LocalRealignment::REFERENCE_PADDING = 30;
     
 #pragma mark IndelRealinger::AlignedRead
 
@@ -702,9 +711,9 @@ void LocalRealignment::clean(ReadBin readsToClean) {
         bestConsensus->cigar = AlignmentUtils::leftAlignIndel(bestConsensus->cigar, *reference, bestConsensus->str, bestConsensus->positionOnReference, bestConsensus->positionOnReference);
         
         // start cleaning the appropriate reads
-        for ( pair<int, int> indexPair : bestConsensus->readIndexes ) {
-            AlignedRead aRead = altReads[indexPair.first];
-            if ( !updateRead(bestConsensus->cigar, bestConsensus->positionOnReference, indexPair.second, aRead, leftmostIndex) )
+        for ( vector<pair<int, int> >::iterator indexPair = bestConsensus->readIndexes.begin(); indexPair !=  bestConsensus->readIndexes.end(); indexPair++) {
+            AlignedRead aRead = altReads[indexPair->first];
+            if ( !updateRead(bestConsensus->cigar, bestConsensus->positionOnReference, indexPair->second, aRead, leftmostIndex) )
                 return;
         }
         if ( consensusModel != KNOWNS_ONLY && !alternateReducesEntropy(altReads, *reference, leftmostIndex) ) {
@@ -742,8 +751,8 @@ void LocalRealignment::clean(ReadBin readsToClean) {
             }
             
             // finish cleaning the appropriate reads
-            for ( pair<int, int> indexPair : bestConsensus->readIndexes ) {
-                AlignedRead aRead = altReads[indexPair.first];
+            for ( vector<pair<int, int> >::iterator indexPair = bestConsensus->readIndexes.begin(); indexPair !=  bestConsensus->readIndexes.end(); indexPair++ ) {
+                AlignedRead aRead = altReads[indexPair->first];
                 if ( aRead.constizeUpdate() ) {
                     // We need to update the mapping quality score of the cleaned reads;
                     // however we don't have enough info to use the proper MAQ scoring system.
@@ -872,9 +881,9 @@ void LocalRealignment::generateAlternateConsensesFromReads( vector<AlignedRead> 
     
     // if we are under the limit, use all reads to generate alternate consenses
     if ( altAlignmentsToTest.size() <= MAX_READS_FOR_CONSENSUSES ) {
-        for ( AlignedRead aRead : altAlignmentsToTest ) {
-            if ( CHECKEARLY ) createAndAddAlternateConsensus1(aRead, altConsensesToPopulate, reference,leftmostIndex);
-            else createAndAddAlternateConsensus(aRead.getReadBases(), altConsensesToPopulate, reference);
+        for ( vector<AlignedRead>::iterator aRead = altAlignmentsToTest.begin(); aRead != altAlignmentsToTest.end(); aRead++) {
+            if ( CHECKEARLY ) createAndAddAlternateConsensus1(*aRead, altConsensesToPopulate, reference,leftmostIndex);
+            else createAndAddAlternateConsensus(aRead->getReadBases(), altConsensesToPopulate, reference);
         }
     }
     // otherwise, choose reads for alternate consenses randomly
@@ -1326,7 +1335,35 @@ vector<CigarOp> LocalRealignment::reclipCigar(vector<CigarOp> & cigar, BamAlignm
     return elements;
 }
 
-LocalRealignment::LocalRealignment() {}
+LocalRealignment::LocalRealignment() 
+: LOD_THRESHOLD(5.0)
+, manager(NULL)
+, consensusModel(USE_READS)
+, MISMATCH_THRESHOLD(.15)
+, MAX_RECORDS_IN_MEMORY(150000)
+, MAX_ISIZE_FOR_MOVEMENT(3000)
+, MAX_POS_MOVE_ALLOWED(200)
+, MAX_CONSENSUSES(30)
+, MAX_READS_FOR_CONSENSUSES(120)
+, MAX_READS(20000)
+, NO_ORIGINAL_ALIGNMENT_TAGS(false)
+, generateMD5s(false)
+, CHECKEARLY(false)
+, KEEP_ALL_PG_RECORDS(false)
+, write_out_indels(false)
+, write_out_stats(false)
+, write_out_snps(false)
+, referenceReader(NULL)
+, loc_parser(NULL)
+, currentInterval(NULL)
+, sawReadInCurrentInterval(false)
+, outputIndels(true)
+, output_stats(true)
+, output_snps(true)
+, exactMatchesFound(0)
+, SWalignmentRuns(0)
+, SWalignmentSuccess(0)
+{}
 
 int LocalRealignment::runInternal()
 {

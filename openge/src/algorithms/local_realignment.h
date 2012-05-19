@@ -62,7 +62,7 @@ protected:
      * this number should be smaller.
      */
     //@Argument(fullName="LODThresholdForCleaning", shortName="LOD", doc="LOD threshold above which the cleaner will clean", required=false)
-    double LOD_THRESHOLD = 5.0;
+    double LOD_THRESHOLD;
 
     ConstrainedMateFixingManager * manager;
     
@@ -72,7 +72,7 @@ public:
      * Smith-Waterman is really only necessary when using an ungapped aligner (e.g. MAQ in the case of single-end read data).
      */
     //@Argument(fullName = "consensusDeterminationModel", shortName = "model", doc = "Determines how to compute the possible alternate consenses", required = false)
-    ConsensusDeterminationModel_t consensusModel = USE_READS;
+    ConsensusDeterminationModel_t consensusModel;
     
     
     // ADVANCED OPTIONS FOLLOW
@@ -84,7 +84,7 @@ public:
      */
 protected:
     //@Argument(fullName="entropyThreshold", shortName="entropy", doc="percentage of mismatches at a locus to be considered having high entropy", required=false)
-    double MISMATCH_THRESHOLD = 0.15;
+    double MISMATCH_THRESHOLD;
     
     /**
      * For expert users only!  To minimize memory consumption you can lower this number (but then the tool may skip realignment on regions with too much coverage;
@@ -92,35 +92,35 @@ protected:
      */
     //@Advanced
     //@Argument(fullName="maxReadsInMemory", shortName="maxInMemory", doc="max reads allowed to be kept in memory at a time by the SAMFileWriter", required=false)
-    int MAX_RECORDS_IN_MEMORY = 150000;
+    int MAX_RECORDS_IN_MEMORY;
     
     /**
      * For expert users only!
      */
     //@Advanced
     //@Argument(fullName="maxIsizeForMovement", shortName="maxIsize", doc="maximum insert size of read pairs that we attempt to realign", required=false)
-    int MAX_ISIZE_FOR_MOVEMENT = 3000;
+    int MAX_ISIZE_FOR_MOVEMENT;
     
     /**
      * For expert users only!
      */
     //@Advanced
     //@Argument(fullName="maxPositionalMoveAllowed", shortName="maxPosMove", doc="maximum positional move in basepairs that a read can be adjusted during realignment", required=false)
-    int MAX_POS_MOVE_ALLOWED = 200;
+    int MAX_POS_MOVE_ALLOWED;
     
     /**
      * For expert users only!  If you need to find the optimal solution regardless of running time, use a higher number.
      */
     //@Advanced
     //@Argument(fullName="maxConsensuses", shortName="maxConsensuses", doc="max alternate consensuses to try (necessary to improve performance in deep coverage)", required=false)
-    int MAX_CONSENSUSES = 30;
+    int MAX_CONSENSUSES;
     
     /**
      * For expert users only!  If you need to find the optimal solution regardless of running time, use a higher number.
      */
     //@Advanced
     //@Argument(fullName="maxReadsForConsensuses", shortName="greedy", doc="max reads used for finding the alternate consensuses (necessary to improve performance in deep coverage)", required=false)
-    int MAX_READS_FOR_CONSENSUSES = 120;
+    int MAX_READS_FOR_CONSENSUSES;
     
     /**
      * For expert users only!  If this value is exceeded at a given interval, realignment is not attempted and the reads are passed to the output file(s) as-is.
@@ -128,40 +128,40 @@ protected:
      */
     //@Advanced
     //@Argument(fullName="maxReadsForRealignment", shortName="maxReads", doc="max reads allowed at an interval for realignment", required=false)
-    int MAX_READS = 20000;
+    int MAX_READS;
     
     //@Advanced
     //@Argument(fullName="noOriginalAlignmentTags", shortName="noTags", required=false, doc="Don't output the original cigar or alignment start tags for each realigned read in the output bam")
-    bool NO_ORIGINAL_ALIGNMENT_TAGS = false;
+    bool NO_ORIGINAL_ALIGNMENT_TAGS;
     
     //@Hidden
     //@Argument(fullName="generate_nWayOut_md5s",doc="Generate md5sums for BAMs")
-    bool generateMD5s = false;
+    bool generateMD5s;
     
     // DEBUGGING OPTIONS FOLLOW
     
     //@Hidden
     //@Argument(fullName="check_early",shortName="check_early",required=false,doc="Do early check of reads against existing consensuses")
-    bool CHECKEARLY = false;
+    bool CHECKEARLY;
     
     //@Hidden
     //@Argument(fullName="keepPGTags", shortName="keepPG", required=false, doc="Keep older PG tags left in the bam header by previous runs of this tool (by default, all these "+ "historical tags will be replaced by the latest tag generated in the current run).")
-    bool KEEP_ALL_PG_RECORDS = false;
+    bool KEEP_ALL_PG_RECORDS;
     
     //@Hidden
     //@Output(fullName="indelsFileForDebugging", shortName="indels", required=false, doc="Output file (text) for the indels found; FOR DEBUGGING PURPOSES ONLY")
     std::string OUT_INDELS;
-    bool write_out_indels = false;
+    bool write_out_indels;
     
     // @Hidden
     //@Output(fullName="statisticsFileForDebugging", shortName="stats", doc="print out statistics (what does or doesn't get cleaned); FOR DEBUGGING PURPOSES ONLY", required=false)
     std::string OUT_STATS;
-    bool write_out_stats = false;
+    bool write_out_stats;
     
     //@Hidden
     //@Output(fullName="SNPsFileForDebugging", shortName="snps", doc="print out whether mismatching columns do or don't get cleaned out; FOR DEBUGGING PURPOSES ONLY", required=false)
     std::string OUT_SNPS;
-    bool write_out_snps = false;
+    bool write_out_snps;
     
 private:
     static std::vector<BamTools::CigarOp> unclipCigar(const std::vector<BamTools::CigarOp> & cigar);    
@@ -287,8 +287,8 @@ private:
     std::vector<GenomeLoc *>::iterator interval_it;
     
     // the current interval in the list
-    GenomeLoc * currentInterval = NULL;
-    bool sawReadInCurrentInterval = false;
+    GenomeLoc * currentInterval;
+    bool sawReadInCurrentInterval;
     
     // the reads and known indels that fall into the current interval
     ReadBin readsToClean;
@@ -297,31 +297,31 @@ private:
     std::set<GATKFeature> indelRodsSeen;
     std::set<BamTools::BamAlignment *> readsActuallyCleaned;
     
-    static const int MAX_QUAL = 99;
+    static const int MAX_QUAL;
     
     // fraction of mismatches that need to no longer mismatch for a column to be considered cleaned
-    static const double MISMATCH_COLUMN_CLEANED_FRACTION = 0.75;
+    static const double MISMATCH_COLUMN_CLEANED_FRACTION;
     
-    static const double SW_MATCH = 30.0;      // 1.0;
-    static const double SW_MISMATCH = -10.0;  //-1.0/3.0;
-    static const double SW_GAP = -10.0;       //-1.0-1.0/3.0;
-    static const double SW_GAP_EXTEND = -2.0; //-1.0/.0;
+    static const double SW_MATCH;      // 1.0;
+    static const double SW_MISMATCH;  //-1.0/3.0;
+    static const double SW_GAP;       //-1.0-1.0/3.0;
+    static const double SW_GAP_EXTEND; //-1.0/.0;
     
     // reference base padding size
     // TODO -- make this a command-line argument if the need arises
-    static const int REFERENCE_PADDING = 30;
+    static const int REFERENCE_PADDING;
     
     // other output files
-    bool outputIndels = true, output_stats = true, output_snps = true;
+    bool outputIndels, output_stats, output_snps;
     std::ofstream indelOutput, statsOutput, snpsOutput;
     
     //###protected Map<SAMReaderID, ConstrainedMateFixingManager> nwayWriters = NULL;
     
     
     // debug info for lazy SW evaluation:
-    long exactMatchesFound = 0; // how many reads exactly matched a consensus we already had
-    long SWalignmentRuns = 0; // how many times (=for how many reads) we ran SW alignment
-    long SWalignmentSuccess = 0; // how many SW alignments were "successful" (i.e. found a workable indel and resulted in non-null consensus)
+    long exactMatchesFound; // how many reads exactly matched a consensus we already had
+    long SWalignmentRuns; // how many times (=for how many reads) we ran SW alignment
+    long SWalignmentSuccess; // how many SW alignments were "successful" (i.e. found a workable indel and resulted in non-null consensus)
     
 public:
     void initialize();

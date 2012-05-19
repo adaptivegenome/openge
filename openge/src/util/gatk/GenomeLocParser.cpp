@@ -193,7 +193,7 @@ GenomeLoc GenomeLocParser::createGenomeLoc(const string & contig, int index, con
  *
  * @return true if it's valid, false otherwise.  If exceptOnError, then throws a UserException if invalid
  */
-bool GenomeLocParser::validateGenomeLoc(const const string contig, const int contigIndex, const int start, const int stop, const bool mustBeOnReference, const bool exceptOnError) const {
+bool GenomeLocParser::validateGenomeLoc(const string contig, const int contigIndex, const int start, const int stop, const bool mustBeOnReference, const bool exceptOnError) const {
     if ( ! contigInfo->Contains(contig) ) {
         cerr << "Unknown contig " << contig << endl;
         assert(0);

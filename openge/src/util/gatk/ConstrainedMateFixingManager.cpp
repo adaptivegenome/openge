@@ -232,8 +232,8 @@ bool ConstrainedMateFixingManager::noReadCanMoveBefore(int pos, BamAlignment * a
     return pos + 2 * MAX_POS_MOVE_ALLOWED < addedRead->Position;
 }
 void ConstrainedMateFixingManager::addReads(vector<BamAlignment *> newReads, set<BamAlignment *> modifiedReads) {
-    for ( BamAlignment * newRead : newReads )
-        addRead(newRead, modifiedReads.count(newRead) > 0, false);
+    for (vector<BamAlignment *>::iterator newRead =  newReads.begin(); newRead != newReads.end(); newRead++ )
+        addRead(*newRead, modifiedReads.count(*newRead) > 0, false);
 }
 
 void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasModified, bool canFlush) {

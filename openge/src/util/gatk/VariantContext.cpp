@@ -1118,12 +1118,12 @@ void VariantContext::determinePolymorphicType() {
     type = NULL;
     
     // do a pairwise comparison of all alleles against the reference allele
-    for ( Allele allele : alleles ) {
-        if ( allele == *REF )
+    for ( vector<Allele>::iterator allele = alleles.begin() ; allele != alleles.end(); allele++) {
+        if (*allele == *REF )
             continue;
         
         // find the type of this allele relative to the reference
-        Type biallelicType = typeOfBiallelicVariant(*REF, allele);
+        Type biallelicType = typeOfBiallelicVariant(*REF, *allele);
         
         // for the first alternate allele, set the type to be that one
         if ( type == NULL ) {
