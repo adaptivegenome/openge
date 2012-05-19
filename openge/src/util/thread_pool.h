@@ -14,14 +14,13 @@
 // should be implemented in a subclass of ThreadJob.
 // ***************************************************************************
 
-#ifndef THREAD_POOL_H
-#define THREAD_POOL_H
+#ifndef OGE_THREAD_POOL_H
+#define OGE_THREAD_POOL_H
 
 #include <vector>
 #include <queue>
 #include <pthread.h>
 #include <semaphore.h>
-using namespace std;
 
 class ThreadPool;
 
@@ -55,8 +54,8 @@ protected:
 	ThreadJob * startJob();
 	void stopJob(ThreadJob * job);
 	
-	queue<ThreadJob *> jobs;	//protected by jobs_mutex
-	vector<pthread_t> threads;
+    std::queue<ThreadJob *> jobs;	//protected by jobs_mutex
+	std::vector<pthread_t> threads;
 	bool threads_exit;
 	int jobs_in_process;	//protected by jobs_mutex
 	sem_t * job_semaphore;
@@ -68,57 +67,78 @@ protected:
     int jobs_current;
 };
 
+class Spinlock
+{
+public:
+    Spinlock()
+    : lock_holder(0) {}
+    // for an explanation of the locks used here, see
+    // http://stackoverflow.com/questions/1383363/is-my-spin-lock-implementation-correct-and-optimal
+    void lock() {
+        while (__sync_lock_test_and_set(&lock_holder, 1)) while(lock_holder);
+        
+    }
+    void unlock() {
+        __sync_synchronize();
+        lock_holder = 0;
+    }
+protected:
+    volatile char lock_holder;
+};
+
 
 template <class T>
 class SynchronizedQueue
 {
 public: 
-    SynchronizedQueue() 
-    : lock_holder(0)
-    { }
+    SynchronizedQueue() { }
     
     void push(const T & item) {
-        lock();
+        lock.lock();
         q.push(item);
-        unlock();
+        lock.unlock();
     }
     
     size_t size() {
-        lock();
+        lock.lock();
         size_t r = q.size();
-        unlock();
+        lock.unlock();
         return r;
     }
     
     bool empty() {
-        lock();
+        lock.lock();
         bool e = q.empty();
-        unlock();
+        lock.unlock();
         return e;
     }
     
     T pop() {
-        lock();
+        lock.lock();
         T ret = q.front();
         q.pop();
-        unlock();
+        lock.unlock();
+        return ret;
+    }
+    
+    T & back() {
+        lock.lock();
+        T & ret = q.back();
+        lock.unlock();
+        return ret;
+    }
+    
+    T & front() {
+        lock.lock();
+        T & ret = q.front();
+        lock.unlock();
         return ret;
     }
     
 protected:
-    // for an explanation of the locks used here, see
-    // http://stackoverflow.com/questions/1383363/is-my-spin-lock-implementation-correct-and-optimal
-    void lock() {
-        while (__sync_lock_test_and_set(&lock_holder, 1)) while(lock_holder);
-    }
-
-    void unlock() {
-        __sync_synchronize();
-        lock_holder = 0;
-    }
-
-    volatile char lock_holder;
-    queue<T> q;
+    
+    Spinlock lock;
+    std::queue<T> q;
 };
 
 #endif

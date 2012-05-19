@@ -12,7 +12,9 @@ void CountCommand::getOptions()
 int CountCommand::runCommand()
 {
     FileReader reader;
-    
+
+    reader.setLoadStringData(false);
+
     reader.addFiles(input_filenames);
     reader.runChain();
     

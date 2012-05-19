@@ -1,6 +1,7 @@
 #include "algorithm_module.h"
 #include <pthread.h>
 using namespace BamTools;
+using namespace std;
 
 AlgorithmModule::AlgorithmModule()
 : source(NULL)

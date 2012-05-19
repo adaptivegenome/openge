@@ -9,6 +9,7 @@ int HelpCommand::runCommand()
 {
     if(1 != vm.count("command")) {
         cerr << "Usage: openge help command" << endl;
+        cerr << "Valid commands are: convert count dedup help mergesort stats view" << endl;
         return 0;
     }
     
