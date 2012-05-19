@@ -2,6 +2,7 @@
 
 #include "api/BamWriter.h"
 using namespace BamTools;
+using namespace std;
 
 
 int FileWriter::runInternal()

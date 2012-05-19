@@ -120,6 +120,20 @@ public:
         lock.unlock();
         return ret;
     }
+    
+    T & back() {
+        lock.lock();
+        T & ret = q.back();
+        lock.unlock();
+        return ret;
+    }
+    
+    T & front() {
+        lock.lock();
+        T & ret = q.front();
+        lock.unlock();
+        return ret;
+    }
 
 protected:
 

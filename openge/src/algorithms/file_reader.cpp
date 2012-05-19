@@ -1,12 +1,41 @@
 #include "file_reader.h"
 
 #include "api/BamMultiReader.h"
-#include "api/SamReader.h"
+#include "../util/sam_reader.h"
 using namespace BamTools;
+using namespace std;
 
+FileReader::file_format_t FileReader::deduceFileFormat()
+{
+    FILE * fp = fopen(filenames[0].c_str(), "rb");
+    
+    if(!fp) {
+        cerr << "Couldn't open file " << filenames[0] << endl;
+        return FORMAT_UNKNOWN;
+    }
+
+    unsigned char data[2];
+    if(2 != fread(data, 2, 1, fp)) {
+        cerr << "Couldn't read from file " << filenames[0] << endl;
+        return FORMAT_UNKNOWN;
+    }
+
+    fclose(fp);
+    
+    if(data[0] == '@')
+        return FORMAT_SAM;
+    
+    if(data[0] == 31 && data[1] == 139)
+        return FORMAT_BAM;
+    
+    return FORMAT_UNKNOWN;
+}
 
 int FileReader::runInternal()
 {
+    if(!format_specified)
+        format = deduceFileFormat();
+
     if(format == FORMAT_BAM)
     {
         BamMultiReader reader;
@@ -24,7 +53,11 @@ int FileReader::runInternal()
         
         while(true)
         {
-            al = reader.GetNextAlignment();
+            if(load_string_data)
+                al = reader.GetNextAlignment();
+            else
+                al = reader.GetNextAlignmentCore();
+
             if(!al)
                 break;
             
@@ -42,7 +75,7 @@ int FileReader::runInternal()
         }
         
         if(!reader.Open(filenames[0])) {
-            cerr << "Error opening BAM files." << endl;
+            cerr << "Error opening SAM file." << endl;
             return -1;
         }
         
@@ -50,21 +83,26 @@ int FileReader::runInternal()
         references = reader.GetReferenceData();
         open = true;
 
+        
+        BamAlignment * al = NULL;
         while(true)
         {
-            BamAlignment al;
-            if(!reader.GetNextAlignment(al))
+            al = reader.GetNextAlignment();
+            
+            if(NULL == al)
                 break;
             
             if(!sinks.empty())
-                putOutputAlignment(new BamAlignment(al));
+                putOutputAlignment(al);
             count++;
         }
-        
+
         reader.Close();
-    } else 
-        cerr << "Unrecognized output format." << endl;
-    
+    } else {
+        cerr << "FileReader couldn't detect file format. Aborting." << endl;
+        return -1;
+    }
+
     return 0;
 }
 

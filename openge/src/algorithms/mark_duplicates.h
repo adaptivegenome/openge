@@ -5,26 +5,30 @@
 #include "api/BamAlignment.h"
 #include "../util/picard_structures.h"
 
+#include <map>
+#include <string>
+#include <vector>
+
 class MarkDuplicates : public AlgorithmModule
 {
 protected:
-    vector<ReadEnds *> pairSort;
-    vector<ReadEnds *> fragSort;
-    set<int> duplicateIndexes;
+    std::vector<ReadEnds *> pairSort;
+    std::vector<ReadEnds *> fragSort;
+    std::set<int> duplicateIndexes;
     int numDuplicateIndices;
     
-    map<string,short> libraryIds;
+    std::map<std::string,short> libraryIds;
     short nextLibraryId;
     
-    string bufferFilename;
+    std::string bufferFilename;
     
 public:
     bool removeDuplicates;
     bool verbose;
     MarkDuplicates();
 
-    string getBufferFileName();
-    void setBufferFileName(string filename) { bufferFilename = filename; }
+    std::string getBufferFileName();
+    void setBufferFileName(std::string filename) { bufferFilename = filename; }
 
 protected:
     /////////////////
@@ -42,12 +46,12 @@ protected:
     readends_orientation_t getOrientationByte(bool read1NegativeStrand, bool read2NegativeStrand);
     void buildSortedReadEndLists();
     short getLibraryId(BamTools::SamHeader & header, const BamTools::BamAlignment & rec);
-    string getLibraryName(BamTools::SamHeader & header, const BamTools::BamAlignment & rec);
+    std::string getLibraryName(BamTools::SamHeader & header, const BamTools::BamAlignment & rec);
     void generateDuplicateIndexes();
     bool areComparableForDuplicates(const ReadEnds & lhs, const ReadEnds & rhs, bool compareRead2);
     void addIndexAsDuplicate(long bamIndex);
-    void markDuplicatePairs(const vector<ReadEnds *>& list);
-    void markDuplicateFragments(const vector<ReadEnds *>& list, bool containsPairs);
+    void markDuplicatePairs(const std::vector<ReadEnds *>& list);
+    void markDuplicateFragments(const std::vector<ReadEnds *>& list, bool containsPairs);
 
     int runInternal();
 };
