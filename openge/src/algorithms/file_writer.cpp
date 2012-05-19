@@ -4,9 +4,15 @@
 using namespace BamTools;
 using namespace std;
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 
 int FileWriter::runInternal()
 {
+#ifdef __linux__
+    prctl(PR_SET_NAME,"am_FileWriter",0,0,0);
+#endif
     BamWriter writer;
     
     if(!writer.Open(filename, getHeader(), getReferences())) {

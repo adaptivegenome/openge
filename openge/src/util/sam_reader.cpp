@@ -10,6 +10,10 @@
 #include <sstream>
 #include "sam_reader.h"
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
+
 #include <cstring>
 using namespace std;
 using namespace BamTools;
@@ -27,6 +31,9 @@ public:
 
 void SamParseJob::runJob()
 {
+#ifdef __linux__
+    prctl(PR_SET_NAME,"SAM_line_worker",0,0,0);
+#endif
     data.al = data.reader->ParseAlignment(data.line);
     data.parsed = true;
 }
@@ -39,6 +46,9 @@ SamReader::SamReader()
 
 void * SamReader::LineGenerationThread(void * data)
 {
+#ifdef __linux__
+    prctl(PR_SET_NAME,"SAM_line_master",0,0,0);
+#endif
     SamReader * reader = (SamReader *) data;
     while(!reader->finished && reader->jobs.size() < MAX_LINE_QUEUE_SIZE) {
         string line_s;

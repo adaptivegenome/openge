@@ -5,6 +5,10 @@
 using namespace BamTools;
 using namespace std;
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
+
 FileReader::file_format_t FileReader::deduceFileFormat()
 {
     FILE * fp = fopen(filenames[0].c_str(), "rb");
@@ -33,6 +37,10 @@ FileReader::file_format_t FileReader::deduceFileFormat()
 
 int FileReader::runInternal()
 {
+#ifdef __linux__
+    prctl(PR_SET_NAME,"am_FileReader",0,0,0);
+#endif
+    
     if(!format_specified)
         format = deduceFileFormat();
 
