@@ -66,10 +66,15 @@ protected:
     bool loaded;
     bool finished;
     SynchronizedQueue<SamLine_t *> jobs;
-    ThreadPool pool;
     
     static void * LineGenerationThread(void * data);
+    static void * LineWorkerThread(void * reader_p);
     pthread_t line_generation_thread;
+    
+    SynchronizedQueue<SamLine * > jobs_for_workers;
+    std::vector<pthread_t> worker_threads;
+    bool workers_finished;
+    Spinlock worker_jobs_lock;  //we need to syncronize access to the queue, just to make sure that two threads don't try to pull out the last job (and one get invalid data when it should instead be waiting again)
 };
 
 #endif

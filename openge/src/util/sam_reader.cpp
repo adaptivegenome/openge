@@ -11,6 +11,8 @@
 #include <cstdio>
 #include "sam_reader.h"
 
+#include <api/BamParallelismSettings.h>
+
 #ifdef __linux__
 #include <sys/prctl.h>
 #endif
@@ -21,6 +23,7 @@ using namespace BamTools;
 
 const int MAX_LINE_QUEUE_SIZE = 6000;
 
+/*
 class SamParseJob : public ThreadJob
 {
 protected:
@@ -38,12 +41,47 @@ void SamParseJob::runJob()
     data.al = data.reader->ParseAlignment(data.line);
     data.parsed = true;
 }
+ */
 
 SamReader::SamReader()
 : file(NULL)
 , loaded(false)
 , finished(false)
 { }
+
+
+void * SamReader::LineWorkerThread(void * reader_p)
+{
+#ifdef __linux__
+    prctl(PR_SET_NAME,"SAM_line_worker",0,0,0);
+#endif
+    SamReader * reader = (SamReader *) reader_p;
+    while(1) {
+        SamLine * data = NULL;
+
+        //if there is a job, take it. Otherwise sleep for a bit.
+        while(!reader->workers_finished) {
+            reader->worker_jobs_lock.lock();
+            if(reader->jobs_for_workers.size() > 0) {
+                data = reader->jobs_for_workers.pop();
+                reader->worker_jobs_lock.unlock();
+                break;
+            } else {
+                reader->worker_jobs_lock.unlock();
+                usleep(2000);
+            }
+            
+        }
+        
+        if(reader->workers_finished)
+            break;
+        
+        data->al = reader->ParseAlignment(data->line);
+        data->parsed = true;
+    }
+
+    return 0;
+}
 
 void * SamReader::LineGenerationThread(void * data)
 {
@@ -81,8 +119,9 @@ void * SamReader::LineGenerationThread(void * data)
 
         lt->reader = reader;
         reader->jobs.push(lt);
-        SamParseJob * parse_job = new SamParseJob(*lt);
-        reader->pool.addJob(parse_job);
+        //SamParseJob * parse_job = new SamParseJob(*lt);
+        //reader->pool.addJob(parse_job);
+        reader->jobs_for_workers.push(lt);
     }
     
     fclose(fp);
@@ -100,7 +139,14 @@ bool SamReader::Open(const string & filename)
     LoadHeaderData();
     
     loaded = true;
+    workers_finished = false;
     
+    for(int i = 0; i < BamParallelismSettings::getNumberThreads(); i++)
+    {
+        pthread_t t;
+        pthread_create(&t, NULL, LineWorkerThread, this);
+        worker_threads.push_back(t);
+    }
     pthread_create(&line_generation_thread, 0, LineGenerationThread, this);
     
     return true;
@@ -108,9 +154,14 @@ bool SamReader::Open(const string & filename)
 
 bool SamReader::Close()
 {
+    workers_finished = true;
+    for(int i = 0; i < BamParallelismSettings::getNumberThreads(); i++)
+        pthread_join(worker_threads[i], NULL);
+
+    worker_threads.clear();
+    
     finished = true;
     pthread_join(line_generation_thread, NULL);
-    pool.waitForJobCompletion();
     file.close();
     return true;
 }
