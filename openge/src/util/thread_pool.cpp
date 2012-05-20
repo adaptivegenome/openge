@@ -54,13 +54,7 @@ jobs_current(0)
 		assert(0);
 	}
 
-	int retval = pthread_mutex_init(&jobs_mutex,NULL);
-
-	if(0 != retval)
-		perror("Error opening threadpool mutex");
-	assert(0 == retval);
-    
-	retval = pthread_mutex_init(&busy_mutex,NULL);
+	int retval = pthread_mutex_init(&busy_mutex,NULL);
     
 	if(0 != retval)
 		perror("Error opening threadpool busy mutex");
@@ -89,12 +83,6 @@ ThreadPool::~ThreadPool()
 	//wait for threads to return
 	for(size_t thread_ctr = 0; thread_ctr < threads.size(); thread_ctr++)
 		pthread_join(threads[thread_ctr], NULL);
-	
-	if(0 != pthread_mutex_destroy(&jobs_mutex))
-    {
-        perror("Error destroying jobs mutex");
-        assert(0);
-    }
     
 	if(0 != pthread_mutex_destroy(&busy_mutex))
     {
@@ -129,21 +117,15 @@ bool ThreadPool::addJob(ThreadJob * job)
     if(0 != sem_wait(job_submission_semaphore))
         perror("Error waiting for job submission semaphore");
     
-	if(0 != pthread_mutex_lock(&jobs_mutex))
-    {
-        perror("Error locking jobs mutex");
-        assert(0);
-    }
+    jobs_mutex.lock();
+
     if(jobs_current == 0)
         pthread_mutex_lock(&busy_mutex);
     jobs_current++;
     
 	jobs.push(job);
-	if(0 != pthread_mutex_unlock(&jobs_mutex))
-    {
-        perror("Error unlocking jobs mutex");
-        assert(0);
-    }
+    jobs_mutex.unlock();
+
 	if(0 != sem_post(job_semaphore))
         perror("Error posting job semaphore");
 	return true;
@@ -164,40 +146,24 @@ ThreadJob * ThreadPool::startJob()
 		return NULL;
 	}
 	
-	if(0 != pthread_mutex_lock(&jobs_mutex))
-    {
-        perror("Error locking jobs mutex");
-        assert(0);
-    }
+	jobs_mutex.lock();
 	ThreadJob * job = jobs.front();
 	jobs.pop();
 	jobs_in_process++;
-	if(0 != pthread_mutex_unlock(&jobs_mutex))
-    {
-        perror("Error unlocking jobs mutex");
-        assert(0);
-    }
+    jobs_mutex.unlock();
 	
 	return job;
 }
 
 void ThreadPool::stopJob(ThreadJob * job)
 {
-	if(0 != pthread_mutex_lock(&jobs_mutex))
-    {
-        perror("Error locking jobs mutex");
-        assert(0);
-    }
+	jobs_mutex.lock();
     
 	jobs_in_process--;
     jobs_current--;
 	if(jobs_current == 0)
 		pthread_mutex_unlock(&busy_mutex);
-	if(0 != pthread_mutex_unlock(&jobs_mutex))
-    {
-        perror("Error unlocking jobs mutex");
-        assert(0);
-    }
+	jobs_mutex.unlock();
     if(0 != sem_post(job_submission_semaphore))
         perror("Error posting job_submission_semaphore");
 }

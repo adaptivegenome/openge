@@ -37,36 +37,6 @@ public:
 protected:
 };
 
-class ThreadPool
-{
-	friend class ThreadJob;
-public:
-	ThreadPool( int threads = 0);
-	virtual ~ThreadPool();
-	
-	bool addJob(ThreadJob * job);
-	int numJobs();
-	static int availableCores();
-	void waitForJobCompletion();
-	
-protected:
-	static void * thread_start(void * thread_pool);
-	ThreadJob * startJob();
-	void stopJob(ThreadJob * job);
-	
-    std::queue<ThreadJob *> jobs;	//protected by jobs_mutex
-	std::vector<pthread_t> threads;
-	bool threads_exit;
-	int jobs_in_process;	//protected by jobs_mutex
-	sem_t * job_semaphore;
-    sem_t * job_submission_semaphore;
-	pthread_mutex_t jobs_mutex;
-	pthread_mutex_t busy_mutex;
-	char sem_name[48];
-	char sem_submission_name[48];
-    int jobs_current;
-};
-
 class Spinlock
 {
 public:
@@ -139,6 +109,36 @@ protected:
     
     Spinlock lock;
     std::queue<T> q;
+};
+
+class ThreadPool
+{
+	friend class ThreadJob;
+public:
+	ThreadPool( int threads = 0);
+	virtual ~ThreadPool();
+	
+	bool addJob(ThreadJob * job);
+	int numJobs();
+	static int availableCores();
+	void waitForJobCompletion();
+	
+protected:
+	static void * thread_start(void * thread_pool);
+	ThreadJob * startJob();
+	void stopJob(ThreadJob * job);
+	
+    std::queue<ThreadJob *> jobs;	//protected by jobs_mutex
+	std::vector<pthread_t> threads;
+	bool threads_exit;
+	int jobs_in_process;	//protected by jobs_mutex
+	sem_t * job_semaphore;
+    sem_t * job_submission_semaphore;
+	Spinlock jobs_mutex;
+	pthread_mutex_t busy_mutex;
+	char sem_name[48];
+	char sem_submission_name[48];
+    int jobs_current;
 };
 
 #endif

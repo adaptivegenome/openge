@@ -64,7 +64,10 @@ void * SamReader::LineGenerationThread(void * data)
     
     char line_s[1024];
     
-    while(!reader->finished && reader->jobs.size() < MAX_LINE_QUEUE_SIZE) {
+    while(!reader->finished) {
+        while( reader->jobs.size() > MAX_LINE_QUEUE_SIZE)
+            usleep(20000);
+        
         char * read = fgets(line_s, 1024, fp);
         
         if(!read || strlen(read) < 10)  // if line is invalid
