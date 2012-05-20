@@ -241,7 +241,7 @@ BamAlignment * SamReader::LoadNextAlignment()
 #endif
 }
 
-BamAlignment * SamReader::ParseAlignment(const string & line_s)
+BamAlignment * SamReader::ParseAlignment(const char * line_s)
 {
     BamAlignment * al = new BamAlignment();
     BamAlignment & alignment = *al;
@@ -258,9 +258,10 @@ BamAlignment * SamReader::ParseAlignment(const string & line_s)
     string & seq = alignment.QueryBases;
     string & qual = alignment.Qualities;
     
-    char * line = (char *) malloc(sizeof(char) * (line_s.length() + 1));
-    memcpy(line, line_s.c_str(), line_s.length());
-    line[line_s.length()] = 0;  //null terminate
+    size_t line_length = strlen(line_s);
+    char * line = (char *) malloc(sizeof(char) * (line_length + 1));
+    memcpy(line, line_s, line_length);
+    line[line_length] = 0;  //null terminate
     char * field_starts[12] = {0};
     
     for(int ct = 0; ct < 11; ct++)  //for 11 columns, null terminate each field and put in array of field
@@ -268,7 +269,7 @@ BamAlignment * SamReader::ParseAlignment(const string & line_s)
         field_starts[ct] = line;
         line = strchr(line, '\t');
         if(ct < 10) {
-            if(!line || line >= line + line_s.length())
+            if(!line || line >= line + line_length)
                 return NULL;    
             if(*line) {
                 *line = 0;

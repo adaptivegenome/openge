@@ -31,6 +31,15 @@ int AlgorithmModule::runChildren()
 
 int AlgorithmModule::runChain()
 {
+    // TODO LCB- when running a chain, we should parse the tree and add BlackHoleModules to each leaf node
+    // for performance reasons.
+    AlgorithmModule * first_leaf = this;
+    
+    while(first_leaf->sinks.size() > 0)
+        first_leaf = *(first_leaf->sinks.begin());
+    
+    first_leaf->addSink(new BlackHoleModule);
+    
     AlgorithmModule * root_module = this;
     while(root_module->source)
         root_module = root_module->source;
@@ -38,6 +47,9 @@ int AlgorithmModule::runChain()
     root_module->runChildren();
 
     finished_execution = true;
+    
+    //delete black hole LCB FIX virtual destructor
+    delete *(first_leaf->sinks.begin());
     
     return 0;
 }

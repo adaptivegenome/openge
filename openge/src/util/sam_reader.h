@@ -47,7 +47,7 @@ public:
     // get reference data
     const BamTools::RefVector & GetReferenceData(void);
     //read a single line of a SAM file
-    BamTools::BamAlignment * ParseAlignment(const std::string & line_s);
+    BamTools::BamAlignment * ParseAlignment(const char * line_s);
 protected:
     // retrieves BAM alignment under file pointer
     // (does no overlap checking or character data parsing)

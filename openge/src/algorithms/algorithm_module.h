@@ -13,8 +13,6 @@
 // 
 // To use this class, you only need to implement runInternal().
 
-
-
 class AlgorithmModule
 {
 public:
@@ -73,6 +71,22 @@ protected:
     pthread_t thread;
     bool finished_execution;
     int run_return_value;
+};
+
+// The black hole module exists to terminate a chain of other modules.
+// Unfortunately, delete'ing the current BamAlignment takes forever,
+// so this class helps by running the delete in a separate thread.
+class BlackHoleModule : public AlgorithmModule
+{
+    virtual int runInternal()
+    {
+        while(true) {
+            BamTools::BamAlignment * r = getInputAlignment();
+            if(!r)
+                return 0;
+            delete r;
+        }
+    }
 };
 
 #endif
