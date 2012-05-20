@@ -56,6 +56,8 @@ int AlgorithmModule::finishAsync()
 
 void AlgorithmModule::putInputAlignment(BamAlignment * read)
 {
+    while(input_queue.size() > 6000)
+        usleep(10000);
     input_queue.push(read);
 }
 

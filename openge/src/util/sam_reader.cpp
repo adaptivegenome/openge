@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <cstdio>
 #include "sam_reader.h"
 
 #ifdef __linux__
@@ -50,13 +51,24 @@ void * SamReader::LineGenerationThread(void * data)
     prctl(PR_SET_NAME,"SAM_line_master",0,0,0);
 #endif
     SamReader * reader = (SamReader *) data;
+    
+    FILE * fp = fopen(reader->filename.c_str(), "r");
+    if(!fp) {
+        cerr << "Error opening file for line parser" << endl;
+        abort();
+    }
+    
+    //open our C file handle to the same position that the ifstream was at.
+    size_t position = reader->file.tellg();
+    fseek(fp, position, SEEK_SET);
+    
+    char line_s[1024];
+    
     while(!reader->finished && reader->jobs.size() < MAX_LINE_QUEUE_SIZE) {
-        string line_s;
-        getline(reader->file, line_s);
-
-        if(reader->file.eof()) {
+        char * read = fgets(line_s, 1024, fp);
+        
+        if(!read || strlen(read) < 10)  // if line is invalid
             break;
-        }
 
         SamLine_t * lt = new SamLine_t;
         lt->line = line_s;
@@ -65,6 +77,8 @@ void * SamReader::LineGenerationThread(void * data)
         SamParseJob * parse_job = new SamParseJob(*lt);
         reader->pool.addJob(parse_job);
     }
+    
+    fclose(fp);
 
     reader->finished = true;
 
@@ -73,6 +87,7 @@ void * SamReader::LineGenerationThread(void * data)
 
 bool SamReader::Open(const string & filename)
 {
+    this->filename = filename;
     file.open(filename.c_str(), ios::in);
     
     LoadHeaderData();

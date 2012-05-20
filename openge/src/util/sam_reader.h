@@ -60,6 +60,7 @@ protected:
     std::ifstream file;
     BamTools::SamHeader header;
     BamTools::RefVector m_refData;
+    std::string filename;
     
     // multithreading variables
     bool loaded;
