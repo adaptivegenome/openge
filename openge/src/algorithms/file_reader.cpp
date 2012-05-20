@@ -19,7 +19,7 @@ FileReader::file_format_t FileReader::deduceFileFormat()
     }
 
     unsigned char data[2];
-    if(2 != fread(data, 2, 1, fp)) {
+    if(2 != fread(data, 1,2, fp)) {
         cerr << "Couldn't read from file " << filenames[0] << endl;
         return FORMAT_UNKNOWN;
     }
