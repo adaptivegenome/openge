@@ -78,15 +78,7 @@ protected:
 // so this class helps by running the delete in a separate thread.
 class BlackHoleModule : public AlgorithmModule
 {
-    virtual int runInternal()
-    {
-        while(true) {
-            BamTools::BamAlignment * r = getInputAlignment();
-            if(!r)
-                return 0;
-            delete r;
-        }
-    }
+    virtual int runInternal();
 };
 
 #endif
