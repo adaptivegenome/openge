@@ -21,7 +21,7 @@ class BamThreadPool;
 class SamReader;
 
 typedef struct SamLine {
-    std::string line;
+    char * line;
     BamTools::BamAlignment * al;
     SamReader * reader;
     bool parsed;

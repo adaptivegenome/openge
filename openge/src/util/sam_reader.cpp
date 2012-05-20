@@ -62,7 +62,7 @@ void * SamReader::LineGenerationThread(void * data)
     size_t position = reader->file.tellg();
     fseek(fp, position, SEEK_SET);
     
-    char line_s[1024];
+    char line_s[10240];
     
     while(!reader->finished) {
         while( reader->jobs.size() > MAX_LINE_QUEUE_SIZE)
@@ -72,9 +72,13 @@ void * SamReader::LineGenerationThread(void * data)
         
         if(!read || strlen(read) < 10)  // if line is invalid
             break;
-
+        
         SamLine_t * lt = new SamLine_t;
-        lt->line = line_s;
+        
+        //create a buffer for the worker thread to use.
+        lt->line = (char *) malloc(strlen( line_s) + 1);
+        strcpy(lt->line, line_s);
+
         lt->reader = reader;
         reader->jobs.push(lt);
         SamParseJob * parse_job = new SamParseJob(*lt);
@@ -168,7 +172,10 @@ BamAlignment * SamReader::LoadNextAlignment()
     }
     //cerr << "pop" << endl;
     SamLine_t * s = jobs.pop();
-    return s->al;
+    BamAlignment * ret = s->al;
+    free(s->line);
+    delete s;
+    return ret;
 #else
     
     if(!loaded)
