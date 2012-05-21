@@ -24,6 +24,7 @@ class SamLine {
 public:
     BamTools::BamAlignment * al;
     char * line;
+    char line_static[640];  //for optimization, we statically allocate a block so we can avoid allocation for small lines. If line == NULL, then we are using line_static instead of line.
     bool parsed;
     SamLine() : line((char *)3), al((BamTools::BamAlignment *)4), parsed(false) {}
 };

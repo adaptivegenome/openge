@@ -86,7 +86,6 @@ void * SamReader::LineGenerationThread(void * data)
     fseek(fp, position, SEEK_SET);
     
     char line_s[10240];
-    int ct = 0;
     while(!reader->finished) {
         while( reader->jobs.size() > MAX_LINE_QUEUE_SIZE)
             usleep(20000);
@@ -99,14 +98,16 @@ void * SamReader::LineGenerationThread(void * data)
         SamLine * lt = new SamLine;
         
         //create a buffer for the worker thread to use.
-        lt->line = (char *) malloc(strlen( line_s) + 1);
+        size_t line_line = strlen(read);
+        lt->line = lt->line_static;
+        
+        if(line_line >= sizeof(lt->line_static))
+            lt->line = (char *) malloc(line_line + 1);
+
         assert(lt->line);
         strcpy(lt->line, line_s);
-        lt->al = (BamAlignment *) ct;
 
         reader->jobs.push(lt);
-        //SamParseJob * parse_job = new SamParseJob(*lt);
-        //reader->pool.addJob(parse_job);
         reader->jobs_for_workers.push(lt);
     }
     
@@ -214,7 +215,9 @@ BamAlignment * SamReader::LoadNextAlignment()
     //cerr << "pop" << endl;
     SamLine * s = jobs.pop();
     BamAlignment * ret = s->al;
-    free(s->line);
+    if(s->line != s->line_static)
+        free(s->line);
+
     s->line = NULL;
     delete s;
     return ret;
