@@ -9,6 +9,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdio>
+#include <cassert>
 #include "sam_reader.h"
 
 #include <api/BamParallelismSettings.h>
@@ -21,27 +22,9 @@
 using namespace std;
 using namespace BamTools;
 
+#define SAM_READER_MT
+
 const int MAX_LINE_QUEUE_SIZE = 6000;
-
-/*
-class SamParseJob : public ThreadJob
-{
-protected:
-    SamLine_t & data;
-public:
-    SamParseJob(SamLine_t & data) : data(data) { }
-    virtual void runJob();
-};
-
-void SamParseJob::runJob()
-{
-#ifdef __linux__
-    prctl(PR_SET_NAME,"SAM_line_worker",0,0,0);
-#endif
-    data.al = data.reader->ParseAlignment(data.line);
-    data.parsed = true;
-}
- */
 
 SamReader::SamReader()
 : file(NULL)
@@ -49,7 +32,7 @@ SamReader::SamReader()
 , finished(false)
 { }
 
-
+#ifdef SAM_READER_MT
 void * SamReader::LineWorkerThread(void * reader_p)
 {
 #ifdef __linux__
@@ -65,6 +48,8 @@ void * SamReader::LineWorkerThread(void * reader_p)
             if(reader->jobs_for_workers.size() > 0) {
                 data = reader->jobs_for_workers.pop();
                 reader->worker_jobs_lock.unlock();
+                assert(data);
+                assert(data->line);
                 break;
             } else {
                 reader->worker_jobs_lock.unlock();
@@ -75,7 +60,7 @@ void * SamReader::LineWorkerThread(void * reader_p)
         
         if(reader->workers_finished)
             break;
-        
+        assert(data->line);
         data->al = reader->ParseAlignment(data->line);
         data->parsed = true;
     }
@@ -101,23 +86,24 @@ void * SamReader::LineGenerationThread(void * data)
     fseek(fp, position, SEEK_SET);
     
     char line_s[10240];
-    
+    int ct = 0;
     while(!reader->finished) {
         while( reader->jobs.size() > MAX_LINE_QUEUE_SIZE)
             usleep(20000);
         
-        char * read = fgets(line_s, 1024, fp);
+        char * read = fgets(line_s, sizeof(line_s), fp);
         
         if(!read || strlen(read) < 10)  // if line is invalid
             break;
         
-        SamLine_t * lt = new SamLine_t;
+        SamLine * lt = new SamLine;
         
         //create a buffer for the worker thread to use.
         lt->line = (char *) malloc(strlen( line_s) + 1);
+        assert(lt->line);
         strcpy(lt->line, line_s);
+        lt->al = (BamAlignment *) ct;
 
-        lt->reader = reader;
         reader->jobs.push(lt);
         //SamParseJob * parse_job = new SamParseJob(*lt);
         //reader->pool.addJob(parse_job);
@@ -130,6 +116,7 @@ void * SamReader::LineGenerationThread(void * data)
 
     return NULL;
 }
+#endif
 
 bool SamReader::Open(const string & filename)
 {
@@ -139,6 +126,7 @@ bool SamReader::Open(const string & filename)
     LoadHeaderData();
     
     loaded = true;
+#ifdef SAM_READER_MT
     workers_finished = false;
     
     for(int i = 0; i < BamParallelismSettings::getNumberThreads(); i++)
@@ -148,12 +136,13 @@ bool SamReader::Open(const string & filename)
         worker_threads.push_back(t);
     }
     pthread_create(&line_generation_thread, 0, LineGenerationThread, this);
-    
+#endif
     return true;
 }
 
 bool SamReader::Close()
 {
+#ifdef SAM_READER_MT
     workers_finished = true;
     for(int i = 0; i < BamParallelismSettings::getNumberThreads(); i++)
         pthread_join(worker_threads[i], NULL);
@@ -162,6 +151,7 @@ bool SamReader::Close()
     
     finished = true;
     pthread_join(line_generation_thread, NULL);
+#endif
     file.close();
     return true;
 }
@@ -209,7 +199,7 @@ bool AddHeaderAttributeArray(BamAlignment & alignment, const string & tag,const 
 // (does no overlap checking or character data parsing)
 BamAlignment * SamReader::LoadNextAlignment()
 {
-#if 1 
+#ifdef SAM_READER_MT
     
     //wait for there to be something at the back of the queue that is done.
     while(true) {
@@ -222,13 +212,14 @@ BamAlignment * SamReader::LoadNextAlignment()
         usleep(20);
     }
     //cerr << "pop" << endl;
-    SamLine_t * s = jobs.pop();
+    SamLine * s = jobs.pop();
     BamAlignment * ret = s->al;
     free(s->line);
+    s->line = NULL;
     delete s;
     return ret;
 #else
-    
+    //LCB - this single threaded code should be kept for backwards compat and --nothreads, but needs to be verified for correctness.
     if(!loaded)
         return NULL;
     
@@ -237,7 +228,7 @@ BamAlignment * SamReader::LoadNextAlignment()
     
     string line_s;
     getline(file, line_s);
-    return ParseAlignment(line_s);
+    return ParseAlignment(line_s.c_str());
 #endif
 }
 
@@ -404,6 +395,7 @@ BamAlignment * SamReader::ParseAlignment(const char * line_s)
     }
     
     free( field_starts[0] );
+    field_starts[0] = NULL;
     
     return al;
 }

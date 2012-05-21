@@ -22,13 +22,13 @@ class BamThreadPool;
 
 class SamReader;
 
-typedef struct SamLine {
+struct SamLine_t {
     string line;
     BamAlignment * al;
     SamReader * reader;
     bool parsed;
-    SamLine() : al(NULL), parsed(false) {}
-} SamLine_t;
+    SamLine_t() : al(NULL), reader(NULL), parsed(false) {}
+};
 
 // SamReader is capable of sequentially reading a SAM file. It doesn't support
 // most of the features that BamReader does, only enough to support converting SAM
