@@ -108,7 +108,7 @@ BamAlignment * AlgorithmModule::getInputAlignment()
     while(input_queue.size() == 0) {
         if(source->finished_execution)
             return NULL;
-        usleep(20000);
+        usleep(10000);
     }
 
     return input_queue.pop();
