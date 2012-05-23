@@ -90,7 +90,7 @@ void * SamReader::LineGenerationThread(void * data)
         while( reader->jobs.size() > MAX_LINE_QUEUE_SIZE)
             usleep(20000);
         
-        char * read = fgets(line_s, sizeof(line_s), fp);
+        char * read = fgets(line_s, sizeof(line_s)-1, fp);
         
         if(!read || strlen(read) < 10)  // if line is invalid
             break;
@@ -127,6 +127,7 @@ bool SamReader::Open(const string & filename)
     LoadHeaderData();
     
     loaded = true;
+    finished = false;
 #ifdef SAM_READER_MT
     workers_finished = false;
     
@@ -253,6 +254,8 @@ BamAlignment * SamReader::ParseAlignment(const char * line_s)
     string & qual = alignment.Qualities;
     
     size_t line_length = strlen(line_s);
+    if(line_length < 10)    //if the line is shorter than 10 chars, it is definitely not a full SAM line.
+        return NULL;
     char * line = (char *) malloc(sizeof(char) * (line_length + 1));
     memcpy(line, line_s, line_length);
     line[line_length] = 0;  //null terminate
