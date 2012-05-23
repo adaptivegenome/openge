@@ -329,7 +329,7 @@ BamAlignment * SamReader::ParseAlignment(const char * line_s)
     }
     
     if(!line)
-        return NULL;
+        return al;
     
     vector<char *> additional_parameters;
     
