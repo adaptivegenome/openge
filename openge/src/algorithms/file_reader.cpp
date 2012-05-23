@@ -50,6 +50,7 @@ int FileReader::runInternal()
         
         if(!reader.Open(filenames)) {
             cerr << "Error opening BAM files." << endl;
+            reader.Close();
             return -1;
         }
         
@@ -108,6 +109,7 @@ int FileReader::runInternal()
         reader.Close();
     } else {
         cerr << "FileReader couldn't detect file format. Aborting." << endl;
+        abort();
         return -1;
     }
 
