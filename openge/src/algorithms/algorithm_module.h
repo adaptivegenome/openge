@@ -17,6 +17,7 @@ class AlgorithmModule
 {
 public:
     AlgorithmModule();
+    virtual ~AlgorithmModule() {};
 
     // Data flow management
     // Use the following functions to connect several modules together. These functions
@@ -54,6 +55,9 @@ public:
     virtual BamTools::SamHeader getHeader();
     virtual BamTools::RefVector getReferences();
     
+    void setVerbose(bool verbose) { this->verbose = verbose; }
+    bool isVerbose() { return verbose; }
+    
 protected:
     // All data processing should be performed in this function.
     virtual int runInternal() = 0;
@@ -71,6 +75,7 @@ protected:
     pthread_t thread;
     bool finished_execution;
     int run_return_value;
+    bool verbose;   //< Print out extra informational messages while running. (otherwise, stay silent except for errors).
 };
 
 // The black hole module exists to terminate a chain of other modules.
