@@ -26,7 +26,7 @@ public:
     char * line;
     char line_static[640];  //for optimization, we statically allocate a block so we can avoid allocation for small lines. If line == NULL, then we are using line_static instead of line.
     bool parsed;
-    SamLine() : line((char *)3), al((BamTools::BamAlignment *)4), parsed(false) {}
+    SamLine() : al(NULL), line(NULL), parsed(false) {}
 };
 
 // SamReader is capable of sequentially reading a SAM file. It doesn't support
@@ -57,7 +57,6 @@ protected:
     // retrieves header text from SAM file
     void LoadHeaderData(void);
 
-    //std::vector<BamTools::BamAlignment> alignments;
     std::ifstream file;
     BamTools::SamHeader header;
     BamTools::RefVector m_refData;
