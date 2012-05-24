@@ -96,24 +96,6 @@ For example,
 \cmd{openge dedup a.bam -o z.bam} 
 identifies duplicates in a.bam, and writes all reads to z.bam with duplicates identified.
 
-\begin{comment}
-\subsection {head}
-A single bamfile is generated from the first \textit{n} reads in the provided file. The header information saved is the same as in the input file.
-
-For example,
-\cmd{openge head -o output.bam infile.bam -n 500}
-generates a BAM file called output.bam that contains the header and the first 500 reads contained in infile.bam.
-
-Parameters:
-\begin{center}
-\begin{tabular}{llp{3.5in}}
-\hline
-Flag&Long flag&Description\\ \hline
--n \textit{number}&{-}{-}count \textit{number}&Number of reads to include in the generated file\\
-\end{tabular}
-\end{center}
-\end{comment}
-
 \subsection {help}
 The help command shows available options for any OpenGE command. 
 
