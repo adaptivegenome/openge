@@ -76,37 +76,34 @@ int FileReader::runInternal()
         
         reader.Close();
     } else if(format == FORMAT_SAM) {
-        SamReader reader;
-        
-        if(filenames.size() != 1) {
-            cerr << "Too many input files. SamReader only supports a single file input" << endl;
-            return -1;
-        }
-        
-        if(!reader.Open(filenames[0])) {
-            cerr << "Error opening SAM file." << endl;
-            return -1;
-        }
-        
-        header = reader.GetHeader();
-        references = reader.GetReferenceData();
-        open = true;
-
-        
-        BamAlignment * al = NULL;
-        while(true)
-        {
-            al = reader.GetNextAlignment();
+        for(int i = 0; i < filenames.size(); i++) {
+            SamReader reader;
             
-            if(NULL == al)
-                break;
+            if(!reader.Open(filenames[i])) {
+                cerr << "Error opening SAM file: " << filenames[i] << endl;
+                return -1;
+            }
             
-            if(!sinks.empty())
-                putOutputAlignment(al);
-            count++;
-        }
+            header = reader.GetHeader();
+            references = reader.GetReferenceData();
+            open = true;
 
-        reader.Close();
+            
+            BamAlignment * al = NULL;
+            while(true)
+            {
+                al = reader.GetNextAlignment();
+                
+                if(NULL == al)
+                    break;
+                
+                if(!sinks.empty())
+                    putOutputAlignment(al);
+                count++;
+            }
+
+            reader.Close();
+        }
     } else {
         cerr << "FileReader couldn't detect file format. Aborting." << endl;
         abort();
