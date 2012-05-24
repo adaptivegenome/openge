@@ -8,6 +8,7 @@
 #include <set>
 
 #include "../util/thread_pool.h"
+#include "../commands/commands.h"
 
 // Algorithm module superclass
 // 
@@ -55,8 +56,10 @@ public:
     virtual BamTools::SamHeader getHeader();
     virtual BamTools::RefVector getReferences();
     
-    void setVerbose(bool verbose) { this->verbose = verbose; }
-    bool isVerbose() { return verbose; }
+    bool isVerbose() const { return AlgorithmModule::verbose; }
+    bool isNothreads() const { return AlgorithmModule::nothreads; }
+    static void setNothreads(bool nothreads);
+    static void setVerbose(bool verbose);
     
 protected:
     // All data processing should be performed in this function.
@@ -75,7 +78,9 @@ protected:
     pthread_t thread;
     bool finished_execution;
     int run_return_value;
-    bool verbose;   //< Print out extra informational messages while running. (otherwise, stay silent except for errors).
+    
+    static bool verbose;
+    static bool nothreads;
 };
 
 // The black hole module exists to terminate a chain of other modules.

@@ -11,6 +11,8 @@
 
 #include "../util/thread_pool.h"
 
+#include "../algorithms/algorithm_module.h"
+
 using namespace std;
 namespace po = boost::program_options;
 
@@ -40,6 +42,9 @@ int OpenGECommand::runWithParameters(int argc, const char ** argv)
     BamParallelismSettings::setNumberThreads(num_threads);
     
     nothreads = vm.count("nothreads") != 0;
+    
+    AlgorithmModule::setNothreads(nothreads);
+    AlgorithmModule::setVerbose(verbose);
     
     if(nothreads) {
         if(verbose)

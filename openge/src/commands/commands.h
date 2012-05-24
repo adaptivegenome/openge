@@ -47,6 +47,10 @@ protected:
     
     // Number of threads per threadpool.
     unsigned int num_threads;
+    
+public:
+    bool isVerbose() const { return verbose; }
+    bool isNothreads() const { return nothreads; }
 };
 class CommandMarshall
 {

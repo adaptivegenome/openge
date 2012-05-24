@@ -24,7 +24,6 @@ protected:
     
 public:
     bool removeDuplicates;
-    bool verbose;
     MarkDuplicates();
 
     std::string getBufferFileName();

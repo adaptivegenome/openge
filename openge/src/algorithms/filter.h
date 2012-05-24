@@ -10,7 +10,7 @@ class Filter : public AlgorithmModule
 {
 public:
     Filter();
-    void setRegion(std::string region) { region_string = region; }
+    void setRegion(std::string region) { region_string = region; has_region = true; }
     std::string getRegion() { return region_string; }
     void setCountLimit(int ct) { count_limit = ct;}
     size_t getCountLimit() { return count_limit;}

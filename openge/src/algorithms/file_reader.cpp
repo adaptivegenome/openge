@@ -76,6 +76,7 @@ int FileReader::runInternal()
         
         reader.Close();
     } else if(format == FORMAT_SAM) {
+        SamHeader first_header;
         for(int i = 0; i < filenames.size(); i++) {
             SamReader reader;
             
@@ -87,8 +88,15 @@ int FileReader::runInternal()
             header = reader.GetHeader();
             references = reader.GetReferenceData();
             open = true;
-
             
+            if(filenames.size() > 1 && i == 0)
+                first_header = header;
+            
+            // TODO: We can probably find a better way to deal with multiple SAM file headers,
+            // but for now we should disallow different headers to avoid issues.
+            if(i > 0 && header.ToString() != first_header.ToString())
+                cerr << "Warning! SAM input files have different headers." << endl;
+
             BamAlignment * al = NULL;
             while(true)
             {

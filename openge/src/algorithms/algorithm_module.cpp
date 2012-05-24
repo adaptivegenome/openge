@@ -20,6 +20,17 @@ int BlackHoleModule::runInternal()
     }
 }
 
+bool AlgorithmModule::verbose = false;
+bool AlgorithmModule::nothreads = false;
+
+void AlgorithmModule::setNothreads(bool set_nothreads) {
+    nothreads = set_nothreads;
+}
+
+void AlgorithmModule::setVerbose(bool set_verbose) {
+    verbose = set_verbose;
+}
+
 AlgorithmModule::AlgorithmModule()
 : source(NULL)
 , finished_execution(false)

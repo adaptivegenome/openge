@@ -17,10 +17,7 @@ int ConvertCommand::runCommand()
 {
     string filename_in = input_filenames[0];
     string filename_out = vm["out"].as<string>();
-    
-    if(input_filenames.size() > 1)
-        cerr << "More than one input filename provided - only using " << filename_in << "." << endl;
-    
+
     if(verbose)
         cerr << "Converting " << filename_in << " from SAM to BAMfile " << filename_out << "." << endl;
     
@@ -29,7 +26,7 @@ int ConvertCommand::runCommand()
     reader.addSink(&writer);
     
     reader.setFormat(FileReader::FORMAT_SAM);
-    reader.addFile(input_filenames[0]);
+    reader.addFiles(input_filenames);
     writer.setFilename(filename_out);
     
     reader.runChain();

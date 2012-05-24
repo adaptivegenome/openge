@@ -41,7 +41,6 @@ int DedupCommand::runCommand()
     writer.setFilename(vm["out"].as<string>());
 
     mark_duplicates.removeDuplicates = vm.count("remove") > 0;
-    mark_duplicates.verbose = verbose;
     
     
     char filename[48];

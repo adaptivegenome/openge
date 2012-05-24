@@ -155,7 +155,7 @@ int Filter::runInternal()
     
     // otherwise attempt to use region as constraint
     else {
-        if(verbose)
+        if(isVerbose())
             cerr << "Filtering to region " << region_string << endl;
         
         // if region string parses OK
@@ -182,7 +182,7 @@ int Filter::runInternal()
         }
     }
     
-    if(verbose)
+    if(isVerbose())
         cerr << count << " alignments processed." << endl;
     
     return 0;

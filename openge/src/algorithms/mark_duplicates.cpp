@@ -10,7 +10,6 @@ MarkDuplicates::MarkDuplicates()
 : numDuplicateIndices(0)
 , nextLibraryId(1)
 , removeDuplicates(false)
-, verbose(false)
 {
     char filename[48];
     sprintf(filename, "/tmp/dedup_%8x.bam",  (uint32_t)(0xffffffff & (uint64_t)this));

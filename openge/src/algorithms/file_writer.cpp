@@ -37,5 +37,8 @@ int FileWriter::runInternal()
     
     writer.Close();
     
+    if(isVerbose())
+        cerr << "Wrote " << count << " files to " << filename << endl;
+    
     return 0;
 }
