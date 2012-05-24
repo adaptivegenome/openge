@@ -1,0 +1,102 @@
+\documentclass[11pt]{article}
+
+\usepackage[parfill]{parskip}
+\usepackage{comment}
+\usepackage{hyperref}
+
+\setlength{\topmargin}{-.5in}
+\setlength{\textheight}{9in}
+\setlength{\oddsidemargin}{.125in}
+\setlength{\textwidth}{6.25in}
+
+\newcommand {\cmd}[1] {\begin{quote}#1\end{quote}}
+
+\begin{document}
+\title{Open Genomics Engine - Developer Documentation}
+\author{Lee Baker and David Mittelman\\
+Virginia Bioinformatics Institute \\
+leecb@vt.edu, david.mittelman@vt.edu}
+\maketitle
+
+\section {Compiling OpenGE}
+Building OpenGE is tested on Ubuntu Linux and Mac OS X, and should be compatible with most other POSIX systems.
+
+\subsection{Ubuntu}
+These steps have been tested on Ubuntu 11.10, and are likely similar for other versions.
+
+Ensure that you have the following packages installed: cmake, libboost-program-options-dev, and have these tools installed: gcc, make, git. Gcc and make are part of the build-essentials package, which you should probably install if you haven't already.
+
+Check out the source code from github:
+\cmd{git clone git@github.com:adaptivegenome/openge.git}
+
+Open the directory containing the code you just checked out- it should be called openge. Make a folder inside the directory called 'build'. This is where cmake will put temporary build files. Generate those build files using cmake.
+\cmd{cd openge\\mkdir build\\cd build\\cmake ..}
+
+Compile the code.
+\cmd{make}
+The resulting binary will be in the openge/bin/ directory.
+
+TODO- test these steps on Ubuntu.
+
+\subsection{Mac}
+These steps are tested on Mac OS X 10.7, and are likely similar for other versions.
+
+TODO - Mac compile steps.
+
+\subsubsection{Using XCode on Mac}
+Apple's XCode can also be used to compile OpenGE. To use XCode, perform the same steps as above, up until cmake. Use the following flags instead:
+\cmd{cmake -G Xcode ..}
+and a project file called OpenGE.xcodeproj will be created. Open this in Xcode.
+
+Note: there are issues when using XCode 4.3 or later with cmake- generally cmake cannot find a compiler, or has issues with the c compiler it does find. To fix this:
+\begin{itemize}
+\item Make sure you have installed the command line tools from within XCode's preferences (under Preferences-Downloads-Documentation).
+\item Create a symlink from /Developer/Applications/Xcode.app/Contents/version.plist to /Applications/Xcode.app/Contents/version.plist. This helps cmake find the installed developer tools.
+\item Run Cmake as described above.
+\item After opening the project, set the base SDK to whatever version you have installed- usually "Latest Mac OS X"
+\end{itemize}
+OpenGE should now compile.
+
+\subsection{Dependencies}
+The following software packages should be on your machine before attempting to compile OpenGE:
+\begin{itemize}
+\item standard build tools: gcc, g++, make
+\item Cmake
+\item boost::program\_options. On Mac, you can compile this from source using the commands  (see \url{http://www.boost.org/doc/libs/1_49_0/doc/html/program_options.html})
+\end{itemize}
+
+\section {Contributing OpenGE}
+Contributions of code or documentation are welcome.
+
+TODO - how should they contact us? Github? Mailing list?
+
+\subsection {OpenGE on Github}
+You can find OpenGE on Github at \url{https://github.com/adaptivegenome/openge}. This is where you should any issues that you have with OpenGE, and submit a pull request for any code that you may want to contribute.
+\subsection {Adding a command}
+Commands are represented inside OpenGE as a subclass of OpenGECommand. You should do the following things:
+\begin{itemize}
+\item Create a class definition for your command inside openge/src/commands/commands.h, similar to the definitions already in place.
+\item Create a cpp file in the openge/src/commands/ directory that contains the implementation of your subclass. Your implementation will have two functions included- 
+\cmd {void CountCommand::getOptions()}
+is where you should provide definitions of your command line options, and 
+\cmd{int CountCommand::runCommand()}
+which is called after all command line options are parsed, and should contain the code to actually run your command. Look at the 'stats' command in command\_stats.cpp for a good example of what this class should look like.
+\item Create a reference to your class in CommandMarshall::commandWithName in openge/src/commands/commands.cpp so that your command can be called from the command line.
+\end{itemize}
+
+Most commands are constructed of several modules, such as FileReader, Count, ReadSorter, that perform some action on a stream of commands. This allows us to write a new command quickly, reusing much of the common code for common tasks. Modules are in the openge/src/modules directory, and are all subclasses of AlgorithmModule.
+
+If you are adding an algorithm to OpenGE, it is strongly recommended that you implement your algorithm as a subclass of AlgorithmModule. There are a handful of modules included with OpenGE that you can look at as examples.
+
+\section {Get involved}
+
+OpenGE discussion forum: \url{http://seqanswers.com/forums/forumdisplay.php?f=43}
+
+Project website: \url{http://opengenomicsengine.org/}
+
+OpenGE mailing list: \url{http://www.opengenomicsengine.org/discuss/}
+
+OpenGE authors:
+\cmd{David Mittleman, VBI: david.mittelman@vt.edu\\Lee Baker, VBI: leecb@vt.edu}
+
+\end{document}
