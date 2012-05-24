@@ -104,8 +104,6 @@ OpenGECommand * CommandMarshall::commandWithName(const string name) {
         return new CountCommand;
     else if(!strcmp(cname, "dedup"))
         return new DedupCommand;
-    else if(!strcmp(cname, "head"))
-        return new HeadCommand;
     else if(!strcmp(cname, "help"))
         return new HelpCommand;
     else if(!strcmp(cname, "localrealign"))

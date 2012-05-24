@@ -84,13 +84,6 @@ protected:
     void getOptions();
 };
 
-class HeadCommand : public OpenGECommand
-{
-protected:
-    void getOptions();
-    virtual int runCommand();
-};
-
 class HelpCommand: public OpenGECommand
 {
 protected:
