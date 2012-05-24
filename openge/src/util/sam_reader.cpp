@@ -77,7 +77,7 @@ void * SamReader::LineGenerationThread(void * data)
     
     FILE * fp = fopen(reader->filename.c_str(), "r");
     if(!fp) {
-        cerr << "Error opening file for line parser" << endl;
+        cerr << "Error opening file for line parser (" << reader->filename << ")." << endl;
         abort();
     }
     
