@@ -419,7 +419,7 @@ bool ReadSorter::WriteTempFile(const vector<BamAlignment *>& buffer,
     // open temp file for writing
     BamWriter tempWriter;
     
-    if(compresstempfiles)
+    if(compress_temp_files)
         tempWriter.SetCompressionMode(BamWriter::Compressed);
     else
         tempWriter.SetCompressionMode(BamWriter::Uncompressed);

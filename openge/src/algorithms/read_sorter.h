@@ -18,6 +18,9 @@ public:
     ReadSorter()
     : m_tempFilenameStub("bam_mergesort_temp_")
     , m_numberOfAlignments(0)
+    , sort_order (SORT_POSITION)
+    , compress_temp_files (false)
+    , alignments_per_tempfile(200000)
     { }
     
     ~ReadSorter(void) { }
@@ -52,7 +55,8 @@ private:
     ThreadPool * sort_thread_pool;
     
     //options:
-    bool compresstempfiles;
+    sorting_t sort_order;
+    bool compress_temp_files;
     size_t alignments_per_tempfile;
 
 public:
@@ -83,8 +87,6 @@ protected:
     virtual int runInternal();
     virtual BamTools::SamHeader getHeader();
     
-    sorting_t sort_order;
-    bool compress_temp_files;
 public:
     class MergeSortCommandImplementation;
     MergeSortCommandImplementation * impl;
