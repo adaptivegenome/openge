@@ -175,9 +175,6 @@ bool BamReaderPrivate::GetNextAlignment(BamAlignment& alignment) {
     // if valid alignment found
     if ( GetNextAlignmentCore(alignment) ) {
 
-        // store alignment's "source" filename
-        alignment.Filename = m_filename;
-
         // return success/failure of parsing char data
         if ( alignment.BuildCharData() )
             return true;
@@ -198,9 +195,6 @@ BamAlignment * BamReaderPrivate::GetNextAlignment() {
     // if valid alignment found
     BamAlignment * alignment = GetNextAlignmentCore();
     if ( alignment ) {
-        
-        // store alignment's "source" filename
-        alignment->Filename = m_filename;
         
         // return success/failure of parsing char data
         if ( alignment->BuildCharData() )

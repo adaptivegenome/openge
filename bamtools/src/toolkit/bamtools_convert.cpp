@@ -636,7 +636,6 @@ void ConvertTool::ConvertToolPrivate::PrintYaml(const BamAlignment& a) {
     m_out << "   " << "MateRefID: "     << a.MateRefID << endl;
     m_out << "   " << "MatePosition: "  << a.MatePosition << endl;
     m_out << "   " << "InsertSize: "    << a.InsertSize << endl;
-    m_out << "   " << "Filename: "      << a.Filename << endl;
 
     // write Cigar data
     const vector<CigarOp>& cigarData = a.CigarData;

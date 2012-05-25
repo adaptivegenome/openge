@@ -100,7 +100,6 @@ BamAlignment::BamAlignment(const BamAlignment& other)
     , MateRefID(other.MateRefID)
     , MatePosition(other.MatePosition)
     , InsertSize(other.InsertSize)
-    , Filename(other.Filename)
     , SupportData(other.SupportData)
     , ErrorString(other.ErrorString)
 { }

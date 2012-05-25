@@ -76,7 +76,6 @@ int AlgorithmModule::runChain()
 
     finished_execution = true;
     
-    //delete black hole LCB FIX virtual destructor
     delete *(first_leaf->sinks.begin());
     
     return 0;

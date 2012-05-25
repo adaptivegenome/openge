@@ -123,7 +123,6 @@ struct API_EXPORT BamAlignment {
         int32_t     MateRefID;          // ID number for reference sequence where alignment's mate was aligned
         int32_t     MatePosition;       // position (0-based) where alignment's mate starts
         int32_t     InsertSize;         // mate-pair insert size
-        std::string Filename;           // name of BAM file which this alignment comes from
 
     //! \internal
     // internal utility methods
