@@ -60,6 +60,11 @@ bool ReadSorter::Run(void)
         sort_thread_pool = new ThreadPool();
     } else if(isVerbose())
         cerr << "Thread pool use disabled." << endl;
+    
+    m_header = getHeader();
+    m_header.SortOrder = ( sort_order == SORT_NAME
+                          ? Constants::SAM_HD_SORTORDER_QUERYNAME
+                          : Constants::SAM_HD_SORTORDER_COORDINATE );
 
     RunSort();
 
@@ -436,6 +441,16 @@ bool ReadSorter::WriteTempFile(const vector<BamAlignment *>& buffer,
     // close temp file & return success
     tempWriter.Close();
     return true;
+}
+
+SamHeader ReadSorter::getHeader()
+{
+    SamHeader header = source->getHeader();
+
+    header.SortOrder = ( sort_order == SORT_NAME
+                          ? Constants::SAM_HD_SORTORDER_QUERYNAME
+                          : Constants::SAM_HD_SORTORDER_COORDINATE );
+    return header;
 }
 
 int ReadSorter::runInternal()

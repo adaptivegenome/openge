@@ -81,6 +81,7 @@ public:
     };
 protected:
     virtual int runInternal();
+    virtual BamTools::SamHeader getHeader();
     
     sorting_t sort_order;
     bool compress_temp_files;
