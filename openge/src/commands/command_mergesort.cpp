@@ -55,6 +55,8 @@ int MergeSortCommand::runCommand()
     MarkDuplicates mark_duplicates;
     FileWriter writer;
     
+    reader.setLoadStringData(false);
+    
     if(vm.count("region")) {
         string region = vm["region"].as<string>();
         filter.setRegion(region);

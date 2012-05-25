@@ -250,7 +250,7 @@ bool ReadSorter::MergeSortedRuns(void) {
     // while data available in temp files
     BamAlignment * al;
     int count = 0;
-    while (NULL != (al = multiReader.GetNextAlignment()) ) {
+    while (NULL != (al = multiReader.GetNextAlignmentCore()) ) {
         putOutputAlignment(al);
         if(count++ % 1000000 == 0 && verbose)
             cerr << ".";  //progress indicator every 1M alignments written.
