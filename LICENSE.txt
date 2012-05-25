@@ -1,0 +1,3 @@
+OpenGE is licensed under the Virginia Tech Non-Commercial Purpose License. You can find a copy of this license in openge/License.txt.
+
+OpenGE depends on BamTools, which is licensed under the BSD license. A copy of this license is provided under bamtools/License.
