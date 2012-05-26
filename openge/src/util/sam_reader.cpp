@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cassert>
 #include "sam_reader.h"
+#include <errno.h>
 
 #include <api/BamParallelismSettings.h>
 
@@ -41,25 +42,37 @@ void * SamReader::LineWorkerThread(void * reader_p)
     SamReader * reader = (SamReader *) reader_p;
     while(1) {
         SamLine * data = NULL;
-
+        
+        bool semaphore_holder = false;
         //if there is a job, take it. Otherwise sleep for a bit.
         while(!reader->workers_finished) {
             reader->worker_jobs_lock.lock();
             if(reader->jobs_for_workers.size() > 0) {
                 data = reader->jobs_for_workers.pop();
                 reader->worker_jobs_lock.unlock();
-                assert(data);
-                assert(data->line);
                 break;
             } else {
                 reader->worker_jobs_lock.unlock();
-                usleep(2000);
+                
+                if(!semaphore_holder) {
+                    if(0 != sem_wait(reader->sam_worker_sem))
+                        perror("Error waiting for sam_worker semaphore");
+                    semaphore_holder = true;
+                }
+                else
+                    usleep(2000);
             }
             
         }
+        if(semaphore_holder && 0 != sem_post(reader->sam_worker_sem))
+            perror("Error posting sam_worker semaphore");
         
         if(reader->workers_finished)
             break;
+        
+        assert(data);
+        assert(data->line);
+        
         assert(data->line);
         data->al = reader->ParseAlignment(data->line);
         data->parsed = true;
@@ -131,6 +144,16 @@ bool SamReader::Open(const string & filename)
 #ifdef SAM_READER_MT
     workers_finished = false;
     
+    int32_t sem_id = 0xffffffff & (int64_t) this;
+    sprintf(sam_worker_sem_name, "sam_wkr_%x",sem_id);
+    sem_unlink(sam_worker_sem_name);
+    sam_worker_sem = sem_open(sam_worker_sem_name, O_CREAT | O_EXCL,0700,1);
+    
+	if(sam_worker_sem == SEM_FAILED &&  0 != errno) {
+		perror("Error opening SAM worker semaphore");
+		assert(0);
+	}
+    
     for(int i = 0; i < BamParallelismSettings::getNumberThreads(); i++)
     {
         pthread_t t;
@@ -153,6 +176,11 @@ bool SamReader::Close()
     
     finished = true;
     pthread_join(line_generation_thread, NULL);
+    
+    if(0 != sem_close(sam_worker_sem))
+        perror("Error closing sam_worker semaphore");
+	if(0 != sem_unlink(sam_worker_sem_name))
+        perror("Error unlinking sam_worker semaphore");
 #endif
     file.close();
     return true;

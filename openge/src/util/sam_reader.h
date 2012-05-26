@@ -71,6 +71,8 @@ protected:
     static void * LineWorkerThread(void * reader_p);
     pthread_t line_generation_thread;
     
+    sem_t * sam_worker_sem;
+    char sam_worker_sem_name[32];
     SynchronizedQueue<SamLine * > jobs_for_workers;
     std::vector<pthread_t> worker_threads;
     bool workers_finished;
