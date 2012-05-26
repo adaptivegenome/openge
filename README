@@ -4,8 +4,7 @@ Open Genomics Engine README
 
 OpenGE is unified and optimized analysis platform that is open source, accelerated for parallel computing, extendible, and well supported.
 
-OpenGE is supported by NVIDIA Foundation's Compute the Cure initiative. For more information, see:
-http://www.nvidia.com/object/compute-the-cure.html
+See http://www.opengenomicsengine.org for more details about this project.
 
 --------------------------------------------------------------------------------
 Getting started
@@ -26,6 +25,7 @@ https://github.com/adaptivegenome/openge
 
 To get started with the codebase, check out the developer guide inside the openge/docs/ directory.
 
+<<<<<<< HEAD
 --------------------------------------------------------------------------------
 License
 --------------------------------------------------------------------------------
@@ -33,6 +33,11 @@ OpenGE is licensed under the Virginia Tech Non-Commercial Purpose License, which
 Copyright 2012 Virginia Bioinformatics Institute.
 
 OpenGE also depends on a modified version of bamtools, included in the bamtools/ directory. Bamtools is released under the MIT license. Further details can be found in bamtools/LICENSE.
+=======
+OpenGE is (C) 2012 Virginia Bioinformatics Insitute. All rights reserved.
+
+Please see LICENSE.txt for complete license details.
+>>>>>>> cddfb0b5d7ffeee3d1d6141e8cd1baea76006cb2
 
 --------------------------------------------------------------------------------
 Contact
