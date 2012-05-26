@@ -34,6 +34,8 @@ void AlgorithmModule::setVerbose(bool set_verbose) {
 AlgorithmModule::AlgorithmModule()
 : source(NULL)
 , finished_execution(false)
+, read_count(0)
+, write_count(0)
 { }
 
 void * AlgorithmModule::algorithm_module_run(void * in)
@@ -102,6 +104,8 @@ void AlgorithmModule::putInputAlignment(BamAlignment * read)
 
 void AlgorithmModule::putOutputAlignment(BamAlignment * read)
 {
+    write_count++;
+    
     if(sinks.size() == 0)
         delete read;
 
@@ -120,6 +124,8 @@ BamAlignment * AlgorithmModule::getInputAlignment()
             return NULL;
         usleep(10000);
     }
+    
+    read_count++;
 
     return input_queue.pop();
 }

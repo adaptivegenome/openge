@@ -81,6 +81,7 @@ protected:
     
     static bool verbose;
     static bool nothreads;
+    size_t read_count, write_count;
 };
 
 // The black hole module exists to terminate a chain of other modules.
