@@ -115,6 +115,7 @@ public:
     
     T pop() {
         lock.lock();
+        assert(q.size() > 0);
         T ret = q.front();
         q.pop();
         lock.unlock();

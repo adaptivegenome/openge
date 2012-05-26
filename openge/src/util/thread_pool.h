@@ -51,8 +51,7 @@ public:
         
     }
     void unlock() {
-        __sync_synchronize();
-        lock_holder = 0;
+        __sync_lock_release(&lock_holder);
     }
 protected:
     volatile char lock_holder;
