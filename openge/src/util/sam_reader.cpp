@@ -31,9 +31,18 @@ SamReader::SamReader()
 : file(NULL)
 , loaded(false)
 , finished(false)
+, lines_since_last_sem_unlock(0)
 { }
 
 #ifdef SAM_READER_MT
+
+// The worker thread parses line by line. There is a queue
+// distributing jobs to the worker threads, and this function also
+// throttles the worker pool using semaphores to block the threads that are
+// simply polling an empty queue. This ensures that most of the time, 
+// there is work for the workers in the queue to grab without needing to block
+// the thread (and wasting time). One worker (the first) never acquires the semaphore-
+// this way we ensure that there is always at least one worker present.
 void * SamReader::LineWorkerThread(void * reader_p)
 {
 #ifdef __linux__
@@ -42,41 +51,65 @@ void * SamReader::LineWorkerThread(void * reader_p)
     SamReader * reader = (SamReader *) reader_p;
     while(1) {
         SamLine * data = NULL;
-        
-        bool semaphore_holder = false;
+        bool unlock_a_semaphore = false;
+
         //if there is a job, take it. Otherwise sleep for a bit.
         while(!reader->workers_finished) {
-            reader->worker_jobs_lock.lock();
-            if(reader->jobs_for_workers.size() > 0) {
-                data = reader->jobs_for_workers.pop();
-                reader->worker_jobs_lock.unlock();
-                break;
-            } else {
-                reader->worker_jobs_lock.unlock();
+            //if(!reader->jobs_for_workers.empty()) 
+            {
+                reader->worker_jobs_lock.lock();
                 
-                if(!semaphore_holder) {
-                    if(0 != sem_wait(reader->sam_worker_sem))
-                        perror("Error waiting for sam_worker semaphore");
-                    semaphore_holder = true;
+                size_t size = reader->jobs_for_workers.size();
+                reader->lines_since_last_sem_unlock++;
+                if(0 == reader->lines_since_last_sem_unlock % 10000 && size > 2000) {
+                    unlock_a_semaphore = true;
+                    reader->lines_since_last_sem_unlock = 0;
                 }
-                else
-                    usleep(2000);
+                
+                //reverify size just in case the last element was popped between the size() and lock() above
+                if(0 != size)
+                    data = reader->jobs_for_workers.pop();
+
+                reader->worker_jobs_lock.unlock();
             }
             
+            if(data)    //success, got a job.
+                break;
+
+            // ensure the first worker thread cannot block- that way we ensure that not all
+            // threads block if the queue is empty for a while.
+            if(pthread_self() != reader->worker_threads[0]) {
+                if(0 != sem_wait(reader->sam_worker_sem))
+                    perror("Error waiting for sam_worker semaphore");
+            }
         }
-        if(semaphore_holder && 0 != sem_post(reader->sam_worker_sem))
-            perror("Error posting sam_worker semaphore");
+        
+        // if the queue gets too big, allow more workers to work.
+        // since a partially populated queue is much better than an empty queue
+        // we need to make sure this can't happen often. This means making it harder to
+        // unblock a worker than to block one.
+        //
+        // The best way without locking that I could think of is to only unlock if the
+        // write counter is divisible by some value- so a 1 in N probability that another 
+        // thread will be unblocked.
+        if(unlock_a_semaphore) {
+            if(0 != sem_post(reader->sam_worker_sem))
+                perror("Error posting sam_worker semaphore");
+        }
         
         if(reader->workers_finished)
             break;
-        
+
         assert(data);
         assert(data->line);
-        
-        assert(data->line);
+
         data->al = reader->ParseAlignment(data->line);
         data->parsed = true;
     }
+    
+    // must post a semaphore in case all remaining workers are waiting.
+    if(0 != sem_post(reader->sam_worker_sem))
+        perror("Error posting sam_worker semaphore while quitting.");
 
     return 0;
 }
