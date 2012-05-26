@@ -1,7 +1,7 @@
 Open Genomics Engine
 
 1. Introduction
-See http://www.nvidia.com/object/compute-the-cure.html for more details about this project.
+See http://www.opengenomicsengine.org for more details about this project.
 
 2. Build instructions
 
@@ -27,7 +27,7 @@ Binaries will be created in the bin/ directory. On systems with  multiple proces
 
 3. License
 
-OpenGE is (C) 2012 Virginia Bioinformatics Institute. All rights reserved.
+OpenGE is (C) 2012 Virginia Bioinformatics Insitute. All rights reserved.
 
-License may change at a later date.
+Please see LICENSE.txt for complete license details.
 
