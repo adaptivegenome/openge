@@ -32,13 +32,12 @@ int FileWriter::runInternal()
 
         writer.SaveAlignment(*al);
         putOutputAlignment(al);
-        count++;
     }
     
     writer.Close();
     
     if(isVerbose())
-        cerr << "Wrote " << count << " files to " << filename << endl;
+        cerr << "Wrote " << write_count << " reads to " << filename << endl;
     
     return 0;
 }

@@ -71,7 +71,6 @@ int FileReader::runInternal()
                 break;
             
             putOutputAlignment(al);
-            count++;
         }
         
         reader.Close();
@@ -107,7 +106,6 @@ int FileReader::runInternal()
                 
                 if(!sinks.empty())
                     putOutputAlignment(al);
-                count++;
             }
 
             reader.Close();
