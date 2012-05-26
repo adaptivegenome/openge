@@ -1,33 +1,44 @@
-Open Genomics Engine
+***************************
+Open Genomics Engine README
+***************************
 
-1. Introduction
-See http://www.nvidia.com/object/compute-the-cure.html for more details about this project.
+OpenGE is unified and optimized analysis platform that is open source, accelerated for parallel computing, extendible, and well supported.
 
-2. Build instructions
+OpenGE is supported by NVIDIA Foundation's Compute the Cure initiative. For more information, see:
+http://www.nvidia.com/object/compute-the-cure.html
 
-Building OpenGE depends on a few external packages:
-boost_programoptions
-zlib
-pthreads
-cmake
+--------------------------------------------------------------------------------
+Getting started
+--------------------------------------------------------------------------------
 
-Once these are installed your system, you may compile OpenGE by dong the following:
+See the command documentation (openge_commands.pdf) included in the doc/ directory for more information.
 
-* Inside the top level OpenGE folder, create a directory to build the source files in, and open that directory:
-mkdir build
-cd build
+OpenGE is also supported through the SEQanswers forum:
+http://seqanswers.com/forums/forumdisplay.php?f=43
 
-* Run cmake to generate makefiles for the projects:
-cmake ..
+--------------------------------------------------------------------------------
+Contributing
+--------------------------------------------------------------------------------
 
-* Compile bamtools and openge
-make
+Bug fixes, documentation, and code contributions are welcome. Please feel free to email the author, or contact us via the github page:
 
-Binaries will be created in the bin/ directory. On systems with  multiple processors, building multiple files in parallel may greatly reduce build times. Use the -j parameter for make- e.g. "make -j 16".
+https://github.com/adaptivegenome/openge
 
-3. License
+To get started with the codebase, check out the developer guide inside the openge/docs/ directory.
 
-OpenGE is (C) 2012 Virginia Bioinformatics Institute. All rights reserved.
+--------------------------------------------------------------------------------
+License
+--------------------------------------------------------------------------------
+OpenGE is licensed under the Virginia Tech Non-Commercial Purpose License, which can be found in the openge/LICENSE.txt
+Copyright 2012 Virginia Bioinformatics Institute.
 
-License may change at a later date.
+OpenGE also depends on a modified version of bamtools, included in the bamtools/ directory. Bamtools is released under the MIT license. Further details can be found in bamtools/LICENSE.
 
+--------------------------------------------------------------------------------
+Contact
+--------------------------------------------------------------------------------
+David Mittelman (Project lead)     david.mittelman@vt.edu
+Lee Baker       (Lead developer)   leecb@vt.edu
+Virginia Bioinformatics Institute
+
+www.opengenomicsengine.org
