@@ -168,6 +168,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
     
     BamWriter writer;
 
+    writer.SetCompressionMode(BamWriter::Uncompressed);
     writer.Open(getBufferFileName(), header, source->getReferences());
     
     while (true) {
@@ -177,12 +178,8 @@ void MarkDuplicates::buildSortedReadEndLists() {
 
         BamAlignment & rec = *prec;
 
-        if (!rec.IsMapped()) {
-            if (rec.RefID == -1) {
-                // When we hit the unmapped reads with no coordinate, no reason to continue.
-                break;
-            }
-            // If this read is unmapped but sorted with the mapped reads, just skip it.
+        if (!rec.IsMapped() || rec.RefID == -1) {
+            // When we hit the unmapped reads or reads with no coordinate, just write them.
         }
         else if (rec.IsPrimaryAlignment()){
             ReadEnds * fragmentEnd = buildReadEnds(header, index, rec);
@@ -229,7 +226,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
         
         // Print out some stats every 1m reads
         if (verbose && ++index % 100000 == 0) {
-            cerr << "Read " << index << " records. Tracking " << tmp.size() << " as yet unmatched pairs. Last sequence index: " << rec.Position << "\r" << endl;
+            cerr << "Read " << index << " records. Tracking " << tmp.size() << " as yet unmatched pairs. Last sequence index: " << rec.Position << endl;
         }
         
         writer.SaveAlignment(rec);
@@ -273,7 +270,9 @@ short MarkDuplicates::getLibraryId(SamHeader & header, const BamAlignment & rec)
 string MarkDuplicates::getLibraryName(SamHeader & header, const BamAlignment & rec) {     
     
     string read_group;
-    rec.GetTag("RG", read_group);
+    static const string RG("RG");
+    static const string unknown_library("Unknown Library");
+    rec.GetTag(RG, read_group);
     
     if (read_group.size() > 0 && header.ReadGroups.Contains(read_group)) {
         SamReadGroupDictionary & d = header.ReadGroups;
@@ -284,7 +283,7 @@ string MarkDuplicates::getLibraryName(SamHeader & header, const BamAlignment & r
         }
     }
     
-    return "Unknown Library";
+    return unknown_library;
 }
 
 /**
@@ -426,7 +425,7 @@ int MarkDuplicates::runInternal() {
         else {
             putOutputAlignment(prec);
             if (verbose && ++written % 100000 == 0) {
-                cerr << "Written " << written << " records.\r" << endl;
+                cerr << "Written " << written << " records." << endl;
             }
         }
     }
