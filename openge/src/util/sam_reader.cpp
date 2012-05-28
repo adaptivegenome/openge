@@ -19,6 +19,10 @@
 #include <sys/prctl.h>
 #endif
 
+#include <fcntl.h>           /* For O_* constants */
+#include <sys/stat.h>        /* For mode constants */
+#include <semaphore.h>
+
 #include <cstring>
 using namespace std;
 using namespace BamTools;
