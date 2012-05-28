@@ -51,24 +51,30 @@ void * SamReader::LineWorkerThread(void * reader_p)
     SamReader * reader = (SamReader *) reader_p;
     while(1) {
         SamLine * data = NULL;
-        bool unlock_a_semaphore = false;
+        bool post_a_semaphore = false;
 
         //if there is a job, take it. Otherwise sleep for a bit.
         while(!reader->workers_finished) {
+            bool wait_a_semaphore = false;
             //if(!reader->jobs_for_workers.empty()) 
             {
                 reader->worker_jobs_lock.lock();
                 
                 size_t size = reader->jobs_for_workers.size();
                 reader->lines_since_last_sem_unlock++;
-                if(0 == reader->lines_since_last_sem_unlock % 10000 && size > 2000) {
-                    unlock_a_semaphore = true;
+                if(0 == reader->lines_since_last_sem_unlock % 10000 && size > 2000 && reader->active_workers < BamParallelismSettings::getNumberThreads()) {
+                    post_a_semaphore = true;
+                    reader->active_workers++;
                     reader->lines_since_last_sem_unlock = 0;
                 }
                 
                 //reverify size just in case the last element was popped between the size() and lock() above
                 if(0 != size)
                     data = reader->jobs_for_workers.pop();
+                
+                wait_a_semaphore = (data == NULL && reader->active_workers > 1);
+                if(wait_a_semaphore)
+                    reader->active_workers--;
 
                 reader->worker_jobs_lock.unlock();
             }
@@ -78,7 +84,7 @@ void * SamReader::LineWorkerThread(void * reader_p)
 
             // ensure the first worker thread cannot block- that way we ensure that not all
             // threads block if the queue is empty for a while.
-            if(pthread_self() != reader->worker_threads[0]) {
+            if(wait_a_semaphore) {
                 if(0 != sem_wait(reader->sam_worker_sem))
                     perror("Error waiting for sam_worker semaphore");
             }
@@ -92,7 +98,7 @@ void * SamReader::LineWorkerThread(void * reader_p)
         // The best way without locking that I could think of is to only unlock if the
         // write counter is divisible by some value- so a 1 in N probability that another 
         // thread will be unblocked.
-        if(unlock_a_semaphore) {
+        if(post_a_semaphore) {
             if(0 != sem_post(reader->sam_worker_sem))
                 perror("Error posting sam_worker semaphore");
         }
@@ -176,11 +182,12 @@ bool SamReader::Open(const string & filename)
     finished = false;
 #ifdef SAM_READER_MT
     workers_finished = false;
+    active_workers = 1;
     
     int32_t sem_id = 0xffffffff & (int64_t) this;
     sprintf(sam_worker_sem_name, "sam_wkr_%x",sem_id);
     sem_unlink(sam_worker_sem_name);
-    sam_worker_sem = sem_open(sam_worker_sem_name, O_CREAT | O_EXCL,0700,1);
+    sam_worker_sem = sem_open(sam_worker_sem_name, O_CREAT | O_EXCL,0700,active_workers);
     
 	if(sam_worker_sem == SEM_FAILED &&  0 != errno) {
 		perror("Error opening SAM worker semaphore");

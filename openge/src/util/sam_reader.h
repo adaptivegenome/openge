@@ -75,6 +75,7 @@ protected:
     char sam_worker_sem_name[32];
     SynchronizedQueue<SamLine * > jobs_for_workers;
     std::vector<pthread_t> worker_threads;
+    int active_workers; //< Keep track of the number of threads processing lines.
     bool workers_finished;
     int lines_since_last_sem_unlock;
     Spinlock worker_jobs_lock;  //we need to syncronize access to the queue, just to make sure that two threads don't try to pull out the last job (and one get invalid data when it should instead be waiting again)
