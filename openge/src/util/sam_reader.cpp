@@ -60,7 +60,6 @@ void * SamReader::LineWorkerThread(void * reader_p)
         //if there is a job, take it. Otherwise sleep for a bit.
         while(!reader->workers_finished) {
             bool wait_a_semaphore = false;
-            //if(!reader->jobs_for_workers.empty()) 
             {
                 reader->worker_jobs_lock.lock();
                 
@@ -71,12 +70,12 @@ void * SamReader::LineWorkerThread(void * reader_p)
                     reader->active_workers++;
                     reader->lines_since_last_sem_unlock = 0;
                 }
-                
+
                 //reverify size just in case the last element was popped between the size() and lock() above
                 if(0 != size)
                     data = reader->jobs_for_workers.pop();
-                
                 wait_a_semaphore = (data == NULL && reader->active_workers > 1);
+
                 if(wait_a_semaphore)
                     reader->active_workers--;
 
@@ -186,12 +185,12 @@ bool SamReader::Open(const string & filename)
     finished = false;
 #ifdef SAM_READER_MT
     workers_finished = false;
-    active_workers = 1;
+    active_workers = BamParallelismSettings::getNumberThreads();
     
     int32_t sem_id = 0xffffffff & (int64_t) this;
     sprintf(sam_worker_sem_name, "sam_wkr_%x",sem_id);
     sem_unlink(sam_worker_sem_name);
-    sam_worker_sem = sem_open(sam_worker_sem_name, O_CREAT | O_EXCL,0700,active_workers);
+    sam_worker_sem = sem_open(sam_worker_sem_name, O_CREAT | O_EXCL,0700,0);
     
 	if(sam_worker_sem == SEM_FAILED &&  0 != errno) {
 		perror("Error opening SAM worker semaphore");
