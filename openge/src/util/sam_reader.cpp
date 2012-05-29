@@ -65,7 +65,7 @@ void * SamReader::LineWorkerThread(void * reader_p)
                 
                 size_t size = reader->jobs_for_workers.size();
                 reader->lines_since_last_sem_unlock++;
-                if(0 == reader->lines_since_last_sem_unlock % 10000 && size > 2000 && reader->active_workers < BamParallelismSettings::getNumberThreads()) {
+                if(0 == reader->lines_since_last_sem_unlock % 10000 && size > 2000 && reader->active_workers < reader->num_worker_threads) {
                     post_a_semaphore = true;
                     reader->active_workers++;
                     reader->lines_since_last_sem_unlock = 0;
@@ -185,7 +185,8 @@ bool SamReader::Open(const string & filename)
     finished = false;
 #ifdef SAM_READER_MT
     workers_finished = false;
-    active_workers = BamParallelismSettings::getNumberThreads();
+    num_worker_threads = BamParallelismSettings::getNumberThreads();
+    active_workers = num_worker_threads;
     
     int32_t sem_id = 0xffffffff & (int64_t) this;
     sprintf(sam_worker_sem_name, "sam_wkr_%x",sem_id);
@@ -196,6 +197,8 @@ bool SamReader::Open(const string & filename)
 		perror("Error opening SAM worker semaphore");
 		assert(0);
 	}
+
+    pthread_t t;
     
     for(int i = 0; i < BamParallelismSettings::getNumberThreads(); i++)
     {
