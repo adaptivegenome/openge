@@ -226,7 +226,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
         
         // Print out some stats every 1m reads
         if (verbose && ++index % 100000 == 0) {
-            cerr << "Read " << index << " records. Tracking " << tmp.size() << " as yet unmatched pairs. Last sequence index: " << rec.Position << endl;
+            cerr << "\rRead " << index << " records. Tracking " << tmp.size() << " as yet unmatched pairs. Last sequence index: " << rec.Position << std::flush;
         }
         
         writer.SaveAlignment(rec);
@@ -236,9 +236,11 @@ void MarkDuplicates::buildSortedReadEndLists() {
     writer.Close();
     
     if(verbose)
-        cerr << "Read " << index << " records. " << tmp.size() << " pairs never matched." << endl;
+        cerr << "Read " << index << " records. " << tmp.size() << " pairs never matched." << endl << "Sorting pairs..." << flush;
     sort(pairSort.begin(), pairSort.end(), compareReadEnds());
+    if(verbose) cerr << "fragments..." << flush;
     sort(fragSort.begin(), fragSort.end(), compareReadEnds());
+    cerr << "done." << endl;
     
     vector<ReadEnds *>contents = tmp.allReadEnds();
     
@@ -300,7 +302,7 @@ void MarkDuplicates::generateDuplicateIndexes() {
     
     // First just do the pairs
     if(verbose)
-        cerr << "Traversing read pair information and detecting duplicates." << endl;
+        cerr << "Finding duplicate pairs..." << flush;
     
     for (int i = 0;i < pairSort.size(); i++) {
         ReadEnds * next = pairSort[i];
@@ -331,7 +333,7 @@ void MarkDuplicates::generateDuplicateIndexes() {
     
     // Now deal with the fragments
     if(verbose)
-        cerr << "Traversing fragment information and detecting duplicates." << endl;
+        cerr << "duplicate fragments..." << flush;
     
     bool containsPairs = false;
     bool containsFrags = false;
@@ -364,7 +366,7 @@ void MarkDuplicates::generateDuplicateIndexes() {
     fragSort.clear();
     
     if(verbose)
-        cerr << "Sorting list of duplicate records." << endl;
+        cerr << "done." << endl << "Sorting list of duplicate records." << endl;
 }
 
 bool MarkDuplicates::areComparableForDuplicates(const ReadEnds & lhs, const ReadEnds & rhs, bool compareRead2) {
@@ -425,10 +427,13 @@ int MarkDuplicates::runInternal() {
         else {
             putOutputAlignment(prec);
             if (verbose && ++written % 100000 == 0) {
-                cerr << "Written " << written << " records." << endl;
+                cerr << "\rWritten " << written << " records (" << written * 100 / read_count <<"%)." << std::flush;
             }
         }
     }
+
+    if (verbose)
+        cerr << "\rWritten " << written << " records (" << written * 100 / read_count <<"%)." << endl;
 
     in.Close();
 

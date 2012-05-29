@@ -80,7 +80,7 @@ bool ReadSorter::Run(void)
 bool ReadSorter::GenerateSortedRuns(void) {
     
     if(isVerbose())
-        cerr << "Generating sorted temp files...";
+        cerr << "Generating sorted temp files." << endl;
 
     // get basic data that will be shared by all temp/output files
     m_header.SortOrder = ( sort_order == SORT_NAME
@@ -144,25 +144,22 @@ bool ReadSorter::GenerateSortedRuns(void) {
                 CreateSortedTempFile(buffer);
                 buffer = new vector<BamAlignment *>();
                 buffer->push_back(al);
-                if(verbose)
-                    cerr << "." ;
             }
+            if(read_count % 100000 == 0 && verbose)
+                cerr << "\rRead " << read_count/1000 << "K reads." << flush;
         }
     }
     
     // handle any leftover buffer contents
     if ( !buffer->empty() )
         CreateSortedTempFile(buffer);
-    
-    if(isVerbose())
-        cerr << "waiting for files to be compressed / written...";
-    
+
     //wait for all temp files to be created in other threads
     if(!isNothreads())
         thread_pool->waitForJobCompletion();
     
     if(isVerbose())
-        cerr << "done." << endl;
+        cerr << "\rRead " << read_count/1000 << "K reads (done)." << endl;
     
     return true;
 }
@@ -237,7 +234,7 @@ bool ReadSorter::CreateSortedTempFile(vector<BamAlignment* > * buffer) {
 // merges sorted temp BAM files into single sorted output BAM file
 bool ReadSorter::MergeSortedRuns(void) {
     if(verbose)
-        cerr << "Combining temp files for final output...";
+        cerr << "Combining temp files for final output..." << endl;
     
     // open up multi reader for all of our temp files
     BamMultiReader multiReader;
@@ -249,17 +246,19 @@ bool ReadSorter::MergeSortedRuns(void) {
 
     // while data available in temp files
     BamAlignment * al;
-    int count = 0;
+    size_t count = 0;
     while (NULL != (al = multiReader.GetNextAlignmentCore()) ) {
         putOutputAlignment(al);
-        if(count++ % 1000000 == 0 && verbose)
-            cerr << ".";  //progress indicator every 1M alignments written.
+        if(count++ % 100000 == 0 && verbose)
+            cerr << "\rCombined " << count/1000 << "K reads (" << 100 * count / read_count << "%)." << flush;
     }
+    if(verbose)
+    cerr << "\rCombined " << count/1000 << "K reads (" << 100 * count / read_count << "%)." << endl;
     
     // close files
     multiReader.Close();
     if(verbose)
-        cerr << "done." << endl << "Clearing " << m_tempFilenames.size() << " temp files...";
+        cerr << "Clearing " << m_tempFilenames.size() << " temp files...";
     
     // delete all temp files
     vector<string>::const_iterator tempIter = m_tempFilenames.begin();
