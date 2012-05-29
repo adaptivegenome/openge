@@ -65,7 +65,7 @@ void * SamReader::LineWorkerThread(void * reader_p)
                 
                 size_t size = reader->jobs_for_workers.size();
                 reader->lines_since_last_sem_unlock++;
-                if(0 == reader->lines_since_last_sem_unlock % 10000 && size > 2000 && reader->active_workers < reader->worker_threads.size()) {
+                if(0 == reader->lines_since_last_sem_unlock % 10000 && size > 2000 && reader->active_workers < BamParallelismSettings::getNumberThreads()) {
                     post_a_semaphore = true;
                     reader->active_workers++;
                     reader->lines_since_last_sem_unlock = 0;
@@ -185,8 +185,7 @@ bool SamReader::Open(const string & filename)
     finished = false;
 #ifdef SAM_READER_MT
     workers_finished = false;
-    const int num_workers = min(8,BamParallelismSettings::getNumberThreads());
-    active_workers = num_workers;
+    active_workers = BamParallelismSettings::getNumberThreads();
     
     int32_t sem_id = 0xffffffff & (int64_t) this;
     sprintf(sam_worker_sem_name, "sam_wkr_%x",sem_id);
@@ -198,7 +197,7 @@ bool SamReader::Open(const string & filename)
 		assert(0);
 	}
     
-    for(int i = 0; i < worker_threads.size(); i++)
+    for(int i = 0; i < BamParallelismSettings::getNumberThreads(); i++)
     {
         pthread_t t;
         pthread_create(&t, NULL, LineWorkerThread, this);
@@ -213,7 +212,7 @@ bool SamReader::Close()
 {
 #ifdef SAM_READER_MT
     workers_finished = true;
-    for(int i = 0; i < worker_threads.size(); i++)
+    for(int i = 0; i < BamParallelismSettings::getNumberThreads(); i++)
         pthread_join(worker_threads[i], NULL);
 
     worker_threads.clear();
