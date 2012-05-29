@@ -104,8 +104,7 @@ int FileReader::runInternal()
                 if(NULL == al)
                     break;
                 
-                if(!sinks.empty())
-                    putOutputAlignment(al);
+                putOutputAlignment(al);
             }
 
             reader.Close();
