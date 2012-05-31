@@ -1,13 +1,20 @@
-//
-//  AlignmentUtils.cpp
-//  OpenGE
-//
-//  Created by Lee Baker on 5/9/12.
-//
-//  Ported to C++ from AlignmentUtils.java for use in Open Genomics Engine
-//
-
-/*
+/*********************************************************************
+ *
+ * AlignmentUtils.cpp: Port of GATK's AlignmentUtils.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 9 May 2012
+ *
+ *********************************************************************
+ *
+ * This file has been ported from GATK's implementation in Java, and
+ * is released under the Virginia Tech Non-Commercial Purpose License.
+ * A copy of this license has been provided in  the openge/ directory.
+ * 
+ * The original file, AlignmentUtils.java, was released 
+ * under the following license:
+ *
  * Copyright (c) 2010 The Broad Institute
  *
  * Permission is hereby granted, free of charge, to any person

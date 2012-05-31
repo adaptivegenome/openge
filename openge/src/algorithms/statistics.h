@@ -1,5 +1,25 @@
 #ifndef OGE_ALGO_STATISTICS_H
 #define OGE_ALGO_STATISTICS_H
+/*********************************************************************
+ *
+ * statistics.cpp: Calculate statistics on a stream of reads.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 24 May 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************
+ *
+ * This file is based largely on bamtools_stats.cpp. Original authors
+ * Derek Barnett, Erik Garrison, Marth Lab, Department of Biology, 
+ * Boston College
+ *********************************************************************/
 
 #include "algorithm_module.h"
 

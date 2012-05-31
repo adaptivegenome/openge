@@ -1,16 +1,26 @@
-//
-//  GATKFeature.h
-//  OpenGE
-//
-//  Created by Lee Baker on 5/13/12.
-//  Copyright (c) 2012 LCB. All rights reserved.
-//
-
 #ifndef OpenGE_GATKFeature_h
 #define OpenGE_GATKFeature_h
 
-/*
- * Copyright (c) 2010.  The Broad Institute
+/*********************************************************************
+ *
+ * AlignmentUtils.cpp: Port of GATK's AlignmentUtils.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 13 May 2012
+ *
+ *********************************************************************
+ *
+ * This file has been ported from GATK's implementation in Java, and
+ * is released under the Virginia Tech Non-Commercial Purpose License.
+ * A copy of this license has been provided in  the openge/ directory.
+ * 
+ * The original file, AlignmentUtils.java, was released 
+ * under the following license:
+ *
+ * Copyright (c) 2010 The Broad Institute. 
+ * Ported to C++ by Lee C. Baker, Virginia Bioinformatics Institute
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -22,14 +32,15 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
  * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+ * THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 /*
 package org.broadinstitute.sting.gatk.refdata.utils;

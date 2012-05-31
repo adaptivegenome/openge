@@ -1,16 +1,25 @@
-//
-//  RODMetaDataContainer.h
-//  OpenGE
-//
-//  Created by Lee Baker on 5/13/12.
-//  Copyright (c) 2012 LCB. All rights reserved.
-//
-
 #ifndef OpenGE_RODMetaDataContainer_h
 #define OpenGE_RODMetaDataContainer_h
 
-/*
- * Copyright (c) 2010 The Broad Institute
+/*********************************************************************
+ *
+ * RODMetaDataContainer.cpp: Port of GATK's RODMetaDataContainer.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 13 May 2012
+ *
+ *********************************************************************
+ *
+ * This file has been ported from GATK's implementation in Java, and
+ * is released under the Virginia Tech Non-Commercial Purpose License.
+ * A copy of this license has been provided in  the openge/ directory.
+ * 
+ * The original file, RODMetaDataContainer.java, was released 
+ * under the following license:
+ *
+ * Copyright (c) 2010 The Broad Institute. 
+ * Ported to C++ by Lee C. Baker, Virginia Bioinformatics Institute
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation

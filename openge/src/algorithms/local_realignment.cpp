@@ -1,3 +1,17 @@
+/*********************************************************************
+ *
+ * local_realignment.cpp:  Local realignment algorithm.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 31 May 2012
+ *
+ *********************************************************************
+ *
+ * This file has been ported from GATK's implementation in Java, and
+ * is distributed under the license listed below.
+ *
+ *********************************************************************/
 /*
  * Copyright (c) 2010 The Broad Institute. 
  * Ported to C++ by Lee C. Baker, Virginia Bioinformatics Institute

@@ -1,6 +1,28 @@
 #ifndef OGE_ALGO_FILTER_H
 #define OGE_ALGO_FILTER_H
 
+/*********************************************************************
+ *
+ * filter.h:  Algorithm module that filters a stream of reads.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 22 May 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************
+ *
+ * Filter algorithm module class. Filters a stream of reads by the 
+ * region of the genome, or by count, or both. Some code based on 
+ * Bamtools' merge code, from bamtools_merge.cpp.
+ *
+ *********************************************************************/
+
 #include "algorithm_module.h"
 #include "api/BamAlignment.h"
 

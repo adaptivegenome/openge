@@ -1,29 +1,21 @@
-//
-//  ConstrainedMateFixingManager.cpp
-//  OpenGE
-//
-//  Created by Lee Baker on 5/5/12.
-//  Consists of a ported version of ConstrainedMateFixingManager.java. See license below
-//
-/*
-package org.broadinstitute.sting.gatk.walkers.indels;
-
-import net.sf.picard.sam.SamPairUtil;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordComparator;
-import net.sf.samtools.SAMRecordCoordinateComparator;
-import org.apache.log4j.Logger;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-
-import java.util.*; 
- */
-
-/*
- * Copyright (c) 2009 The Broad Institute
+/*********************************************************************
+ *
+ * ConstrainedMateFixingManager.cpp: Port of GATK's ConstrainedMateFixingManager.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 5 May 2012
+ *
+ *********************************************************************
+ *
+ * This file has been ported from GATK's implementation in Java, and
+ * is released under the Virginia Tech Non-Commercial Purpose License.
+ * A copy of this license has been provided in  the openge/ directory.
+ * 
+ * The original file, ConstrainedMateFixinigManager.java, was released 
+ * under the following license:
+ *
+ * Copyright (c) 2010 The Broad Institute
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -43,8 +35,24 @@ import java.util.*;
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
  * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+ * THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+/*
+package org.broadinstitute.sting.gatk.walkers.indels;
+
+import net.sf.picard.sam.SamPairUtil;
+import net.sf.samtools.SAMFileWriter;
+import net.sf.samtools.SAMRecord;
+import net.sf.samtools.SAMRecordComparator;
+import net.sf.samtools.SAMRecordCoordinateComparator;
+import org.apache.log4j.Logger;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+
+import java.util.*; 
  */
 
 /**

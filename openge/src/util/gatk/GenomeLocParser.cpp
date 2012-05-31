@@ -1,11 +1,20 @@
-//
-//  GenomeLocParser.cpp
-//  OpenGE
-//
-//  Ported to C++ for Open Genomics Engine by Lee Baker on 5/6/12.
-//  
-//
-/*
+/*********************************************************************
+ *
+ * GenomeLocParser.cpp: Port of GATK's GenomeLocParser.
+ * Open GenomeLocParser Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 6 May 2012
+ *
+ *********************************************************************
+ *
+ * This file has been ported from GATK's implementation in Java, and
+ * is released under the Virginia Tech Non-Commercial Purpose License.
+ * A copy of this license has been provided in  the openge/ directory.
+ * 
+ * The original file, GenomeLocParser.java, was released 
+ * under the following license:
+ *
  * Copyright (c) 2010 The Broad Institute
  *
  * Permission is hereby granted, free of charge, to any person
@@ -29,8 +38,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
-
 
 #include <iostream>
 #include "GenomeLocParser.h"

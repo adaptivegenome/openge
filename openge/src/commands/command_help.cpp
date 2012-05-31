@@ -1,3 +1,19 @@
+/*********************************************************************
+ *
+ * command_help.cpp: Display help information.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 21 May 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************/
+
 #include "commands.h"
 
 #include <iostream>

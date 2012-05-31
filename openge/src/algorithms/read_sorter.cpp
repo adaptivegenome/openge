@@ -1,24 +1,29 @@
+/*********************************************************************
+ *
+ * read_sorter.cpp: Sort a stream of reads.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 20 May 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************
+ *
+ * This file is based on the algorithm in bamtools_sort.cpp, but has
+ * been parallelized and refactored as part of OpenGE. Original authors
+ * are Derek Barnett, Erik Garrison, Lee C. Baker
+ * Marth Lab, Department of Biology, Boston College
+ *********************************************************************/
+
 #include "read_sorter.h"
 #include "../util/thread_pool.h"
 #include <cassert>
 using namespace std;
-
-// ***************************************************************************
-// bamtools_mergesort.cpp (c) 2010 Derek Barnett, Erik Garrison, Lee C. Baker
-// Marth Lab, Department of Biology, Boston College
-// ---------------------------------------------------------------------------
-// Last modified: 6 April 2012
-// ---------------------------------------------------------------------------
-// Merges multiple BAM files into one sorted BAM file
-//
-// This file contains the bulk of SortTool and MergeTool, running in separate
-// threads and paired together with a FIFO. To merge and sort files, the following steps
-// are taken:
-// # The merged file is read from the FIFO, split into chunks, and passed to worker threads. (Thread #2)
-// # Worker threads compress (optional) and then write these sorted chunks to disk. (Thread #3,4...N)
-// # The sorted chunks on disk are combined into one final sorted file. (Thread #2)
-//
-// ***************************************************************************
 
 #include <api/algorithms/Sort.h>
 

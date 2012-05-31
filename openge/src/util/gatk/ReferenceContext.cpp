@@ -1,19 +1,21 @@
-//
-//  ReferenceContext.cpp
-//  OpenGE
-//
-//  Created by Lee Baker on 5/9/12.
-//  Copyright (c) 2012 LCB. All rights reserved.
-//
-#include "ReferenceContext.h"
-
-#include <algorithm>
-#include <iostream>
-#include <string>
-using namespace std;
-
-/*
- * Copyright (c) 2009 The Broad Institute
+/*********************************************************************
+ *
+ * ReferenceContext.cpp: Port of GATK's ReferenceContext.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 9 May 2012
+ *
+ *********************************************************************
+ *
+ * This file has been ported from GATK's implementation in Java, and
+ * is released under the Virginia Tech Non-Commercial Purpose License.
+ * A copy of this license has been provided in  the openge/ directory.
+ * 
+ * The original file, ReferenceContext.java, was released 
+ * under the following license:
+ *
+ * Copyright (c) 2010 The Broad Institute
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -33,8 +35,8 @@ using namespace std;
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
  * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+ * THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 /*
 package org.broadinstitute.sting.gatk.contexts;
@@ -54,6 +56,12 @@ import org.broadinstitute.sting.utils.GenomeLocParser;
  * @version 0.1
  */
 
+#include "ReferenceContext.h"
+
+#include <algorithm>
+#include <iostream>
+#include <string>
+using namespace std;
 
 const bool ReferenceContext::UPPERCASE_REFERENCE = true;
 

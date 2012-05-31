@@ -1,5 +1,21 @@
-#ifndef DEDUP_H
-#define DEDUP_H
+#ifndef OGE_ALGO_DEDUP_H
+#define OGE_ALGO_DEDUP_H
+
+/*********************************************************************
+ *
+ * mark_duplicates.cpp:  Mark duplicate reads.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 20 May 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************/
 
 #include "algorithm_module.h"
 #include "api/BamAlignment.h"

@@ -1,18 +1,19 @@
-//
-//  thread_pool.h
-//  OpenGE
-//
-//  Created by Lee Baker on 4/6/12.
-//  Copyright (c) 2012 LCB. All rights reserved.
-//
-// ***************************************************************************
-// thread_poo.h (c) 2012 Lee C. Baker
-// ---------------------------------------------------------------------------
-// Last modified: 6 April 2012
-// ---------------------------------------------------------------------------
-// Provides a thread pool designed to execute provided jobs in parallel. Jobs
-// should be implemented in a subclass of ThreadJob.
-// ***************************************************************************
+/*********************************************************************
+ *
+ * thread_pool.cpp: Various structures and tools for introducing 
+ *                  parallelism in OGE classes.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 8 April 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************/
 
 #ifndef OGE_THREAD_POOL_H
 #define OGE_THREAD_POOL_H

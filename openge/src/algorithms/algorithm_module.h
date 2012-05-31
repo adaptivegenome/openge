@@ -1,3 +1,24 @@
+/*********************************************************************
+ *
+ * algorithm_module.h:  Algorithm module default implementations
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 31 May 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************
+ *
+ * The AlgorithmModule abstract class provides an interface into which
+ * a stream of reads can be passed.
+ *
+ *********************************************************************/
+
 #ifndef OGE_ALGO_MODULE_H
 #define OGE_ALGO_MODULE_H
 
@@ -9,10 +30,6 @@
 
 #include "../util/thread_pool.h"
 #include "../commands/commands.h"
-
-// Algorithm module superclass
-// 
-// To use this class, you only need to implement runInternal().
 
 class AlgorithmModule
 {

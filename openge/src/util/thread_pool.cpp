@@ -1,10 +1,20 @@
-//
-//  bamtools_thread_pool.cpp
-//  BamTools
-//
-//  Created by Lee Baker on 3/7/12.
-//  Copyright (c) 2012 LCB. All rights reserved.
-//
+/*********************************************************************
+ *
+ * thread_pool.cpp: Various structures and tools for introducing 
+ *                  parallelism in OGE classes.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 7 March 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************/
+
 
 #include "thread_pool.h"
 

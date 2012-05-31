@@ -1,10 +1,18 @@
-//
-//  FastaReader.h
-//  OpenGE
-//
-//  Created by Lee Baker on 5/7/12.
-//  Copyright (c) 2012 LCB. All rights reserved.
-//
+/*********************************************************************
+ *
+ * command_help.cpp: A high performance FASTA reader.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 7 May 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************/
 
 #ifndef OpenGE_FastaReader_h
 #define OpenGE_FastaReader_h

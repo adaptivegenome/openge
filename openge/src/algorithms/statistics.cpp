@@ -1,12 +1,23 @@
-// ***************************************************************************
-// Largely based on bamtool's bamtools_stats.cpp:
-// (c) 2010 Derek Barnett, Erik Garrison, Lee C. Baker
-// Marth Lab, Department of Biology, Boston College
-// ---------------------------------------------------------------------------
-// Last modified: 29 April 2012
-// ---------------------------------------------------------------------------
-// Prints general alignment statistics for BAM file(s).
-// ***************************************************************************
+/*********************************************************************
+ *
+ * statistics.cpp: Calculate statistics on a stream of reads.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 24 May 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************
+ *
+ * This file is based largely on bamtools_stats.cpp. Original authors
+ * Derek Barnett, Erik Garrison, Marth Lab, Department of Biology, 
+ * Boston College
+ *********************************************************************/
 
 #include "statistics.h"
 

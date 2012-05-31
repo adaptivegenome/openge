@@ -1,10 +1,18 @@
-//
-//  SamReader.h
-//  BamTools
-//
-//  Created by Lee Baker on 3/16/12.
-//  Copyright (c) 2012 LCB. All rights reserved.
-//
+/*********************************************************************
+ *
+ * sam_reader.h: A multithreaded sequential SAM file reader.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 16 March 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************/
 
 #ifndef BamTools_SamReader_h
 #define BamTools_SamReader_h

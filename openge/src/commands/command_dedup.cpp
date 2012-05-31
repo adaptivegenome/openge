@@ -1,10 +1,18 @@
-//
-//  command_dedup.cpp
-//  OpenGE
-//
-//  Created by Lee Baker on 4/14/12.
-//  Copyright (c) 2012 LCB. All rights reserved.
-//
+/*********************************************************************
+ *
+ * command_dedup.cpp: Remove duplicates in a file.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 14 April 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************/
 
 #include "commands.h"
 #include "../util/picard_structures.h"

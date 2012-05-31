@@ -1,5 +1,26 @@
 #ifndef OGE_ALGO_SORT_H
 #define OGE_ALGO_SORT_H
+/*********************************************************************
+ *
+ * read_sorter.h: Sort a stream of reads.
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 20 May 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial 
+ * Purpose License. A copy of this license has been provided in 
+ * the openge/ directory.
+ *
+ *********************************************************************
+ *
+ * This file is based on the algorithm in bamtools_sort.cpp, but has
+ * been parallelized and refactored as part of OpenGE. Original authors
+ * are Derek Barnett, Erik Garrison, Lee C. Baker
+ * Marth Lab, Department of Biology, Boston College
+ *********************************************************************/
 
 #include "algorithm_module.h"
 #include "../commands/commands.h"
