@@ -33,28 +33,43 @@ using namespace std;
 
 FileReader::file_format_t FileReader::deduceFileFormat()
 {
-    FILE * fp = fopen(filenames[0].c_str(), "rb");
-    
-    if(!fp) {
-        cerr << "Couldn't open file " << filenames[0] << endl;
-        return FORMAT_UNKNOWN;
-    }
+    file_format_t ret_format = FORMAT_UNKNOWN;
+    for(int i = 0; i < filenames.size(); i++) {
+        file_format_t this_file_format = FORMAT_UNKNOWN;
+        FILE * fp = fopen(filenames[i].c_str(), "rb");
+        
+        if(!fp) {
+            cerr << "Couldn't open file " << filenames[0] << endl;
+            return FORMAT_UNKNOWN;
+        }
 
-    unsigned char data[2];
-    if(2 != fread(data, 1,2, fp)) {
-        cerr << "Couldn't read from file " << filenames[0] << endl;
-        return FORMAT_UNKNOWN;
-    }
+        unsigned char data[2];
+        if(2 != fread(data, 1,2, fp)) {
+            cerr << "Couldn't read from file " << filenames[0] << endl;
+            return FORMAT_UNKNOWN;
+        }
 
-    fclose(fp);
+        fclose(fp);
+        
+        if(data[0] == '@')
+            this_file_format = FORMAT_SAM;
+        else if(data[0] == 31 && data[1] == 139)
+            this_file_format = FORMAT_BAM;
+        else 
+            this_file_format = FORMAT_UNKNOWN;
+
+        if(i == 0)
+            ret_format = this_file_format;
+        
+        //check to make sure for multiple files, they are all same format.
+        if(i != 0 && ret_format != this_file_format) {
+            cerr << "Error: loading files with different file formats is not supported." << endl;
+            exit(-1);
+        }
+            
+    }
     
-    if(data[0] == '@')
-        return FORMAT_SAM;
-    
-    if(data[0] == 31 && data[1] == 139)
-        return FORMAT_BAM;
-    
-    return FORMAT_UNKNOWN;
+    return ret_format;
 }
 
 int FileReader::runInternal()
