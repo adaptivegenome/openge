@@ -152,9 +152,27 @@ Parameters:
 \begin{tabular}{llp{3.5in}}
 \hline
 Flag&Long flag&Description\\ \hline
--I \textit{level}&{-}{-}inserts \textit{level}&Include detailed stats about inserts.\\
+-I&{-}{-}inserts&Include detailed stats about inserts.\\
 \end{tabular}
 \end{center}
+
+For example:
+\cmd {openge stats a.bam b.bam -I}
+gives results similar to this:
+\cmd {Total reads:       41018\\
+Mapped reads:      39261	(95.7165\%)\\
+Forward strand:    21113	(51.4725\%)\\
+Reverse strand:    19905	(48.5275\%)\\
+Failed QC:         0	(0\%)\\
+Duplicates:        0	(0\%)\\
+Paired-end reads:  41018	(100\%)\\
+'Proper-pairs':    36596	(89.2194\%)\\
+Both pairs mapped: 37504	(91.433\%)\\
+Read 1:            20521\\
+Read 2:            20497\\
+Singletons:        1757	(4.28349\%)\\
+Average insert size (absolute value): 258.209\\
+Median insert size (absolute value): 204}
 
 \subsection{version}
 Prints out the version number and the date and time that this version was compiled.

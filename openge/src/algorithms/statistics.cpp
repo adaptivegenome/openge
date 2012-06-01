@@ -125,12 +125,7 @@ int Statistics::runInternal()
 
         putOutputAlignment(pal);
     }
-          
-    cout << endl;
-    cout << "**********************************************" << endl;
-    cout << "Stats for BAM file(s): " << endl;
-    cout << "**********************************************" << endl;
-    cout << endl;
+
     cout << "Total reads:       " << m_numReads << endl;
     cout << "Mapped reads:      " << m_numMapped << "\t(" << ((float)m_numMapped/m_numReads)*100 << "%)" << endl;
     cout << "Forward strand:    " << m_numForwardStrand << "\t(" << ((float)m_numForwardStrand/m_numReads)*100 << "%)" << endl;
