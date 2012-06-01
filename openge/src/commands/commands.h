@@ -130,6 +130,11 @@ protected:
     void getOptions();
 };
 
+class VersionCommand: public OpenGECommand
+{
+protected:
+    virtual int runCommand();
+};
 
 class ViewCommand: public OpenGECommand
 {

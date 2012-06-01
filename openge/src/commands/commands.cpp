@@ -128,6 +128,8 @@ OpenGECommand * CommandMarshall::commandWithName(const string name) {
         return new MergeSortCommand;
     else if(!strcmp(cname, "stats"))
         return new StatsCommand;
+    else if(!strcmp(cname, "version"))
+        return new VersionCommand;
     else if(!strcmp(cname, "view"))
         return new ViewCommand;
     else {
