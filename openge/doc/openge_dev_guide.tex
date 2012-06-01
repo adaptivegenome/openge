@@ -36,15 +36,29 @@ Compile the code.
 \cmd{make}
 The resulting binary will be in the openge/bin/ directory.
 
-TODO- test these steps on Ubuntu.
-
 \subsection{Mac}
 These steps are tested on Mac OS X 10.7, and are likely similar for other versions.
 
-TODO - Mac compile steps.
+Ensure that you have a C and C++ compiler installed; the easiest way to do this is to install Apple's XCode (free from the App Store), and then download the command line tools (found inside XCode on the XCode menu - Preferences - Downloads - Components - Command line tools). If you choose to use XCode's tools or the XCode IDE, see the section below on XCode and Mac.
+
+Install CMake if you don't already have it. Precompiled binaries can be found at \url{http://www.cmake.org/cmake/resources/software.html}.
+
+Download, compile and install the boost libraries from \url{http://boost.org}.
+
+Install git if you don't have it. \url{http://git-scm.com/}
+
+Check out the source code from github:
+\cmd{git clone git@github.com:adaptivegenome/openge.git}
+
+Open the directory containing the code you just checked out- it should be called openge. Make a folder inside the directory called 'build'. This is where cmake will put temporary build files. Generate those build files using cmake.
+\cmd{cd openge\\mkdir build\\cd build\\cmake ..}
+
+Compile the code.
+\cmd{make}
+The resulting binary will be in the openge/bin/ directory.
 
 \subsubsection{Using XCode on Mac}
-Apple's XCode can also be used to compile OpenGE. To use XCode, perform the same steps as above, up until cmake. Use the following flags instead:
+Apple's XCode can be used to compile OpenGE. To use XCode, perform the same steps as above, up until cmake. Use the following flags instead:
 \cmd{cmake -G Xcode ..}
 and a project file called OpenGE.xcodeproj will be created. Open this in Xcode.
 
