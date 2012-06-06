@@ -206,8 +206,6 @@ bool SamReader::Open(const string & filename)
 		perror("Error opening SAM worker semaphore");
 		assert(0);
 	}
-
-    pthread_t t;
     
     for(int i = 0; i < BamParallelismSettings::getNumberThreads(); i++)
     {

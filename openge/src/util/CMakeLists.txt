@@ -4,6 +4,7 @@ set(OPENGE_UTIL_SOURCES
   ${UTIL_DIR}/fasta_reader.cpp
   ${UTIL_DIR}/picard_structures.cpp
   ${UTIL_DIR}/sam_reader.cpp
+  ${UTIL_DIR}/sam_writer.cpp
   ${UTIL_DIR}/thread_pool.cpp
 
   ${UTIL_DIR}/gatk/AlignmentUtils.cpp

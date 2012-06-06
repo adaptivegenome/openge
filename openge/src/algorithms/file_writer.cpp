@@ -22,6 +22,8 @@
 
 #include "file_writer.h"
 
+#include "../util/sam_writer.h"
+
 #include "api/BamWriter.h"
 using namespace BamTools;
 using namespace std;
@@ -35,28 +37,53 @@ int FileWriter::runInternal()
 #ifdef __linux__
     prctl(PR_SET_NAME,"am_FileWriter",0,0,0);
 #endif
-    BamWriter writer;
     
-    if(!writer.Open(filename, getHeader(), getReferences())) {
-        cerr << "Error opening BAM file to write." << endl;
-        return -1;
-    }
-    
-    writer.SetCompressionLevel(compression_level);
-    
-    BamAlignment * al;
-    
-    while(true)
-    {
-        al = getInputAlignment();
-        if(!al)
-            break;
+    if(filename.size() > 3 && (filename.substr(filename.size() - 3, 3).compare("sam") ||filename.substr(filename.size() - 3, 3).compare("SAM"))) {
+        SamWriter writer;
+        
+        if(!writer.Open(filename, getHeader().ToString(), getReferences())) {
+            cerr << "Error opening BAM file to write." << endl;
+            return -1;
+        }
 
-        writer.SaveAlignment(*al);
-        putOutputAlignment(al);
+        BamAlignment * al;
+        
+        while(true)
+        {
+            al = getInputAlignment();
+            if(!al)
+                break;
+            
+            writer.SaveAlignment(*al);
+            putOutputAlignment(al);
+        }
+        
+        writer.Close();
+        
+    } else {
+        BamWriter writer;
+        
+        if(!writer.Open(filename, getHeader(), getReferences())) {
+            cerr << "Error opening BAM file to write." << endl;
+            return -1;
+        }
+        
+        writer.SetCompressionLevel(compression_level);
+        
+        BamAlignment * al;
+        
+        while(true)
+        {
+            al = getInputAlignment();
+            if(!al)
+                break;
+
+            writer.SaveAlignment(*al);
+            putOutputAlignment(al);
+        }
+        
+        writer.Close();
     }
-    
-    writer.Close();
     
     if(isVerbose())
         cerr << "Wrote " << write_count << " reads to " << filename << endl;
