@@ -23,7 +23,7 @@ namespace po = boost::program_options;
 
 int VersionCommand::runCommand()
 {
-    cerr << "Open Genomics Engine 0.1 (devel)" << endl;
+    cerr << "Open Genomics Engine 0.2 (devel)" << endl;
     cerr << "Built on " __DATE__ " at " __TIME__ << endl;
     cerr << "(c) 2012 Virginia Bioinformatics Institute" << endl;
     
