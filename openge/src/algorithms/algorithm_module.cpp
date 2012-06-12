@@ -64,12 +64,31 @@ void * AlgorithmModule::algorithm_module_run(void * in)
     return 0;
 }
 
+bool AlgorithmModule::removeSink(AlgorithmModule * sink) 
+{ 
+    sink->setSource(NULL); 
+    if(find(sinks.begin(), sinks.end(), sink) == sinks.end()) 
+        return false; 
+
+    sinks.erase(std::remove(sinks.begin(), sinks.end(), sink), sinks.end()); 
+
+    return true;
+}
+
 int AlgorithmModule::runChildren()
 {
     startAsync();
     
-    for(set<AlgorithmModule *>::iterator i = sinks.begin(); i != sinks.end(); i++)
+    for(vector<AlgorithmModule *>::iterator i = sinks.begin(); i != sinks.end(); i++)
         (*i)->runChildren();
+
+    return 0;
+}
+
+int AlgorithmModule::waitForChildrenCompletion()
+{
+    for(vector<AlgorithmModule *>::iterator i = sinks.begin(); i != sinks.end(); i++)
+        (*i)->waitForChildrenCompletion();
     
     finishAsync();
     return 0;
@@ -91,6 +110,7 @@ int AlgorithmModule::runChain()
         root_module = root_module->source;
 
     root_module->runChildren();
+    root_module->waitForChildrenCompletion();
 
     finished_execution = true;
     
@@ -125,7 +145,7 @@ void AlgorithmModule::putOutputAlignment(BamAlignment * read)
     if(sinks.size() == 0)
         delete read;
 
-    for(set<AlgorithmModule *>::iterator i = sinks.begin(); i != sinks.end(); i++) {
+    for(vector<AlgorithmModule *>::iterator i = sinks.begin(); i != sinks.end(); i++) {
         if(sinks.begin() == i)
             (*i)->putInputAlignment(read);
         else
