@@ -23,6 +23,13 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#define ogeNameThread(X) prctl(PR_SET_NAME,X,0,0,0)
+#else 
+#define ogeNameThread(X)
+#endif
+
 class ThreadPool;
 
 // The ThreadJob abstract class provides a way to provide jobs to 

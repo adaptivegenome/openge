@@ -24,10 +24,6 @@
 
 #include <api/BamParallelismSettings.h>
 
-#ifdef __linux__
-#include <sys/prctl.h>
-#endif
-
 #include <fcntl.h>           /* For O_* constants */
 #include <sys/stat.h>        /* For mode constants */
 #include <semaphore.h>
@@ -58,9 +54,8 @@ SamReader::SamReader()
 // this way we ensure that there is always at least one worker present.
 void * SamReader::LineWorkerThread(void * reader_p)
 {
-#ifdef __linux__
-    prctl(PR_SET_NAME,"SAM_line_worker",0,0,0);
-#endif
+    ogeNameThread("SAM_line_worker");
+
     SamReader * reader = (SamReader *) reader_p;
     while(1) {
         SamLine * data = NULL;
@@ -134,9 +129,8 @@ void * SamReader::LineWorkerThread(void * reader_p)
 
 void * SamReader::LineGenerationThread(void * data)
 {
-#ifdef __linux__
-    prctl(PR_SET_NAME,"SAM_line_master",0,0,0);
-#endif
+    ogeNameThread("SAM_line_master");
+
     SamReader * reader = (SamReader *) data;
     
     FILE * fp = fopen(reader->filename.c_str(), "r");

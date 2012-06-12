@@ -19,15 +19,10 @@
 using namespace BamTools;
 using namespace std;
 
-#ifdef __linux__
-#include <sys/prctl.h>
-#endif
-
 int BlackHoleModule::runInternal()
 {
-#ifdef __linux__
-    prctl(PR_SET_NAME,"am_BlackHole",0,0,0);
-#endif
+    ogeNameThread("am_BlackHole");
+
     while(true) {
         BamTools::BamAlignment * r = getInputAlignment();
         if(!r)

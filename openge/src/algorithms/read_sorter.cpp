@@ -34,10 +34,6 @@ using namespace std;
 
 #include "mark_duplicates.h"
 
-#ifdef __linux__
-#include <sys/prctl.h>
-#endif
-
 #include <pthread.h>
 
 using namespace BamTools;
@@ -174,24 +170,22 @@ filename(filename), buffer(buffer), tool(tool)
 
 void ReadSorter::TempFileWriteJob::runJob()
 {
-#ifdef __linux__
-    prctl(PR_SET_NAME,"bt_temp_sort",0,0,0);
-#endif
+    ogeNameThread("sort_tmp_sort");
+
     // do sorting
     tool->SortBuffer(*buffer);
     
-#ifdef __linux__
-    prctl(PR_SET_NAME,"bt_temp_write",0,0,0);
-#endif
+    ogeNameThread("sort_tmp_write");
+
     // as noted in the comments of the original file, success is never
     // used so we never return it.
     bool success = tool->WriteTempFile( *buffer, filename );
     if(!success)
         cerr << "Problem writing out temporary file " << filename;
     
-#ifdef __linux__
-    prctl(PR_SET_NAME,"bt_temp_cleanup",0,0,0);
-#endif
+
+    ogeNameThread("sort_tmp_cleanup");
+
     for(size_t i = 0; i < buffer->size(); i++)
         delete (*buffer)[i];
     delete buffer;
@@ -299,9 +293,9 @@ template<class T> ReadSorter::SortJob<T>::SortJob(typename vector<T>::iterator b
 
 template<class T> void ReadSorter::SortJob<T>::runJob()
 {
-#ifdef __linux__
-    prctl(PR_SET_NAME,"bt_tempfile_sort",0,0,0);
-#endif
+
+    ogeNameThread("bt_tempfile_sort");
+
     if(m_implementation.sort_order == SORT_NAME)
         std::stable_sort( begin, end, Sort::ByName() );
     else

@@ -28,11 +28,6 @@
 using namespace BamTools;
 using namespace std;
 
-#ifdef __linux__
-#include <sys/prctl.h>
-#endif
-
-
 //from http://stackoverflow.com/questions/874134/find-if-string-endswith-another-string-in-c
 bool hasEnding (std::string const &fullString, std::string const &ending)
 {
@@ -45,10 +40,8 @@ bool hasEnding (std::string const &fullString, std::string const &ending)
 
 int FileWriter::runInternal()
 {
-#ifdef __linux__
-    prctl(PR_SET_NAME,"am_FileWriter",0,0,0);
-#endif
-    
+    ogeNameThread("am_FileWriter");
+
     if(filename.size() > 3 && (hasEnding(filename, "sam") || hasEnding(filename, "SAM"))) {
         SamWriter writer;
         
