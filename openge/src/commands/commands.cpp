@@ -47,7 +47,7 @@ int OpenGECommand::runWithParameters(int argc, const char ** argv)
     }
     
     verbose = 0 < vm.count("verbose");
-    tmpdir = vm["tmpdir"].as<string>();
+    tmpdir = vm["tmpdir"].as<string>() + "/";
 
     if(vm.count("in") == 0)
         input_filenames.push_back("stdin");

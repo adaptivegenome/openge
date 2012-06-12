@@ -52,7 +52,7 @@ int DedupCommand::runCommand()
     
     
     char filename[48];
-    sprintf(filename, "/dedup_%8x.bam",  (uint32_t)(0xffffffff & (uint64_t)this));
+    sprintf(filename, "/dedup_%8x.bam",  (uint32_t)(0xffffffff & (uint64_t)(&mark_duplicates)));
     mark_duplicates.setBufferFileName(tmpdir + string(filename));
 
     if(input_filenames.size() != 1)

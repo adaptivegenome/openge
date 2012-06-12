@@ -54,8 +54,6 @@ const unsigned int SORT_DEFAULT_MAX_BUFFER_COUNT  = 500000;  // max numberOfAlig
 const unsigned int SORT_DEFAULT_MAX_BUFFER_MEMORY = 1024;    // Mb
 const unsigned int MERGESORT_MIN_SORT_SIZE = 30000;    //don't parallelize sort jobs smaller than this many alignments
 
-const char * ALIGNMENT_QUEUE_NAME = "mergesort_align_queue";
-
 //actual run creates threads for other 'run'commands
 bool ReadSorter::Run(void)
 {
@@ -201,10 +199,11 @@ void ReadSorter::TempFileWriteJob::runJob()
 
 bool ReadSorter::CreateSortedTempFile(vector<BamAlignment* > * buffer) {
     //make filename
-    stringstream tempStr;
-    tempStr << m_tempFilenameStub << m_numberOfRuns;
-    m_tempFilenames.push_back(tempStr.str());
-    
+    stringstream filename_ss;
+    filename_ss << tmp_file_dir << m_tempFilenameStub << m_numberOfRuns;
+    string filename = filename_ss.str();
+    m_tempFilenames.push_back(filename);
+
     ++m_numberOfRuns;
     
     bool success = true;
@@ -223,11 +222,11 @@ bool ReadSorter::CreateSortedTempFile(vector<BamAlignment* > * buffer) {
         SortBuffer(sort_buffer);
         
         // write sorted contents to temp file, store success/fail
-        success = WriteTempFile( sort_buffer, tempStr.str() );
+        success = WriteTempFile( sort_buffer, filename );
         delete buffer;
         
     } else {
-        TempFileWriteJob * job = new TempFileWriteJob(this, buffer, tempStr.str());
+        TempFileWriteJob * job = new TempFileWriteJob(this, buffer, filename);
         thread_pool->addJob(job);
     }
     
@@ -257,8 +256,8 @@ bool ReadSorter::MergeSortedRuns(void) {
         if(count++ % 100000 == 0 && verbose)
             cerr << "\rCombined " << count/1000 << "K reads (" << 100 * count / read_count << "%)." << flush;
     }
-    if(verbose)
-    cerr << "\rCombined " << count/1000 << "K reads (" << 100 * count / read_count << "%)." << endl;
+    if(verbose && read_count)
+        cerr << "\rCombined " << count/1000 << "K reads (" << 100 * count / read_count << "%)." << endl;
     
     // close files
     multiReader.Close();
