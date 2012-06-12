@@ -407,6 +407,8 @@ bool MarkDuplicates::areComparableForDuplicates(const ReadEnds & lhs, const Read
  */
 int MarkDuplicates::runInternal() {
     
+    ogeNameThread("am_MarkDuplicates");
+
     if(verbose)
         cerr << "Reading input file and constructing read end information." << endl;
     buildSortedReadEndLists();
