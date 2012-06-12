@@ -442,13 +442,13 @@ int MarkDuplicates::runInternal() {
         }
         else {
             putOutputAlignment(prec);
-            if (verbose && ++written % 100000 == 0) {
+            if (verbose && read_count && ++written % 100000 == 0) {
                 cerr << "\rWritten " << written << " records (" << written * 100 / read_count <<"%)." << std::flush;
             }
         }
     }
 
-    if (verbose)
+    if (verbose && read_count)
         cerr << "\rWritten " << written << " records (" << written * 100 / read_count <<"%)." << endl;
 
     in.Close();
