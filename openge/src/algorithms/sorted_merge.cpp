@@ -112,6 +112,8 @@ void SortedMerge::addSource(AlgorithmModule * source)
 
 int SortedMerge::runInternal()
 {
+    ogeNameThread("am_merge_sorted");
+
     priority_queue<BamAlignment *, vector<BamAlignment *>, BamTools::Algorithms::Sort::ByPosition> reads;
     map<BamAlignment *, SortedMergeInputProxy * > read_sources;
     

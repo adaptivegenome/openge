@@ -30,6 +30,8 @@ SplitByChromosome::SplitByChromosome()
 
 int SplitByChromosome::runInternal()
 {    
+    ogeNameThread("am_split_chromo");
+
     BamAlignment * read;
     number_of_splits = sinks.size();
     while(true) {
