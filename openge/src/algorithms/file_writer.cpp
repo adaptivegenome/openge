@@ -32,13 +32,24 @@ using namespace std;
 #include <sys/prctl.h>
 #endif
 
+
+//from http://stackoverflow.com/questions/874134/find-if-string-endswith-another-string-in-c
+bool hasEnding (std::string const &fullString, std::string const &ending)
+{
+    if (fullString.length() >= ending.length()) {
+        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+    } else {
+        return false;
+    }
+}
+
 int FileWriter::runInternal()
 {
 #ifdef __linux__
     prctl(PR_SET_NAME,"am_FileWriter",0,0,0);
 #endif
     
-    if(filename.size() > 3 && (filename.substr(filename.size() - 3, 3).compare("sam") ||filename.substr(filename.size() - 3, 3).compare("SAM"))) {
+    if(filename.size() > 3 && (hasEnding(filename, "sam") || hasEnding(filename, "SAM"))) {
         SamWriter writer;
         
         if(!writer.Open(filename, getHeader().ToString(), getReferences())) {
