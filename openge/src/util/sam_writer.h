@@ -32,7 +32,7 @@ public:
               const std::string& samHeaderText,
               const BamTools::RefVector& referenceSequences);
     bool Close();
-    bool SaveAlignment(const BamTools::BamAlignment & al);
+    bool SaveAlignment( BamTools::BamAlignment & al);
 protected:
     std::ofstream file;
     BamTools::SamHeader header;

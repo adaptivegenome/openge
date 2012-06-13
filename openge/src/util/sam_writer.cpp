@@ -85,10 +85,11 @@ bool SamWriter::Close() {
     return true;
 }
 
-bool SamWriter::SaveAlignment(const BamTools::BamAlignment & a) {
+bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
     // tab-delimited
     // <QNAME> <FLAG> <RNAME> <POS> <MAPQ> <CIGAR> <MRNM> <MPOS> <ISIZE> <SEQ> <QUAL> [ <TAG>:<VTYPE>:<VALUE> [...] ]
     
+    a.BuildCharData();
     assert(open);
     ofstream & m_out = file;
     
