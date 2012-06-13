@@ -157,4 +157,68 @@ protected:
     int jobs_current;
 };
 
+template<typename _RandomAccessIterator, typename _Compare>
+class OGESortJob : public ThreadJob
+{
+protected:
+    _RandomAccessIterator first, last;
+    _Compare comp;
+    int & completion_ct;
+    Spinlock & completion_spinlock;
+
+    virtual void runJob() {
+        std::sort(first, last, comp);
+        completion_spinlock.lock();
+        completion_ct++;
+        completion_spinlock.unlock();
+    }
+public:
+    OGESortJob(_RandomAccessIterator __first, _RandomAccessIterator __last,
+               _Compare __comp, int & completion_ct, Spinlock & completion_spinlock)
+    : first(__first)
+    , last(__last)
+    , comp(__comp)
+    , completion_ct(completion_ct)
+    , completion_spinlock(completion_spinlock)
+    {}
+};
+
+template<typename _RandomAccessIterator, typename _Compare>
+inline void
+ogeSortMt(_RandomAccessIterator __first, _RandomAccessIterator __last,
+	 _Compare __comp)
+{
+    size_t job_size = (__last - __first) / ThreadPool::availableCores();
+    
+    ThreadPool * shared_pool = ThreadPool::sharedPool();
+    int completion_ct = 0;
+    Spinlock completion_spinlock;
+    
+    //perform separate sorts
+    for(int i = 0; i < ThreadPool::availableCores(); i++) {
+        if(i == ThreadPool::availableCores() - 1)   //last
+            shared_pool->addJob(new OGESortJob<_RandomAccessIterator, _Compare>(__first + i * job_size, __last, __comp, completion_ct, completion_spinlock ));
+        else
+            shared_pool->addJob(new OGESortJob<_RandomAccessIterator, _Compare>(__first + i * job_size, __first + (i+1) * job_size, __comp, completion_ct, completion_spinlock));
+    }
+
+    //wait for completion:
+    while(true) {
+        completion_spinlock.lock();
+        bool complete = (ThreadPool::availableCores() == completion_ct);
+        completion_spinlock.unlock();
+        if(complete)
+            break;
+        usleep(20000);
+    }
+
+    //now merge sorted subarrays
+    for(int i = 1; i < ThreadPool::availableCores(); i++)  {
+        if(i == ThreadPool::availableCores() - 1)   //last
+            inplace_merge(__first, __first + i * job_size, __last, __comp);
+        else
+            inplace_merge(__first, __first + i * job_size, __first + (i+1) * job_size, __comp);
+    }
+}
+
 #endif
