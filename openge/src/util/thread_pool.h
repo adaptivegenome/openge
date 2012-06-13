@@ -191,16 +191,15 @@ ogeSortMt(_RandomAccessIterator __first, _RandomAccessIterator __last,
     size_t job_size = (__last - __first) / ThreadPool::availableCores();
     
     ThreadPool * shared_pool = ThreadPool::sharedPool();
-    int completion_ct = 0;
+    int completion_ct = 1;
     Spinlock completion_spinlock;
     
     //perform separate sorts
-    for(int i = 0; i < ThreadPool::availableCores(); i++) {
-        if(i == ThreadPool::availableCores() - 1)   //last
-            shared_pool->addJob(new OGESortJob<_RandomAccessIterator, _Compare>(__first + i * job_size, __last, __comp, completion_ct, completion_spinlock ));
-        else
-            shared_pool->addJob(new OGESortJob<_RandomAccessIterator, _Compare>(__first + i * job_size, __first + (i+1) * job_size, __comp, completion_ct, completion_spinlock));
+    for(int i = 0; i < ThreadPool::availableCores() - 1; i++) {
+        shared_pool->addJob(new OGESortJob<_RandomAccessIterator, _Compare>(__first + i * job_size, __first + (i+1) * job_size, __comp, completion_ct, completion_spinlock));
     }
+
+    std::sort(__first + (ThreadPool::availableCores() - 1) * job_size, __last, __comp);
 
     //wait for completion:
     while(true) {
