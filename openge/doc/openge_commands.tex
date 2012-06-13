@@ -132,12 +132,15 @@ Flag&Long flag&Description\\ \hline
 -r \textit{region}&{-}{-}region \textit{region}&Genomic region to use\\
 -n \textit{reads}&{-}{-}n \textit{reads}&Number of reads to use per temporary file. Defaults to 500,000.\\
 -C&{-}{-}compresstempfiles&Compress temporary files. By default, temporary files are not compressed.\\
+&{-}{-}nosplit&Disable splitting by chromosome (see below).\\
 -m&{-}{-}markduplicates&Mark duplicates after sorting.\\
 -R&{-}{-}removeduplicates&Mark and remove duplicates after sorting.\\
 \end{tabular}
 \end{center}
 
 The number of reads per temporary file can have a substantial effect on speed when processing large datasets. Increasing the number of reads per file produces larger (and fewer) temporary files at the expense of memory, but reduces the processing time.
+
+Mergesort processes each chromosome in an input file separately in order to increase speed. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
 
 \subsection{stats}
 Prints out statistics about a file. No flags are required.

@@ -44,6 +44,7 @@ void MergeSortCommand::getOptions()
     ("compresstempfiles,C", "Compress temp files. By default, uncompressed")
     ("markduplicates,d", "Mark duplicates after sorting.")
     ("removeduplicates,R", "Remove duplicates.")
+    ("nosplit","Do not split by chromosome (for speed) when processing")
     ;
 }
 
@@ -51,6 +52,7 @@ int MergeSortCommand::runCommand()
 {
     bool do_mark_duplicates = vm.count("markduplicates") != 0;
     bool do_remove_duplicates = vm.count("removeduplicates") != 0;
+    bool no_split = vm.count("nosplit") != 0;
     if(do_remove_duplicates)
         do_mark_duplicates = true;
 
@@ -59,7 +61,10 @@ int MergeSortCommand::runCommand()
     bool compresstempfiles = vm.count("compresstempfiles") != 0;
     int alignments_per_tempfile = vm["n"].as<int>();
     
-    if(nothreads)
+    if(no_split && verbose)
+        cerr << "Disabling split-by-chromosome." << endl;
+    
+    if(nothreads || no_split)
     {
         //The chain for this command goes something like this:
         //Reader->Filter->Sort->MarkDuplicates->Writer (->BlackHole)
