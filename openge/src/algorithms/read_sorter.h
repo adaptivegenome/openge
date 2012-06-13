@@ -96,19 +96,7 @@ public:
         std::vector<BamTools::BamAlignment *> * buffer;
         ReadSorter * tool;
     };
-    
-    template<class T>
-    class SortJob : public ThreadJob
-    {
-    public:
-        SortJob(typename std::vector<T>::iterator begin,typename std::vector<T>::iterator end, pthread_mutex_t & completion_lock, const ReadSorter & implementation);
-        virtual void runJob();
-    protected:
-        typename std::vector<T>::iterator begin;
-        typename std::vector<T>::iterator end;
-        pthread_mutex_t & completion_lock;
-        const ReadSorter & m_implementation;
-    };
+
 protected:
     virtual int runInternal();
     virtual BamTools::SamHeader getHeader();

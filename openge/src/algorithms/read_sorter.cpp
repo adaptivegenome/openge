@@ -283,31 +283,9 @@ bool ReadSorter::RunSort(void) {
         return false;
 }
 
-template<class T> ReadSorter::SortJob<T>::SortJob(typename vector<T>::iterator begin, typename vector<T>::iterator end, pthread_mutex_t & completion_lock, const ReadSorter & implementation)
-: begin(begin)
-, end(end)
-, completion_lock(completion_lock)
-, m_implementation(implementation)
-{
-}
-
-template<class T> void ReadSorter::SortJob<T>::runJob()
-{
-
-    ogeNameThread("bt_tempfile_sort");
-
-    if(m_implementation.sort_order == SORT_NAME)
-        std::stable_sort( begin, end, Sort::ByName() );
-    else
-        std::stable_sort( begin, end, Sort::ByPosition() );
-    
-    pthread_mutex_unlock(&completion_lock);
-}
-
 //this function is designed to accept either BamAlignment or BamAlignment* as T
 template<class T>
 void ReadSorter::SortBuffer(vector<T>& buffer) {
-    
     if(isNothreads())
     {
         if(sort_order == SORT_NAME)
@@ -315,68 +293,10 @@ void ReadSorter::SortBuffer(vector<T>& buffer) {
         else
             std::stable_sort( buffer.begin(), buffer.end(), Sort::ByPosition() );
     } else {
-        int divisions = buffer.size() / MERGESORT_MIN_SORT_SIZE;
-        if(divisions > ThreadPool::availableCores())
-            divisions = ThreadPool::availableCores();
-        if(divisions < 1)
-            divisions = 1;
-        
-        pthread_mutex_t * locks = new pthread_mutex_t[divisions];
-        SortJob<T> ** jobs = new SortJob<T> *[divisions];
-        size_t section_length = buffer.size() / divisions;
-        
-        //start jobs
-        for(int ctr = 0; ctr < divisions; ctr++) {
-            if(0 != pthread_mutex_init(&locks[ctr], NULL)) {
-                perror("Error initializing a sort mutex");
-                assert(0);
-            }
-            
-            if(0 != pthread_mutex_lock(&locks[ctr])) {
-                perror("Error locking(1) a sort mutex");
-                assert(0);
-            }
-            
-            typename vector<T>::iterator begin = buffer.begin() + ctr * section_length;
-            typename vector<T>::iterator end = (ctr == divisions - 1) ? buffer.end() : (buffer.begin() + (1+ctr) * section_length);
-            
-            jobs[ctr] = new SortJob<T>(begin, end, locks[ctr], *this);
-            sort_thread_pool->addJob(jobs[ctr]);
-        }
-        
-        if(0 != pthread_mutex_lock(&locks[0])) {
-            perror("Error locking(2) a sort mutex");
-            assert(0);
-        }
-        
-        //now, rejoin
-        for(int ctr = 1; ctr < divisions; ctr++) {
-            
-            if(0 != pthread_mutex_lock(&locks[ctr])) {
-                perror("Error locking(3) a sort mutex");
-                assert(0);
-            }
-            if(0 != pthread_mutex_unlock(&locks[ctr])) {
-                perror("Error unlocking(3) a sort mutex");
-                assert(0);
-            }
-            
-            if(0 != pthread_mutex_destroy(&locks[ctr])) {
-                perror("Error destroying a sort mutex");
-                assert(0);
-            }
-            
-            typename vector<T>::iterator midpoint = buffer.begin() + ctr * section_length;
-            typename vector<T>::iterator end = (ctr == divisions - 1) ? buffer.end() : (buffer.begin() + (1+ctr) * section_length);
-            
-            if(sort_order == SORT_NAME)
-                std::inplace_merge(buffer.begin(), midpoint, end, Sort::ByName() );
-            else
-                std::inplace_merge(buffer.begin(), midpoint, end, Sort::ByPosition() );
-        }
-        
-        delete [] jobs;
-        delete [] locks;
+        if(sort_order == SORT_NAME)
+            ogeSortMt( buffer.begin(), buffer.end(), Sort::ByName() );
+        else
+            ogeSortMt( buffer.begin(), buffer.end(), Sort::ByPosition() );
     }
 }
 
