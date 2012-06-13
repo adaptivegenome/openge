@@ -253,9 +253,16 @@ void MarkDuplicates::buildSortedReadEndLists() {
     
     if(verbose)
         cerr << "Read " << index << " records. " << tmp.size() << " pairs never matched." << endl << "Sorting pairs..." << flush;
-    sort(pairSort.begin(), pairSort.end(), compareReadEnds());
+    if(nothreads)
+        sort(pairSort.begin(), pairSort.end(), compareReadEnds());
+    else
+        ogeSortMt(pairSort.begin(), pairSort.end(), compareReadEnds());
+
     if(verbose) cerr << "fragments..." << flush;
-    sort(fragSort.begin(), fragSort.end(), compareReadEnds());
+    if(nothreads)
+        sort(fragSort.begin(), fragSort.end(), compareReadEnds());
+    else
+        ogeSortMt(fragSort.begin(), fragSort.end(), compareReadEnds());
     cerr << "done." << endl;
     
     vector<ReadEnds *>contents = tmp.allReadEnds();
