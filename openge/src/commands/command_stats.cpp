@@ -25,6 +25,7 @@ void StatsCommand::getOptions()
 {
     options.add_options()
     ("inserts,I", "Show detailed insert statistics")
+    ("lengths,L", "Show read length statistics")
     ;
 }
 
@@ -36,6 +37,7 @@ int StatsCommand::runCommand()
     reader.addFiles( input_filenames );
     
     s.showInsertSizeSummary(vm.count("inserts"));
+    s.showReadLengthSummary(vm.count("lengths"));
     
     reader.addSink(&s);
     

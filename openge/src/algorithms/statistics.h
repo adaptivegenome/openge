@@ -30,6 +30,7 @@ class Statistics : public AlgorithmModule
 public:
     Statistics();
     void showInsertSizeSummary(bool show) { m_showInsertSizeSummary = show; }
+    void showReadLengthSummary(bool show) { m_showLengthSummary = show; }
 protected:
     virtual int runInternal();
 protected:
@@ -47,6 +48,7 @@ protected:
     unsigned int m_numDuplicates;
     std::vector<int> m_insertSizes;
     bool m_showInsertSizeSummary;
+    bool m_showLengthSummary;
 };
 
 #endif

@@ -24,6 +24,8 @@
 #include <algorithm>
 #include <numeric>
 
+#include <iomanip>
+
 using namespace BamTools;
 using namespace std;
 
@@ -76,6 +78,9 @@ bool CalculateMedian(vector<int>& data, double& median) {
 int Statistics::runInternal()
 {
     BamAlignment * pal;
+    
+    map<int, int> read_len_ct;
+
     while(NULL != (pal = getInputAlignment())) {
         BamAlignment & al = *pal;
 
@@ -122,6 +127,11 @@ int Statistics::runInternal()
                 m_insertSizes.push_back( insertSize );
             }
         }
+        
+        if(read_len_ct.end() != read_len_ct.find(al.Length))
+            read_len_ct[al.Length]++;
+        else
+            read_len_ct[al.Length] = 1;
 
         putOutputAlignment(pal);
     }
@@ -154,6 +164,18 @@ int Statistics::runInternal()
       if ( CalculateMedian(m_insertSizes, medianInsertSize) )
           cout << "Median insert size (absolute value): " << medianInsertSize << endl;
     }
+    
+    if (m_showLengthSummary) {
+        cerr << "Read lengths:" << endl;
+
+        for(map<int,int>::const_iterator it = read_len_ct.begin(); it != read_len_ct.end(); it++)
+        {
+            float pct = 100. * (double) it->second / (double) getReadCount();
+            
+            cout << " " << setw(5) << it->first << "bp : " << setw(10) << it->second << " (" << pct << " %)" << endl;
+        }
+    }
+
     cout << endl;
     return 0;
 }

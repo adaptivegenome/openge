@@ -149,13 +149,14 @@ The stats command generates statistics for one or more input files. The computed
 Example:
 
 \cmd{openge stats a.bam}
-\cmd{openge stats a.bam b.bam c.bam {-}{-}inserts {-}{-}verbose}
+\cmd{openge stats a.bam b.bam c.bam {-}{-}inserts {-}{-}lengths {-}{-}verbose}
 Parameters:
 \begin{center}
 \begin{tabular}{llp{3.5in}}
 \hline
 Flag&Long flag&Description\\ \hline
 -I&{-}{-}inserts&Include detailed stats about inserts.\\
+-L&{-}{-}lengths&Include the distribution of read sizes.\\
 \end{tabular}
 \end{center}
 
