@@ -23,6 +23,7 @@
 
 #include <api/algorithms/Sort.h>
 
+
 using namespace BamTools;
 using namespace std;
 
@@ -108,12 +109,19 @@ void SortedMerge::addSource(AlgorithmModule * source)
     source->addSink(proxy);
 }
 
+using namespace BamTools::Algorithms;
+
+bool SortedMerge::SortedMergeElement::operator<(const SortedMergeElement & t) const
+{
+    Sort::ByPosition cmp = Sort::ByPosition();
+    return cmp(this->read, t.read);
+}
+
 int SortedMerge::runInternal()
 {
     ogeNameThread("am_merge_sorted");
 
-    priority_queue<BamAlignment *, vector<BamAlignment *>, BamTools::Algorithms::Sort::ByPosition> reads;
-    map<BamAlignment *, SortedMergeInputProxy * > read_sources;
+    multiset<SortedMergeElement> reads;
     
     // first, get one read from each queue
     // make sure and deal with the case where one chain will never have any reads. TODO LCB
@@ -127,29 +135,24 @@ int SortedMerge::runInternal()
             continue;
         }
 
-        reads.push(read);
-        read_sources[read] = input_proxies[ctr];
+        reads.insert(SortedMergeElement(read, input_proxies[ctr]));
     }
 
     //now handle the steady state situation. When sources are done, We
     // won't have a read any more in the reads pqueue.
-    while(reads.size() > 0) {
-        BamAlignment * read = reads.top() ;
-        reads.pop();
-        SortedMergeInputProxy * source = read_sources[read];
+    while(!reads.empty()) {
+        SortedMergeElement el = *reads.begin();
+        reads.erase(reads.begin());
 
-        read_sources.erase(read);
+        putOutputAlignment(el.read);
 
-        putOutputAlignment(read);
-
-        read = source->getInputAlignment();
-        if(!read) {
-            source->mergeDone();
+        el.read = el.source->getInputAlignment();
+        if(!el.read) {
+            el.source->mergeDone();
             continue;
         }
 
-        reads.push(read);
-        read_sources[read] = source;
+        reads.insert(el);
     }
 
     return 0;

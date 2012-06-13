@@ -44,6 +44,17 @@ class SortedMerge : public AlgorithmModule
         pthread_mutex_t merge_complete;
     };
     
+    class SortedMergeElement{
+    public:
+        BamTools::BamAlignment * read;
+        SortedMergeInputProxy * source;
+        bool operator<(const SortedMergeElement & t) const;
+        SortedMergeElement(BamTools::BamAlignment * read, SortedMergeInputProxy * source)
+        : read(read)
+        , source(source)
+        {}
+    };
+    
 public:
     SortedMerge();
     ~SortedMerge();
