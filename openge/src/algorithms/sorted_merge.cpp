@@ -78,8 +78,6 @@ int SortedMerge::SortedMergeInputProxy::runInternal()
         exit(-1);
     }
 
-    cerr << "Pipe done after " << read_count << " reads." << endl;
-
     return 0;
 }
 
@@ -125,7 +123,6 @@ int SortedMerge::runInternal()
         BamAlignment * read = input_proxies[ctr]->getInputAlignment();
 
         if(!read) {
-            cerr << "Chain done." << endl;
             input_proxies[ctr]->mergeDone();
             continue;
         }
@@ -147,7 +144,6 @@ int SortedMerge::runInternal()
 
         read = source->getInputAlignment();
         if(!read) {
-            cerr << "Chain done." << endl;
             source->mergeDone();
             continue;
         }
