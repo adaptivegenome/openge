@@ -36,6 +36,8 @@ using namespace std;
 // job queue size.
 const int THREADPOOL_MAX_JOBS_IN_QUEUE = 128;
 
+ThreadPool * ThreadPool::_sharedPool = NULL;
+
 ThreadPool::ThreadPool(int num_threads) :
 threads_exit(false),
 jobs_current(0)

@@ -23,6 +23,8 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+#include <algorithm>
+
 #ifdef __linux__
 #include <sys/prctl.h>
 #define ogeNameThread(X) prctl(PR_SET_NAME,X,0,0,0)
@@ -120,6 +122,8 @@ protected:
     std::queue<T> q;
 };
 
+// The shared thread pool should only be used for non-blocking tasks!
+
 class ThreadPool
 {
 	friend class ThreadJob;
@@ -131,8 +135,11 @@ public:
 	int numJobs();
 	static int availableCores();
 	void waitForJobCompletion();
+    static ThreadPool * sharedPool() { if(!_sharedPool) _sharedPool = new ThreadPool(); return _sharedPool; }
+    static void closeSharedPool() {  _sharedPool->waitForJobCompletion(); delete _sharedPool; }
 	
 protected:
+    static ThreadPool * _sharedPool;
 	static void * thread_start(void * thread_pool);
 	ThreadJob * startJob();
 	void stopJob(ThreadJob * job);
