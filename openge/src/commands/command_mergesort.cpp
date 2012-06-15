@@ -64,7 +64,9 @@ int MergeSortCommand::runCommand()
     if(no_split && verbose)
         cerr << "Disabling split-by-chromosome." << endl;
     
-    if(nothreads || no_split)
+    int num_chains = min(12,ThreadPool::availableCores()/2);
+    
+    if(nothreads || no_split || !do_mark_duplicates || num_chains <= 1)
     {
         //The chain for this command goes something like this:
         //Reader->Filter->Sort->MarkDuplicates->Writer (->BlackHole)
@@ -110,10 +112,9 @@ int MergeSortCommand::runCommand()
         return writer.runChain();
     } else {
         //The chain for this command goes something like this:
-        //Reader->Filter->Sort->MarkDuplicates->Writer (->BlackHole)
+        //Reader->Filter->Sort->Split->MarkDuplicates(multiple)->Merge->Writer (->BlackHole)
         //
         // Filter is omitted if there is no region
-        // MarkDuplicates is omitted if it isn't required
         // BlackHole is automatically included when run.
         
         FileReader reader;
@@ -121,10 +122,8 @@ int MergeSortCommand::runCommand()
         SortedMerge merge;
         SplitByChromosome split;
         FileWriter writer;
-        
-        int num_chains = ThreadPool::availableCores();
-        
-        vector<ReadSorter *> sorters;
+        ReadSorter sort_reads;
+
         vector<MarkDuplicates *> duplicate_markers;
         
         //read-filter-split
@@ -133,10 +132,12 @@ int MergeSortCommand::runCommand()
             string region = vm["region"].as<string>();
             filter.setRegion(region);
             reader.addSink(&filter);
-            filter.addSink(&split);
+            filter.addSink(&sort_reads);
         } else {
-            reader.addSink(&split);
+            reader.addSink(&sort_reads);
         }
+        
+        sort_reads.addSink(&split);
 
         //merge-write
         merge.addSink(&writer);
@@ -145,30 +146,23 @@ int MergeSortCommand::runCommand()
         // each iteration of this loop forms one chain inside the split
         for(int ctr = 0; ctr < num_chains; ctr++)
         {  
-            ReadSorter * sort_reads = new ReadSorter;
-            sorters.push_back(sort_reads);
-            if(do_mark_duplicates) {
-                MarkDuplicates * mark_duplicates = new MarkDuplicates;
-                duplicate_markers.push_back(mark_duplicates);
-                sort_reads->addSink(mark_duplicates);
-                merge.addSource(mark_duplicates);
-                mark_duplicates->removeDuplicates = do_remove_duplicates;
+            MarkDuplicates * mark_duplicates = new MarkDuplicates;
+            duplicate_markers.push_back(mark_duplicates);
+            merge.addSource(mark_duplicates);
+            split.addSink(mark_duplicates);
 
-                char filename[48];
-                sprintf(filename, "/dedup_%8x.bam",  (uint32_t)(0xffffffff & (uint64_t)mark_duplicates));
-                mark_duplicates->setBufferFileName(tmpdir + string(filename));
-            }
-            else {
-                merge.addSource(sort_reads);
-            }
-            
-            split.addSink(sort_reads);
-            
-            sort_reads->setSortBy(sort_by_names ? SORT_NAME : SORT_POSITION);
-            sort_reads->setCompressTempFiles(compresstempfiles);
-            sort_reads->setAlignmentsPerTempfile(alignments_per_tempfile);
-            sort_reads->setTmpFileDirectory(tmpdir);
+            mark_duplicates->removeDuplicates = do_remove_duplicates;
+
+            char filename[48];
+            sprintf(filename, "/dedup_%8x.bam",  (uint32_t)(0xffffffff & (uint64_t)mark_duplicates));
+            mark_duplicates->setBufferFileName(tmpdir + string(filename));
         }
+
+        sort_reads.setSortBy(sort_by_names ? SORT_NAME : SORT_POSITION);
+        sort_reads.setCompressTempFiles(compresstempfiles);
+        sort_reads.setAlignmentsPerTempfile(alignments_per_tempfile);
+        sort_reads.setTmpFileDirectory(tmpdir);
+        
         reader.addFiles(input_filenames);
         writer.setFilename(vm["out"].as<string>());
         writer.setCompressionLevel(compression_level);
@@ -176,12 +170,9 @@ int MergeSortCommand::runCommand()
         int ret = writer.runChain();
         
         //clean up allocated objects
-        for(int ctr = 0; ctr < num_chains; ctr++) {
-            delete sorters[ctr];
-            if(do_mark_duplicates)
-                delete duplicate_markers[ctr];
-        }
-        
+        for(int ctr = 0; ctr < num_chains; ctr++)
+            delete duplicate_markers[ctr];
+
         return ret;
     }
 }

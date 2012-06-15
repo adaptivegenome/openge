@@ -99,12 +99,15 @@ Duplicates are marked by setting the 'duplicate' bitflag for each read found to 
 \hline
 Flag&Long flag&Description\\ \hline
 -r&{-}{-}remove&Remove duplicates instead of only marking them.\\
+&{-}{-}nosplit&Disable splitting by chromosome (see below).\\
 \end{tabular}
 \end{center}
 
 For example,
 \cmd{openge dedup a.bam -o z.bam} 
 identifies duplicates in a.bam, and writes all reads to z.bam with duplicates identified.
+
+When marking duplicates, dedup may process chromosomes in separate threads in order to increase speed. Whether or not this occurs depends on the number of cores available on your machine. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
 
 \subsection {help}
 The help command shows available options for any OpenGE command. 
@@ -140,7 +143,7 @@ Flag&Long flag&Description\\ \hline
 
 The number of reads per temporary file can have a substantial effect on speed when processing large datasets. Increasing the number of reads per file produces larger (and fewer) temporary files at the expense of memory, but reduces the processing time.
 
-Mergesort processes each chromosome in an input file separately in order to increase speed. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
+When marking duplicates, mergesort may process chromosomes in separate threads in order to increase speed. Whether or not this occurs depends on the number of cores available on your machine. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
 
 \subsection{stats}
 Prints out statistics about a file. No flags are required.
