@@ -25,6 +25,8 @@
 
 #include <algorithm>
 
+#include <unistd.h>
+
 #ifdef __linux__
 #include <sys/prctl.h>
 #define ogeNameThread(X) prctl(PR_SET_NAME,X,0,0,0)
