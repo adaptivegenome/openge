@@ -114,9 +114,7 @@ OpenGECommand::OpenGECommand()
 OpenGECommand * CommandMarshall::commandWithName(const string name) {
     const char * cname = name.c_str();
     
-    if(!strcmp(cname, "convert"))
-        return new ConvertCommand;
-    else if(!strcmp(cname, "count"))
+    if(!strcmp(cname, "count"))
         return new CountCommand;
     else if(!strcmp(cname, "dedup"))
         return new DedupCommand;

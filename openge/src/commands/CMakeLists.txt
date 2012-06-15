@@ -2,7 +2,6 @@ set(COMMANDS_DIR "commands")
 
 set(OPENGE_COMMANDS_SOURCES 
   ${COMMANDS_DIR}/commands.cpp
-  ${COMMANDS_DIR}/command_convert.cpp
   ${COMMANDS_DIR}/command_count.cpp
   ${COMMANDS_DIR}/command_dedup.cpp
   ${COMMANDS_DIR}/command_help.cpp

@@ -30,7 +30,6 @@ where \textit{command} is one of the commands listed in the following table, and
 \begin{tabular}{lp{3.5in}}
 \hline
 Command&Description\\ \hline
-convert&Convert a between file formats\\
 count&Count reads in a file\\
 dedup&Mark (or remove) duplicate reads\\
 help&View detailed help for any OpenGE command\\
@@ -71,17 +70,19 @@ will count the number of lines in a SAM file. Console redirection can be used as
 
 \subsection {File formats}
 
-OpenGE supports both BAM and SAM formats as inputs for all commands. All results are written in BAM format.
+OpenGE supports both BAM and SAM formats as inputs for all commands. By default, results are written in BAM format; experimental SAM support is also present. To write in SAM format, specify a filename with a .sam or .SAM extension.
 
-Most commands support multiple files as inputs; these files should have identical headers; corrupted data may result from processing multiple BAM files with different headers. A warning will be displayed if the headers in your input files are not identical.
+Most commands support multiple files as inputs; these files should have identical headers; corrupted data may result from processing multiple BAM or SAM files with different headers. A warning will be displayed if the headers in your input files are not identical.
+
+Conversion between formats can be performed with the view command. For instance:
+\cmd{openge view in.bam out.sam}
+converts the file in.bam to SAM format.
 
 \section {Commands}
 
 \subsection {convert}
-Converts between file formats.
+The convert command has been removed- all functionality is available as part of the view command. See the "File formats" section above for more details.
 
-Example:
-\cmd{openge convert in.sam -o out.bam}
 \subsection {count}
 The count command returns the number of reads contained in one or more files. No parameters (other than input files) are required.
 

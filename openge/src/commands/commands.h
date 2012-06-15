@@ -78,13 +78,6 @@ protected:
 /////////////////////////////////
 // Actual commands
 
-class ConvertCommand : public OpenGECommand
-{
-protected:
-    void getOptions();
-    virtual int runCommand();
-};
-
 class CountCommand : public OpenGECommand
 {
 protected:
