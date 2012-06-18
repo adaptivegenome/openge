@@ -44,8 +44,7 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
     size_t foundFirstColon = regionString.find(':');
     
     // store chrom strings, and numeric positions
-    string startChrom;
-    string stopChrom;
+    string chrom;
     int startPos;
     int stopPos;
     
@@ -54,9 +53,8 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
     // just store entire region string as startChrom name
     // use BamReader methods to check if its valid for current BAM file
     if ( foundFirstColon == string::npos ) {
-        startChrom = regionString;
+        chrom = regionString;
         startPos   = 0;
-        stopChrom  = regionString;
         stopPos    = -1;
     }
     
@@ -64,7 +62,7 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
     else {
         
         // store start chrom from beginning to first colon
-        startChrom = regionString.substr(0,foundFirstColon);
+        chrom = regionString.substr(0,foundFirstColon);
         
         // look for ".." after the colon
         size_t foundRangeDots = regionString.find("..", foundFirstColon+1);
@@ -74,7 +72,6 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
         // store contents before colon as startChrom, after as startPos
         if ( foundRangeDots == string::npos ) {
             startPos   = atoi( regionString.substr(foundFirstColon+1).c_str() ); 
-            stopChrom  = startChrom;
             stopPos    = -1;
         } 
         
@@ -90,15 +87,9 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
             // no second colon found
             // so we have a "standard" chrom:start..stop input format (on single chrom)
             if ( foundSecondColon == string::npos ) {
-                stopChrom  = startChrom;
                 stopPos    = atoi( regionString.substr(foundRangeDots+2).c_str() );
-            }
-            
-            // second colon found
-            // so we have a range requested across 2 chrom's
-            else {
-                stopChrom  = regionString.substr(foundRangeDots+2, foundSecondColon-(foundRangeDots+2));
-                stopPos    = atoi( regionString.substr(foundSecondColon+1).c_str() );
+            } else {
+                return false;
             }
         }
     }
@@ -108,38 +99,41 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
     
     const RefVector references = getReferences();
     
-    int startRefID = -1;
-    int stopRefID = -1;
+    int RefID = -1;
     for(int i = 0; i < references.size(); i++) {
-        if(references[i].RefName == startChrom)
-            startRefID = i;
-        if(references[i].RefName == stopChrom)
-            stopRefID = i;
+        if(references[i].RefName == chrom)
+            RefID = i;
     }
     
     // if startRefID not found, return false
-    if ( startRefID == -1 ) return false;
+    if ( RefID == -1 ) {
+        cerr << "Can't find chromosome'" << chrom << "'" << endl;
+        return false;
+    }
     
     // startPos cannot be greater than or equal to reference length
-    const RefData& startReference = references.at(startRefID);
-    if ( startPos >= startReference.RefLength ) return false;
-    
-    // if stopRefID not found, return false
-    if ( stopRefID == -1 ) return false;
+    const RefData& startReference = references.at(RefID);
+    if ( startPos >= startReference.RefLength ) {
+        cerr << "Start position (" << startPos << ") after end of the reference sequence (" << startReference.RefLength << ")" << endl;
+        return false;
+    }
     
     // stopPosition cannot be larger than reference length
-    const RefData& stopReference = references.at(stopRefID);
-    if ( stopPos > stopReference.RefLength ) return false;
-    
+    const RefData& stopReference = references.at(RefID);
+    if ( stopPos > stopReference.RefLength ) {
+        cerr << "Start position (" << stopPos << ") after end of the reference sequence (" << stopReference.RefLength << ")" << endl;
+        return false;
+    }
+
     // if no stopPosition specified, set to reference end
     if ( stopPos == -1 ) stopPos = stopReference.RefLength;
     
     // -------------------------------
     // set up Region struct & return
     
-    region.LeftRefID     = startRefID;
+    region.LeftRefID     = RefID;
     region.LeftPosition  = startPos;
-    region.RightRefID    = stopRefID;;
+    region.RightRefID    = RefID;;
     region.RightPosition = stopPos;
     return true;
 }

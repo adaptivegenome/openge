@@ -80,9 +80,6 @@ converts the file in.bam to SAM format.
 
 \section {Commands}
 
-\subsection {convert}
-The convert command has been removed- all functionality is available as part of the view command. See the "File formats" section above for more details.
-
 \subsection {count}
 The count command returns the number of reads contained in one or more files. No parameters (other than input files) are required.
 
@@ -199,20 +196,17 @@ Flag&Long flag&Description\\ \hline
 \end{center}
 
 \subsubsection{Region string format}
-Region strings are formatted exactly like the equivalent bamtools region strings, and this section is an excerpt from the bamtools documentation.
+Region strings are formatted similarly to the equivalent bamtools region strings, and this section is an excerpt from the bamtools documentation.
 
-A proper REGION string can be formatted like any of the following examples (where 'chr1' is the name of a reference (not its ID)and '' is any valid integer position within that reference.):
+A proper region string can be formatted like any of the following examples (where 'chr1' is the name of a reference (not its ID)and '' is any valid integer position within that reference.):
 
 \begin{center}
 \begin{tabular}{lp{3.5in}}
 {-}{-}region chr1&only alignments on (entire) reference 'chr1'\\
 {-}{-}region chr1:500&only alignments overlapping the region starting at chr1:500 and continuing to the end of chr1\\
 {-}{-}region chr1:500..1000&only alignments overlapping the region starting at chr1:500 and continuing to chr1:1000\\
-{-}{-}region chr1:500..chr3:750&only alignments overlapping the region starting at chr1:500 and continuing to chr3:750.\\
 \end{tabular}
 \end{center}
-
-This 'spanning' region assumes that the reference specified as the right boundary will occur somewhere in the file after the left boundary. On a sorted file, a region of 'chr4:500..chr2:1500' will produce undefined (incorrect) results. So don't do it. :)
 
 \newpage
 \section {License}
