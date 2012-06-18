@@ -349,18 +349,18 @@ void LocalRealignment::ReadBin::clear() {
 void LocalRealignment::initialize() {
     if ( LOD_THRESHOLD < 0.0 ) {
         cerr << "LOD threshold cannot be a negative number" << endl;
-        abort();
+        exit(-1);
     }
     if ( MISMATCH_THRESHOLD <= 0.0 || MISMATCH_THRESHOLD > 1.0 ) {
         cerr << "Entropy threshold must be a fraction between 0 and 1" << endl;
-        abort();
+        exit(-1);
     }
 
     referenceReader = new FastaReader();
     assert(reference_filename.size() > 0);
     if(!referenceReader->Open(reference_filename)) {
         cerr << "Error opening reference file " << reference_filename << endl;
-        abort();
+        exit(-1);
     }
     
     loc_parser = new GenomeLocParser(getHeader().Sequences);

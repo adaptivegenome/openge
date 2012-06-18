@@ -192,6 +192,7 @@ int Filter::runInternal()
             cerr << "ERROR: could not parse region'" << region_string << "'" << endl;
             cerr << "Check that region description is in valid format (see documentation) and that the coordinates are valid"
             << endl;
+            exit(-1);
             return -1;
         }
     }

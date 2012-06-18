@@ -197,7 +197,7 @@ BamAlignment * ConstrainedMateFixingManager::remove(set<BamAlignment *> & treeSe
     BamAlignment * first = *treeSet.begin();
     if ( !treeSet.erase(first) ) {
         cerr << "Error caching SAM record " << first->Name << ", which is usually caused by malformed SAM/BAM files in which multiple identical copies of a read are present." << endl;
-        abort();
+        exit(-1);
     }
     return first;
 }

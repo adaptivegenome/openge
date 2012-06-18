@@ -302,7 +302,7 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
     
     if(!colon_loc) {  //parsing error, abort
         cerr << "Could not find colon in interval file: " << str << endl;
-        abort();
+        exit(-1);
     }
     
     *colon_loc = 0;
@@ -316,7 +316,7 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
     if(errno) {
         cerr << "Could not find start in interval file: " << str << endl;
         perror("Reason:");
-        abort();
+        exit(-1);
     }
     
     int stop = start;   //for the chr1:1 case
@@ -326,7 +326,7 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
         if(errno) {
             cerr << "Could not find stop in interval file: " << str << endl;
             perror("Reason:");
-            abort();
+            exit(-1);
         }
     }
     

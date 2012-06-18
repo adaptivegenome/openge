@@ -173,13 +173,13 @@ class Allele {
             m_isNoCall = true;
             if ( isRef ) {
                 cerr << "Cannot tag a NoCall allele as the reference allele" << endl;
-                abort();
+                exit(-1);
             }
         } else if ( wouldBeSymbolicAllele(bases) ) {
             m_isSymbolic = true;
             if ( isRef ) {
                 cerr << "Cannot tag a symbolic allele as the reference allele" << endl;
-                abort();
+                exit(-1);
             }
         }
         //        else
@@ -190,7 +190,7 @@ class Allele {
         
         if ( ! acceptableAlleleBases(bases) ) {
             cerr << "Unexpected base in allele bases \'" << bases << "\'" << endl;
-            abort();
+            exit(-1);
         }
     }
 #if 0

@@ -142,7 +142,7 @@ int FileReader::runInternal()
         }
     } else {
         cerr << "FileReader couldn't detect file format. Aborting." << endl;
-        abort();
+        exit(-1);
         return -1;
     }
 

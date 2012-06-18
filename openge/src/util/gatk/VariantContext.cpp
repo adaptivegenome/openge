@@ -588,7 +588,7 @@ Allele VariantContext::getReference() {
     assert(ref != NULL);
     if ( ref == NULL ) {
         cerr << "BUG: no reference allele found at " << endl;
-        abort();
+        exit(-1);
     }
     return *ref;
 }
@@ -1136,7 +1136,7 @@ void VariantContext::determineType() {
         switch ( getNAlleles() ) {
             case 0:
                 cerr << "Unexpected error: requested type of VariantContext with no alleles!" << endl;
-                abort();
+                exit(-1);
             case 1:
                 // note that this doesn't require a reference allele.  You can be monomorphic independent of having a
                 // reference allele
