@@ -35,13 +35,13 @@ FileReader::file_format_t FileReader::deduceFileFormat()
         FILE * fp = fopen(filenames[i].c_str(), "rb");
         
         if(!fp) {
-            cerr << "Couldn't open file " << filenames[0] << endl;
+            cerr << "Couldn't open file " << filenames[i] << endl;
             return FORMAT_UNKNOWN;
         }
 
         unsigned char data[2];
         if(2 != fread(data, 1,2, fp)) {
-            cerr << "Couldn't read from file " << filenames[0] << endl;
+            cerr << "Couldn't read from file " << filenames[i] << endl;
             return FORMAT_UNKNOWN;
         }
 
@@ -106,7 +106,32 @@ int FileReader::runInternal()
         
         reader.Close();
     } else if(format == FORMAT_SAM) {
+        
+        vector<SamReader> readers;
+        
         SamHeader first_header;
+
+        // before doing any reading, open the files to
+        // verify they are the right format, etc.
+        for(int i = 0; i < filenames.size(); i++) {
+            SamReader reader;
+            
+            if(!reader.Open(filenames[i])) {
+                cerr << "Error opening SAM file: " << filenames[i] << endl;
+                return -1;
+            }
+
+            if(filenames.size() > 1 && i == 0)
+                first_header = header;
+            
+            // TODO: We can probably find a better way to deal with multiple SAM file headers,
+            // but for now we should disallow different headers to avoid issues.
+            if(i > 0 && header.ToString() != first_header.ToString())
+                cerr << "Warning! SAM input files have different headers." << endl;
+            
+            reader.Close();
+        }
+
         for(int i = 0; i < filenames.size(); i++) {
             SamReader reader;
             
@@ -121,11 +146,6 @@ int FileReader::runInternal()
             
             if(filenames.size() > 1 && i == 0)
                 first_header = header;
-            
-            // TODO: We can probably find a better way to deal with multiple SAM file headers,
-            // but for now we should disallow different headers to avoid issues.
-            if(i > 0 && header.ToString() != first_header.ToString())
-                cerr << "Warning! SAM input files have different headers." << endl;
 
             BamAlignment * al = NULL;
             while(true)
