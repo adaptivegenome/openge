@@ -70,7 +70,7 @@ will count the number of lines in a SAM file. Console redirection can be used as
 
 \subsection {File formats}
 
-OpenGE supports both BAM and SAM formats as inputs for all commands. By default, results are written in BAM format; experimental SAM support is also present. To write in SAM format, specify a filename with a .sam or .SAM extension.
+OpenGE supports both BAM and SAM formats as inputs for all commands. By default, results are written in BAM format; experimental SAM and FASTQ support is also present. To write in SAM format, specify a filename with a .sam or .SAM extension; for FASTQ format, use a .fastq or .FASTQ extension.
 
 Most commands support multiple files as inputs; these files should have identical headers; corrupted data may result from processing multiple BAM or SAM files with different headers. A warning will be displayed if the headers in your input files are not identical.
 

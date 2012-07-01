@@ -23,6 +23,7 @@
 #include "file_writer.h"
 
 #include "../util/sam_writer.h"
+#include "../util/fastq_writer.h"
 
 #include "api/BamWriter.h"
 using namespace BamTools;
@@ -49,7 +50,29 @@ int FileWriter::runInternal()
             cerr << "Error opening BAM file to write." << endl;
             return -1;
         }
-
+        
+        BamAlignment * al;
+        
+        while(true)
+        {
+            al = getInputAlignment();
+            if(!al)
+                break;
+            
+            writer.SaveAlignment(*al);
+            putOutputAlignment(al);
+        }
+        
+        writer.Close();
+        
+    } else if(filename.size() > 5 && (hasEnding(filename, "fastq") || hasEnding(filename, "FASTQ"))) {
+        FastqWriter writer;
+        
+        if(!writer.Open(filename)) {
+            cerr << "Error opening FASTQ file to write." << endl;
+            return -1;
+        }
+        
         BamAlignment * al;
         
         while(true)
