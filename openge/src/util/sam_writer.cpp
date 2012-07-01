@@ -68,7 +68,7 @@ bool SamWriter::Open(const string& filename,
         return false;
     }
     
-    file << samHeaderText << endl;
+    file << samHeaderText;
 
     references = referenceSequences;
     

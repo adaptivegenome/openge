@@ -149,18 +149,21 @@ void * SamReader::LineGenerationThread(void * data)
             usleep(20000);
         
         char * read = fgets(line_s, sizeof(line_s)-1, fp);
+        if(!read) break;
+
+        size_t read_len = strlen(read);
+        read[read_len-1] = 0;   //remove newline from string
         
-        if(!read || strlen(read) < 10)  // if line is invalid
+        if(read_len < 10)  // if line is invalid
             break;
         
         SamLine * lt = new SamLine;
         
         //create a buffer for the worker thread to use.
-        size_t line_line = strlen(read);
         lt->line = lt->line_static;
         
-        if(line_line >= sizeof(lt->line_static))
-            lt->line = (char *) malloc(line_line + 1);
+        if(read_len >= sizeof(lt->line_static))
+            lt->line = (char *) malloc(read_len + 1);
 
         assert(lt->line);
         strcpy(lt->line, line_s);
@@ -243,7 +246,7 @@ bool SamReader::IsLoaded()
     return loaded;
 }
 
-// retrieves header text from BAM file
+// retrieves header text from SAM file
 void SamReader::LoadHeaderData(void)
 {
     stringstream header_txt("");
@@ -340,13 +343,11 @@ BamAlignment * SamReader::ParseAlignment(const char * line_s)
     {
         field_starts[ct] = line;
         line = strchr(line, '\t');
-        if(ct < 10) {
-            if(!line || line >= line + line_length)
-                return NULL;    
-            if(*line) {
-                *line = 0;
-                line++;
-            }
+        if(ct < 10 && (!line || line >= line + line_length))
+            return NULL;    
+        if(line && *line) {
+            *line = 0;
+            line++;
         }
     }
     
@@ -426,7 +427,7 @@ BamAlignment * SamReader::ParseAlignment(const char * line_s)
     static const string typeZ("Z");
     static const string typei("i");
     //optional attributes
-    for (int i = 1; i < additional_parameters.size(); i++) {
+    for (int i = 0; i < additional_parameters.size(); i++) {
         char * segment = additional_parameters[i];
         
         //null terminate field separators (:) in the segment so we can use to construct strings
