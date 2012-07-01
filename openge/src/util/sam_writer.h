@@ -14,8 +14,8 @@
  *
  *********************************************************************/
 
-#ifndef OGE_SAMREADER_H
-#define OGE_SAMREADER_H
+#ifndef OGE_SAMWRITER_H
+#define OGE_SAMWRITER_H
 #include <string>
 #include <iostream>
 #include <api/BamAlignment.h>

@@ -14,8 +14,8 @@
  *
  *********************************************************************/
 
-#ifndef BamTools_SamReader_h
-#define BamTools_SamReader_h
+#ifndef OGE_SAMREADER_H
+#define OGE_SAMREADER_H
 #include <string>
 #include <vector>
 #include <api/BamAlignment.h>
