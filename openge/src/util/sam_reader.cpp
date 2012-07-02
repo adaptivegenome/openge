@@ -455,7 +455,7 @@ BamAlignment * SamReader::ParseAlignment(const char * line_s)
             }
             case 'A': //single char
             {
-                retval = alignment.AddTag(tag, type, *value);
+                retval = alignment.AddTag<int8_t>(tag, type, *value);
                 break;
             }
             case 'Z': //string, with spaces
