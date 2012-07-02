@@ -36,6 +36,8 @@ public:
     std::string getRegion() { return region_string; }
     void setCountLimit(int ct) { count_limit = ct;}
     size_t getCountLimit() { return count_limit;}
+    void setQualityLimit(int mapq) { mapq_limit = mapq; }
+    int getQualityLimit() { return mapq_limit;}
 protected:
     virtual int runInternal();
 protected:
@@ -43,6 +45,7 @@ protected:
     std::string region_string;
     bool has_region;
     size_t count_limit;
+    int mapq_limit;
 };
 
 #endif

@@ -131,6 +131,7 @@ Parameters:
 Flag&Long flag&Description\\ \hline
 -c \textit{level}&{-}{-}compression \textit{level}&Compression level- defaults to 6. Valid levels are 0-9, and correspond to zlib's deflate compression levels. \\
 -r \textit{region}&{-}{-}region \textit{region}&Genomic region to use\\
+-q\textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapq allowed\\
 -n \textit{reads}&{-}{-}n \textit{reads}&Number of reads to use per temporary file. Defaults to 500,000.\\
 -C&{-}{-}compresstempfiles&Compress temporary files. By default, temporary files are not compressed.\\
 &{-}{-}nosplit&Disable splitting by chromosome (see below).\\
@@ -183,7 +184,7 @@ Median insert size (absolute value): 204}
 Prints out the version number and the date and time that this version was compiled.
 
 \subsection{view}
-The view command returns a portion of a bamfile optionally filtered by region, and then optionally limited to a smaller number of reads.
+The view command returns a portion of a bamfile optionally filtered by region, filtered to allow only mapq values above a threshold, and then optionally limited to a smaller number of reads.
 
 Parameters:
 \begin{center}
@@ -192,6 +193,7 @@ Parameters:
 Flag&Long flag&Description\\ \hline
 -n \textit{number}&{-}{-}count\textit{number}&Number of reads to include in the generated file. Defaults to include the entire file.\\
 -r\textit{region}&{-}{-}region \textit{region}&Region string (see below for format)\\
+-q\textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapq allowed\\
 \end{tabular}
 \end{center}
 

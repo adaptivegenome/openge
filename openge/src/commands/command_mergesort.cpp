@@ -39,6 +39,7 @@ void MergeSortCommand::getOptions()
     ("out,o", po::value<string>()->default_value("stdout"), "Output filename. Omit for stdout.")
     ("compression,c", po::value<int>()->default_value(6), "Compression level of the output. Valid 0-9.")
     ("region,r", po::value<string>(), "Genomic region to use.")
+    ("mapq,q", po::value<int>(), "Minimum map quality allowed in reads")
     ("byname,b", "Sort by name. Otherwise, sorts by position.")
     ("n,n", po::value<int>()->default_value(5e5), "Alignments per temp file.")
     ("compresstempfiles,C", "Compress temp files. By default, uncompressed")
@@ -83,9 +84,11 @@ int MergeSortCommand::runCommand()
         
         reader.setLoadStringData(false);
         
-        if(vm.count("region")) {
-            string region = vm["region"].as<string>();
-            filter.setRegion(region);
+        if(vm.count("region") || vm.count("mapq")) {
+            if(vm.count("region"))
+                filter.setRegion(vm["region"].as<string>());
+            if(vm.count("mapq"))
+                filter.setQualityLimit(vm["mapq"].as<int>());
             reader.addSink(&filter);
             filter.addSink(&sort_reads);
         } else {

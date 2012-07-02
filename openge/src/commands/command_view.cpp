@@ -35,6 +35,7 @@ void ViewCommand::getOptions()
     options.add_options()
     ("out,o", po::value<string>()->default_value("stdout"), "Output filename. Omit for stdout.")
     ("count,n", po::value<size_t>(), "Number of alignments to copy")
+    ("mapq,q", po::value<int>(), "Minimum map quality")
     ("region,r", po::value<string>(), "Genomic region to use.");
 }
 
@@ -55,6 +56,11 @@ int ViewCommand::runCommand()
     if(vm.count("count")) {
         size_t count_limit = vm["count"].as<size_t>();
         filter.setCountLimit(count_limit);
+    }
+
+    if(vm.count("mapq")) {
+        int mapq = vm["mapq"].as<int>();
+        filter.setQualityLimit(mapq);
     }
 
     bool hasregion = vm.count("region") != 0;

@@ -141,6 +141,7 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
 Filter::Filter()
 : has_region(false)
 , count_limit(INT_MAX)
+, mapq_limit(0)
 {}
 
 int Filter::runInternal()
@@ -150,9 +151,11 @@ int Filter::runInternal()
     // if no region specified, store entire contents of file(s)
     if ( !has_region ) {
         BamAlignment * al = NULL;
-        while (NULL != (al = getInputAlignment()) && count < count_limit ) {
-            putOutputAlignment(al);
-            count++;
+        while (NULL != (al = getInputAlignment()) && count < count_limit) {
+            if(al->MapQuality >= mapq_limit) {
+                putOutputAlignment(al);
+                count++;
+            }
         }
         
         //flush rest of queue
@@ -172,7 +175,8 @@ int Filter::runInternal()
             BamAlignment * al;
             while ( NULL != (al = getInputAlignment())  && count < count_limit) {
                 if ( (al->RefID >= region.LeftRefID)  && ( (al->Position + al->Length) >= region.LeftPosition ) &&
-                    (al->RefID <= region.RightRefID) && ( al->Position <= region.RightPosition) ) {
+                    (al->RefID <= region.RightRefID) && ( al->Position <= region.RightPosition) 
+                    && (al->MapQuality >= mapq_limit)) {
                     putOutputAlignment(al);
                     count++;
                 } else {
