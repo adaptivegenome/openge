@@ -362,6 +362,7 @@ BamAlignment * SamReader::ParseAlignment(const char * line_s)
     tlen = atoi(field_starts[8]);
     seq.assign(field_starts[9]);
     qual.assign(field_starts[10]);
+    al->Length = seq.size();
 
     // zero based indexes:
     alignment.Position--;
