@@ -78,6 +78,9 @@ Conversion between formats can be performed with the view command. For instance:
 \cmd{openge view in.bam out.sam}
 converts the file in.bam to SAM format.
 
+\cmd{openge view in.bam out.fastq}
+converts the file in.bam to FASTQ format.
+
 \section {Commands}
 
 \subsection {count}
@@ -131,7 +134,7 @@ Parameters:
 Flag&Long flag&Description\\ \hline
 -c \textit{level}&{-}{-}compression \textit{level}&Compression level- defaults to 6. Valid levels are 0-9, and correspond to zlib's deflate compression levels. \\
 -r \textit{region}&{-}{-}region \textit{region}&Genomic region to use\\
--q\textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapq allowed\\
+-q \textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapping quality for a read to be included in the mergesort.\\
 -n \textit{reads}&{-}{-}n \textit{reads}&Number of reads to use per temporary file. Defaults to 500,000.\\
 -C&{-}{-}compresstempfiles&Compress temporary files. By default, temporary files are not compressed.\\
 &{-}{-}nosplit&Disable splitting by chromosome (see below).\\
@@ -192,15 +195,15 @@ Parameters:
 \hline
 Flag&Long flag&Description\\ \hline
 -n \textit{number}&{-}{-}count\textit{number}&Number of reads to include in the generated file. Defaults to include the entire file.\\
--r\textit{region}&{-}{-}region \textit{region}&Region string (see below for format)\\
--q\textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapq allowed\\
+-r \textit{region}&{-}{-}region \textit{region}&Region string (see below for format)\\
+-q \textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapq allowed\\
 \end{tabular}
 \end{center}
 
 \subsubsection{Region string format}
 Region strings are formatted similarly to the equivalent bamtools region strings, and this section is an excerpt from the bamtools documentation.
 
-A proper region string can be formatted like any of the following examples (where 'chr1' is the name of a reference (not its ID)and '' is any valid integer position within that reference.):
+A proper region string can be formatted like any of the following examples:
 
 \begin{center}
 \begin{tabular}{lp{3.5in}}
