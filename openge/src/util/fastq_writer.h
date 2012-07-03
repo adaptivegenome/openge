@@ -16,16 +16,18 @@
 
 #ifndef OGE_FASTQWRITER_H
 #define OGE_FASTQWRITER_H
+
+#include "file_io.h"
 #include <string>
 #include <iostream>
 #include <api/BamAlignment.h>
 #include <api/SamHeader.h>
 
-class FastqWriter
+class FastqWriter : public FileWriterClass
 {
 public:
     FastqWriter();
-    bool Open(const std::string& filename);
+    bool Open(const std::string& filename, const std::string& samHeaderText, const BamTools::RefVector& referenceSequences);
     bool Close();
     bool SaveAlignment( BamTools::BamAlignment & al);
 protected:

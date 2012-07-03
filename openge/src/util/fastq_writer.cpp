@@ -29,7 +29,7 @@ FastqWriter::FastqWriter()
     
 }
 
-bool FastqWriter::Open(const string& filename) {
+bool FastqWriter::Open(const string& filename, const std::string& samHeaderText, const BamTools::RefVector& referenceSequences) {
     this->filename = filename;
     
     if(filename != "stdout") {

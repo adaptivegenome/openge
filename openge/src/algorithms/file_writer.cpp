@@ -39,77 +39,109 @@ bool hasEnding (std::string const &fullString, std::string const &ending)
     }
 }
 
+void FileWriter::setFormat(const std::string & format_name)
+{
+    file_format_t ret = detectFileFormatFromFilename(format_name);
+    
+    if(ret == FORMAT_UNKNOWN) {
+        cerr << "Unknown file format specified: " << format_name << ". Aborting." << endl;
+        exit(-1);
+    }
+    
+    setFormat(ret);
+}
+
 int FileWriter::runInternal()
 {
     ogeNameThread("am_FileWriter");
+    
+    if(file_format == FORMAT_UNKNOWN) {
+        file_format = detectFileFormatFromFilename(filename);
+        if(file_format == FORMAT_UNKNOWN)
+            file_format = default_file_format;
+    }
 
-    if(filename.size() > 3 && (hasEnding(filename, "sam") || hasEnding(filename, "SAM"))) {
-        SamWriter writer;
-        
-        if(!writer.Open(filename, getHeader().ToString(), getReferences())) {
-            cerr << "Error opening BAM file to write." << endl;
-            return -1;
-        }
-        
-        BamAlignment * al;
-        
-        while(true)
-        {
-            al = getInputAlignment();
-            if(!al)
-                break;
-            
-            writer.SaveAlignment(*al);
-            putOutputAlignment(al);
-        }
-        
-        writer.Close();
-        
-    } else if(filename.size() > 5 && (hasEnding(filename, "fastq") || hasEnding(filename, "FASTQ"))) {
-        FastqWriter writer;
-        
-        if(!writer.Open(filename)) {
-            cerr << "Error opening FASTQ file to write." << endl;
-            return -1;
-        }
-        
-        BamAlignment * al;
-        
-        while(true)
-        {
-            al = getInputAlignment();
-            if(!al)
-                break;
-            
-            writer.SaveAlignment(*al);
-            putOutputAlignment(al);
-        }
-        
-        writer.Close();
-        
-    } else {
-        BamWriter writer;
-        
-        if(!writer.Open(filename, getHeader(), getReferences())) {
-            cerr << "Error opening BAM file to write." << endl;
-            return -1;
-        }
-        
-        writer.SetCompressionLevel(compression_level);
-        
-        BamAlignment * al;
-        
-        while(true)
-        {
-            al = getInputAlignment();
-            if(!al)
-                break;
-
-            writer.SaveAlignment(*al);
-            putOutputAlignment(al);
-        }
-        
-        writer.Close();
+    switch(file_format) {
+        case FORMAT_SAM:
+            {
+                SamWriter writer;
+                
+                if(!writer.Open(filename, getHeader().ToString(), getReferences())) {
+                    cerr << "Error opening BAM file to write." << endl;
+                    return -1;
+                }
+                
+                BamAlignment * al;
+                
+                while(true)
+                {
+                    al = getInputAlignment();
+                    if(!al)
+                        break;
+                    
+                    writer.SaveAlignment(*al);
+                    putOutputAlignment(al);
+                }
+                
+                writer.Close();
+                
+            }
+            break;
+        case FORMAT_FASTQ:
+            {
+                FastqWriter writer;
+                
+                if(!writer.Open(filename, getHeader().ToString(), getReferences())) {
+                    cerr << "Error opening FASTQ file to write." << endl;
+                    return -1;
+                }
+                
+                BamAlignment * al;
+                
+                while(true)
+                {
+                    al = getInputAlignment();
+                    if(!al)
+                        break;
+                    
+                    writer.SaveAlignment(*al);
+                    putOutputAlignment(al);
+                }
+                
+                writer.Close();
+                
+            }
+            break;
+        case FORMAT_BAM:
+            {
+                BamWriter writer;
+                
+                if(!writer.Open(filename, getHeader(), getReferences())) {
+                    cerr << "Error opening BAM file to write." << endl;
+                    return -1;
+                }
+                
+                writer.SetCompressionLevel(compression_level);
+                
+                BamAlignment * al;
+                
+                while(true)
+                {
+                    al = getInputAlignment();
+                    if(!al)
+                        break;
+                    
+                    writer.SaveAlignment(*al);
+                    putOutputAlignment(al);
+                }
+                
+                writer.Close();
+            }
+            break;
+        default:
+            cerr << "Unsupported output file format selected. Aborting." << endl;
+            exit(-1);
+            break;
     }
     
     if(isVerbose())

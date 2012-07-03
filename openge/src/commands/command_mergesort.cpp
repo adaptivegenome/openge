@@ -111,6 +111,8 @@ int MergeSortCommand::runCommand()
         reader.addFiles(input_filenames);
         writer.setFilename(vm["out"].as<string>());
         writer.setCompressionLevel(compression_level);
+        if(vm.count("format"))
+            writer.setFormat(vm["format"].as<string>());
         
         return writer.runChain();
     } else {

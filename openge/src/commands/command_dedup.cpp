@@ -59,6 +59,8 @@ int DedupCommand::runCommand()
         reader.setLoadStringData(false);
 
         reader.addSink(&mark_duplicates);
+        if(vm.count("format"))
+            writer.setFormat(vm["format"].as<string>());
 
         mark_duplicates.addSink(&writer);
         mark_duplicates.removeDuplicates = do_remove_duplicates;
@@ -99,6 +101,9 @@ int DedupCommand::runCommand()
             
             split.addSink(mark_duplicates);
         }
+        
+        if(vm.count("format"))
+            writer.setFormat(vm["format"].as<string>());
 
         reader.addFiles(input_filenames);
         writer.setFilename(vm["out"].as<string>());

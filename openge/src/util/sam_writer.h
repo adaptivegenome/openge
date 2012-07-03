@@ -20,11 +20,12 @@
 #include <iostream>
 #include <api/BamAlignment.h>
 #include <api/SamHeader.h>
+#include "file_io.h"
 
 // SamReader is capable of sequentially reading a SAM file. It doesn't support
 // most of the features that BamReader does, only enough to support converting SAM
 // files to the BAM format.
-class SamWriter
+class SamWriter : public FileWriterClass
 {
 public:
     SamWriter();

@@ -27,6 +27,7 @@
 
 #include <vector>
 #include <string>
+#include "../util/file_io.h"
 
 class FileWriter : public AlgorithmModule
 {
@@ -35,14 +36,15 @@ protected:
     virtual int runInternal();
     std::string filename;
     int compression_level;
+    file_format_t file_format, default_file_format;
     
 public:
-    FileWriter() : compression_level(6) {}
+    FileWriter() : compression_level(6), file_format(FORMAT_UNKNOWN), default_file_format(FORMAT_BAM) {}
     void setFilename(std::string filename) { this->filename = filename; }
     void setCompressionLevel(int level) { compression_level = level;}
     size_t getCount() { return write_count; }
-    
-// eventually we should also be able to set the format.
-// void setFormat(???);
+    void setFormat(file_format_t format) { file_format = format; }   //force this format to be used
+    void setFormat(const std::string & format_name);
+    void setDefaultFormat(file_format_t format) { default_file_format = format; }    //format to be used if auto detection doesn't work
 };
 #endif

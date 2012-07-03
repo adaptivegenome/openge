@@ -63,6 +63,9 @@ int ViewCommand::runCommand()
         filter.setQualityLimit(mapq);
     }
 
+    if(vm.count("format"))
+        writer.setFormat(vm["format"].as<string>());
+
     bool hasregion = vm.count("region") != 0;
 
     if(hasregion) {
@@ -72,6 +75,9 @@ int ViewCommand::runCommand()
     
     reader.addFiles(input_filenames);
     writer.setFilename(filename_out);
+    
+    if(input_filenames.size() == 1 && input_filenames[0] == "stdout")
+        writer.setDefaultFormat(FORMAT_SAM);
     
     reader.runChain();
     

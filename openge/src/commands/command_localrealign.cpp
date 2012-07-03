@@ -44,7 +44,9 @@ int LocalRealignCommand::runCommand()
     local_realignment.addSink(&writer);
 
     reader.addFiles(input_filenames);
-
+    
+    if(vm.count("format"))
+        writer.setFormat(vm["format"].as<string>());
     writer.setFilename(vm["out"].as<string>());
 
     local_realignment.verbose = verbose;
