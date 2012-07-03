@@ -73,7 +73,7 @@ bool SamWriter::Open(const string& filename,
         }
     }
     
-    file << samHeaderText;
+    *output_stream << samHeaderText;
 
     references = referenceSequences;
     
