@@ -136,33 +136,22 @@ int Statistics::runInternal()
         putOutputAlignment(pal);
     }
 
-    cout << "Total reads:       " << m_numReads << endl;
-    cout << "Mapped reads:      " << m_numMapped << "\t(" << ((float)m_numMapped/m_numReads)*100 << "%)" << endl;
-    cout << "Forward strand:    " << m_numForwardStrand << "\t(" << ((float)m_numForwardStrand/m_numReads)*100 << "%)" << endl;
-    cout << "Reverse strand:    " << m_numReverseStrand << "\t(" << ((float)m_numReverseStrand/m_numReads)*100 << "%)" << endl;
-    cout << "Failed QC:         " << m_numFailedQC << "\t(" << ((float)m_numFailedQC/m_numReads)*100 << "%)" << endl;
-    cout << "Duplicates:        " << m_numDuplicates << "\t(" << ((float)m_numDuplicates/m_numReads)*100 << "%)" << endl;
-    cout << "Paired-end reads:  " << m_numPaired << "\t(" << ((float)m_numPaired/m_numReads)*100 << "%)" << endl;
+    const int precision = 1;
+    const int field_width = 5;
+    cout << "Total reads:       " << setw(10) << m_numReads << endl;
+    cout << "Mapped reads:      " << setw(10) << m_numMapped << " (" << setprecision(precision) << setw(field_width) << fixed << ((float)m_numMapped/m_numReads)*100 << "%)" << endl;
+    cout << "Forward strand:    " << setw(10) << m_numForwardStrand << " (" << setprecision(precision) << setw(field_width) << fixed << ((float)m_numForwardStrand/m_numReads)*100 << "%)" << endl;
+    cout << "Reverse strand:    " << setw(10) << m_numReverseStrand << " (" << setprecision(precision) << setw(field_width) << fixed << ((float)m_numReverseStrand/m_numReads)*100 << "%)" << endl;
+    cout << "Failed QC:         " << setw(10) << m_numFailedQC << " (" << setprecision(precision) << setw(field_width) << fixed << ((float)m_numFailedQC/m_numReads)*100 << "%)" << endl;
+    cout << "Duplicates:        " << setw(10) << m_numDuplicates << " (" << setprecision(precision) << setw(field_width) << fixed << ((float)m_numDuplicates/m_numReads)*100 << "%)" << endl;
+    cout << "Paired-end reads:  " << setw(10) << m_numPaired << " (" << setprecision(precision) << setw(field_width) << fixed << ((float)m_numPaired/m_numReads)*100 << "%)" << endl;
 
     if ( m_numPaired != 0 ) {
-      cout << "'Proper-pairs':    " << m_numProperPair << "\t(" << ((float)m_numProperPair/m_numPaired)*100 << "%)" << endl;
-      cout << "Both pairs mapped: " << m_numBothMatesMapped << "\t(" << ((float)m_numBothMatesMapped/m_numPaired)*100 << "%)" << endl;
-      cout << "Read 1:            " << m_numFirstMate << endl;
-      cout << "Read 2:            " << m_numSecondMate << endl;
-      cout << "Singletons:        " << m_numSingletons << "\t(" << ((float)m_numSingletons/m_numPaired)*100 << "%)" << endl;
-    }
-
-    if ( m_showInsertSizeSummary ) {
-      
-      double avgInsertSize = 0.0;
-      if ( !m_insertSizes.empty() ) {
-          avgInsertSize = ( accumulate(m_insertSizes.begin(), m_insertSizes.end(), 0.0) / (double)m_insertSizes.size() );
-          cout << "Average insert size (absolute value): " << avgInsertSize << endl;
-      }
-      
-      double medianInsertSize = 0.0;
-      if ( CalculateMedian(m_insertSizes, medianInsertSize) )
-          cout << "Median insert size (absolute value): " << medianInsertSize << endl;
+      cout << "'Proper-pairs':    " << setw(10) << m_numProperPair << " (" << setprecision(precision) << setw(field_width) << fixed << ((float)m_numProperPair/m_numPaired)*100 << "%)" << endl;
+      cout << "Both pairs mapped: " << setw(10) << m_numBothMatesMapped << " (" << setprecision(precision) << setw(field_width) << fixed << ((float)m_numBothMatesMapped/m_numPaired)*100 << "%)" << endl;
+      cout << "Read 1:            " << setw(10) << m_numFirstMate << endl;
+      cout << "Read 2:            " << setw(10) << m_numSecondMate << endl;
+      cout << "Singletons:        " << setw(10) << m_numSingletons << " (" << setprecision(precision) << setw(field_width) << fixed << ((float)m_numSingletons/m_numPaired)*100 << "%)" << endl;
     }
     
     if (m_showLengthSummary) {
@@ -172,10 +161,25 @@ int Statistics::runInternal()
         {
             float pct = 100. * (double) it->second / (double) getReadCount();
             
-            cout << " " << setw(5) << it->first << "bp : " << setw(10) << it->second << " (" << pct << " %)" << endl;
+            cout << " " << setw(5) << it->first << "bp:          " << setw(10) << it->second << " (" << setprecision(precision) << setw(field_width) << fixed << pct << "%)" << endl;
         }
     }
 
-    cout << endl;
+    cout << resetiosflags(ios_base::adjustfield) << resetiosflags(ios_base::floatfield);
+
+    if ( m_showInsertSizeSummary ) {
+        cout << "Insert size (absolute value):" << endl;
+        double avgInsertSize = 0.0;
+        if ( !m_insertSizes.empty() ) {
+            avgInsertSize = ( accumulate(m_insertSizes.begin(), m_insertSizes.end(), 0.0) / (double)m_insertSizes.size() );
+            cout << "    Mean:          " <<  setprecision(1) << setw(10) << fixed << avgInsertSize << endl;
+        }
+        
+        double medianInsertSize = 0.0;
+        if ( CalculateMedian(m_insertSizes, medianInsertSize) )
+            cout << "    Median:        " <<  setprecision(1) << setw(10) << fixed << medianInsertSize << endl;
+    }
+
+    cout << resetiosflags(ios_base::adjustfield) << resetiosflags(ios_base::floatfield);
     return 0;
 }
