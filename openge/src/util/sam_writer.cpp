@@ -52,7 +52,8 @@ using namespace std;
 using namespace BamTools;
 
 SamWriter::SamWriter() 
-: open(false)
+: output_stream(&cout)
+, open(false)
 {
     
 }
@@ -61,11 +62,15 @@ bool SamWriter::Open(const string& filename,
                      const string& samHeaderText,
                      const RefVector& referenceSequences) {
     this->filename = filename;
-    file.open(filename.c_str(), ios::out);
+
+    if(filename != "stdout") {
+        file.open(filename.c_str(), ios::out);
+        output_stream = &file;
     
-    if(file.fail()) {
-        cerr << "Failed to open SAM output file " << filename << endl;
-        return false;
+        if(file.fail()) {
+            cerr << "Failed to open SAM output file " << filename << endl;
+            return false;
+        }
     }
     
     file << samHeaderText;
@@ -78,7 +83,8 @@ bool SamWriter::Open(const string& filename,
 }
 
 bool SamWriter::Close() {
-    file.close();
+    if(file.is_open())
+        file.close();
     
     open = false;
     
@@ -91,7 +97,7 @@ bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
     
     a.BuildCharData();
     assert(open);
-    ofstream & m_out = file;
+    ostream & m_out = *output_stream;
     
     // write name & alignment flag
     m_out << a.Name << "\t" << a.AlignmentFlag << "\t";

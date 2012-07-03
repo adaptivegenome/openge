@@ -23,18 +23,23 @@ using namespace std;
 using namespace BamTools;
 
 FastqWriter::FastqWriter() 
-: open(false)
+: output_stream(&cout)
+, open(false)
 {
     
 }
 
 bool FastqWriter::Open(const string& filename) {
     this->filename = filename;
-    file.open(filename.c_str(), ios::out);
     
-    if(file.fail()) {
-        cerr << "Failed to open FASTQ output file " << filename << endl;
-        return false;
+    if(filename != "stdout") {
+        file.open(filename.c_str(), ios::out);
+        
+        if(file.fail()) {
+            cerr << "Failed to open FASTQ output file " << filename << endl;
+            return false;
+        }
+        output_stream = &file;
     }
 
     open = true;
@@ -43,7 +48,8 @@ bool FastqWriter::Open(const string& filename) {
 }
 
 bool FastqWriter::Close() {
-    file.close();
+    if(file.is_open())
+        file.close();
     
     open = false;
     
@@ -54,10 +60,10 @@ bool FastqWriter::SaveAlignment(BamTools::BamAlignment & a) {
     assert(open);
     
     
-    file << "@" << a.Name << endl;
-    file << a.QueryBases << endl;
-    file << "+" << a.Name << endl;
-    file << a.Qualities << endl;
+    *output_stream << "@" << a.Name << endl;
+    *output_stream << a.QueryBases << endl;
+    *output_stream << "+" << a.Name << endl;
+    *output_stream << a.Qualities << endl;
     
     return true;
 }

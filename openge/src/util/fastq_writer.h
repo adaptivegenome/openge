@@ -30,6 +30,7 @@ public:
     bool SaveAlignment( BamTools::BamAlignment & al);
 protected:
     std::ofstream file;
+    std::ostream * output_stream;
     BamTools::SamHeader header;
     BamTools::RefVector references;
     std::string filename;
