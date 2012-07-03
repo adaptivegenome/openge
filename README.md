@@ -16,6 +16,7 @@ http://seqanswers.com/forums/forumdisplay.php?f=43
 Bug fixes, documentation, and code contributions are welcome. Please feel free to email the author, or contact us via the github page:
 
 <https://github.com/adaptivegenome/openge> (project source)
+
 <https://github.com/adaptivegenome/openge/issues> (issues, bugs, etc.)
 
 To get started with the codebase, check out the developer guide inside the openge/docs/ directory.
@@ -28,7 +29,9 @@ OpenGE also depends on a modified version of bamtools, included in the bamtools/
 
 ### Contact
 David Mittelman (Project lead)     <david.mittelman@vt.edu>
+
 Lee Baker       (Lead developer)   <leecb@vt.edu>
+
 Virginia Bioinformatics Institute
 
 <http://www.opengenomicsengine.org>
