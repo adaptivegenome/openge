@@ -59,6 +59,7 @@ bool FastqWriter::Close() {
 bool FastqWriter::SaveAlignment(BamTools::BamAlignment & a) {
     assert(open);
     
+    a.BuildCharData();
     
     *output_stream << "@" << a.Name << endl;
     *output_stream << a.QueryBases << endl;
