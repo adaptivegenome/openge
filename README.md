@@ -29,7 +29,9 @@ OpenGE also depends on a modified version of bamtools, included in the bamtools/
 
 ### Contact
 David Mittelman (Project lead)     <david.mittelman@vt.edu>
+
 Lee Baker       (Lead developer)   <leecb@vt.edu>
+
 Virginia Bioinformatics Institute
 
 <http://www.opengenomicsengine.org>
