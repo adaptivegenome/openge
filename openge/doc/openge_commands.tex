@@ -166,22 +166,27 @@ Flag&Long flag&Description\\ \hline
 \end{center}
 
 For example:
-\cmd {openge stats a.bam b.bam -I}
+\cmd {openge stats a.bam b.bam -I -L}
 gives results similar to this:
-\cmd {Total reads:       41018\\
-Mapped reads:      39261	(95.7165\%)\\
-Forward strand:    21113	(51.4725\%)\\
-Reverse strand:    19905	(48.5275\%)\\
-Failed QC:         0	(0\%)\\
-Duplicates:        0	(0\%)\\
-Paired-end reads:  41018	(100\%)\\
-'Proper-pairs':    36596	(89.2194\%)\\
-Both pairs mapped: 37504	(91.433\%)\\
-Read 1:            20521\\
-Read 2:            20497\\
-Singletons:        1757	(4.28349\%)\\
-Average insert size (absolute value): 258.209\\
-Median insert size (absolute value): 204}
+\cmd {Total reads:            15419\\
+Mapped reads:           14812 ( 96.1\%)\\
+Forward strand:          7901 ( 51.2\%)\\
+Reverse strand:          7518 ( 48.8\%)\\
+Failed QC:                  0 (  0.0\%)\\
+Duplicates:                 0 (  0.0\%)\\
+Paired-end reads:       15419 (100.0\%)\\
+'Proper-pairs':         13856 ( 89.9\%)\\
+Both pairs mapped:      14205 ( 92.1\%)\\
+Read 1:                  7697\\
+Read 2:                  7722\\
+Singletons:               607 (  3.9\%)\\
+Read lengths:\\
+    45bp:                2327 ( 15.1\%)\\
+    64bp:                1699 ( 11.0\%)\\
+    75bp:               11393 ( 73.9\%)\\
+Insert size (absolute value):
+    Mean:               218.7
+    Median:             189.0}
 
 \subsection{version}
 Prints out the version number and the date and time that this version was compiled.
