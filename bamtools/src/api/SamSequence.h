@@ -15,8 +15,8 @@
 
 namespace BamTools {
 
-struct API_EXPORT SamSequence {
-
+class API_EXPORT SamSequence {
+public:
     // ctor & dtor
     SamSequence(void);
     SamSequence(const std::string& name, const int& length);

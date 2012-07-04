@@ -15,8 +15,8 @@
 
 namespace BamTools {
 
-struct API_EXPORT SamReadGroup {
-
+class API_EXPORT SamReadGroup {
+public:
     // ctor & dtor
     SamReadGroup(void);
     SamReadGroup(const std::string& id);

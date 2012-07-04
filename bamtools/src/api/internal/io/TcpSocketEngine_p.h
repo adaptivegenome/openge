@@ -30,8 +30,8 @@
 namespace BamTools {
 namespace Internal {
 
-struct TcpSocketEngine {
-
+class TcpSocketEngine {
+public:
     // ctors & dtor
     public:
         TcpSocketEngine(void);
