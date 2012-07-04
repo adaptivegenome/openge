@@ -51,7 +51,8 @@ Flag&Long flag&Description\\ \hline
 -v&{-}{-}verbose&Display additional information to stderr during operation (e.g. progress indicators and other informational messages). Optional.\\
 -T&{-}{-}tmpdir&Specify a directory to store temporary files. (default /tmp) Optional.\\
 -t&{-}{-}threads&Set the number of threads to be used for multithreaded operations. Optional.\\
--d&{-}{-}nothreads&Disable multithreading.\\
+-d&{-}{-}nothreads&Disable multithreading. Optional.\\
+-F \textit{format}&{-}{-}format \textit{format}&Select file format. Optional.\\
 \end{tabular}
 \end{center}
 
@@ -80,6 +81,17 @@ converts the file in.bam to SAM format.
 
 \cmd{openge view in.bam out.fastq}
 converts the file in.bam to FASTQ format.
+
+\subsubsection {Selecting the output format}
+OpenGE tries to automatically select the correct output format by guessing from the filename. Using extensions of .bam, .sam and .fastq (case insensitive) for the output filename will result in the appropriate file format being selected. Alternatively, you can specify a format with the {-}{-}format parameter. If there is neither a valid extension or a format specified on the command line, the output defaults to BAM (or SAM if using the view command and writing to stdout).
+
+To summarize, the following methods are used to select file type (in order of preference):
+\begin{itemize}
+\item If a file format is specified on the command line with {-}{-}format, the specified format is used
+\item If the file has an extension of .bam, .sam, or .fastq (case insensitive), that format is used
+\item If the command is view, and data is being written to stdout, SAM format is used for output
+\item Finally, BAM format is used for anything else
+\end{itemize}
 
 \section {Commands}
 
