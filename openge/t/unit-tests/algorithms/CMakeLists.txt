@@ -1,0 +1,5 @@
+set(ALGORITHMS_TEST_DIR "algorithms")
+
+set(OPENGE_ALGORITHMS_TEST_SOURCES
+    ${ALGORITHMS_TEST_DIR}/file_reader.cpp
+    PARENT_SCOPE )

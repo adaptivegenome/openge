@@ -782,7 +782,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
                     int neededBases = max(neededBasesToLeft, neededBasesToRight);
                     if ( neededBases > 0 ) {
                         int padLeft = max(leftmostIndex-neededBases, 1);
-                        int padRight = min(leftmostIndex+reference->size()+neededBases, (unsigned long)atol(referenceReader->getSequenceDictionary()[currentInterval->getContig()].Length.c_str()));
+                        int padRight = min((unsigned long)(leftmostIndex+reference->size()+neededBases), (unsigned long)atol(referenceReader->getSequenceDictionary()[currentInterval->getContig()].Length.c_str()));
                         reference = new string(referenceReader->getSubsequenceAt(currentInterval->getContig(), padLeft, padRight));
                         leftmostIndex = padLeft;
                     }

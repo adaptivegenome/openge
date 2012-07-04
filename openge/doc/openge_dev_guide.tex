@@ -79,6 +79,19 @@ The following software packages should be on your machine before attempting to c
 \item boost::program\_options. On Mac, you can compile this from source using the commands  (see \url{http://www.boost.org/doc/libs/1_49_0/doc/html/program_options.html})
 \end{itemize}
 
+\section {OpenGE unit tests}
+OpenGE currently uses googletest (v1.6.0) as its unit-test development framework. All unit-tests for OpenGE can be found at openge/t/unit-tests.
+
+\subsection {Compilation and running}
+Compilation of unit tests would have taken place automatically during the compilation of OpenGE tool itself. (See Section 1 above for details on compilation)
+In case you want to only compile the unit tests:
+\cmd{cd openge\\mkdir build\\cd build\\cmake ..\\make openge\_unit\_tests}
+Once the compilation is successful, at the top-level 'bin' directory, you can see an exe named 'openge\-unit\_tests'. In order to execute this:
+\cmd{bin/openge\_unit\_tests}
+
+\subsection {Test case organization}
+Test source files follow same hierarchy as that of the openge source files. For example: unit-tests for openge/src/algorithms/file\_reader.cpp can be found at openge/t/unit-tests/algorithms/file\_reader.cpp
+
 \section {Contributing OpenGE}
 Contributions of code or documentation are welcome. Contact us to learn more about how you can get involved at evolvability@vt.edu or interact with us through our github page.
 
