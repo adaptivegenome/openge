@@ -187,7 +187,14 @@ Median insert size (absolute value): 204}
 Prints out the version number and the date and time that this version was compiled.
 
 \subsection{view}
-The view command returns a portion of a bamfile optionally filtered by region, filtered to allow only mapq values above a threshold, and then optionally limited to a smaller number of reads.
+The view command returns a portion of a file optionally restricted to:
+\begin{itemize}
+\item Reads mapped to a specified chromosome, or region of a chromosome ({-}{-}region)
+\item Reads with mapq values above a threshold ({-}{-}mapq)
+\item Reads of a certain length or range of lengths ({-}{-}length)
+\item Limited to a certain number of results ({-}{-}count)
+\end{itemize}
+or any combination of the above.
 
 Parameters:
 \begin{center}
@@ -197,6 +204,7 @@ Flag&Long flag&Description\\ \hline
 -n \textit{number}&{-}{-}count\textit{number}&Number of reads to include in the generated file. Defaults to include the entire file.\\
 -r \textit{region}&{-}{-}region \textit{region}&Region string (see below for format)\\
 -q \textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapq allowed\\
+-l \textit{length}&{-}{-}length \textit{length}&Allowed range of read lengths (see below for format)\\
 \end{tabular}
 \end{center}
 
@@ -213,7 +221,17 @@ A proper region string can be formatted like any of the following examples:
 \end{tabular}
 \end{center}
 
-\newpage
+\subsubsection{Length format strings}
+The following formats can be used to 
+\begin{center}
+\begin{tabular}{lp{3.5in}}
+{-}{-}length 64&Only allow reads with length of 64\\
+{-}{-}length +64&Only allow reads with length greater than 64\\
+{-}{-}length -64&Only allow reads with length less than 64\\
+{-}{-}length 64-72&Only allow reads with length between 64 and 72 (inclusive)\\
+\end{tabular}
+\end{center}
+
 \section {License}
 This software is made available through the Virginia Tech non-commerical license. See openge/license.txt for more details. 
 

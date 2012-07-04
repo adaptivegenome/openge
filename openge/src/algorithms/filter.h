@@ -38,6 +38,9 @@ public:
     size_t getCountLimit() { return count_limit;}
     void setQualityLimit(int mapq) { mapq_limit = mapq; }
     int getQualityLimit() { return mapq_limit;}
+    void setMinimumReadLength(int min_length) { this->min_length = min_length; }
+    void setMaximumReadLength(int max_length) { this->max_length = max_length; }
+    bool setReadLengths(const std::string & length_string);
 protected:
     virtual int runInternal();
 protected:
@@ -46,6 +49,7 @@ protected:
     bool has_region;
     size_t count_limit;
     int mapq_limit;
+    int min_length, max_length;
 };
 
 #endif

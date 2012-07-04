@@ -138,10 +138,47 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
     return true;
 }
 
+// We support four different formats here:
+// 123 : single length, min = max
+// 123-234 : range of lengths
+// >123 : minimum, but no max
+// <123: maximum, but no min
+bool Filter::setReadLengths(const string & length_string) {
+    stringstream s(length_string);
+    char junk;
+
+    if (length_string[0] == '+') {
+        s >> junk >> min_length;
+        max_length = INT_MAX;
+        if(!s.fail())
+            return true;
+    } else if (length_string[0] == '-') {
+        s >> junk >> max_length;
+        min_length = INT_MIN;
+        if(!s.fail())
+            return true;
+    } else if(length_string.find("-") != length_string.npos) {
+        s >> min_length >> junk >> max_length;
+        if(!s.fail())
+            return true;
+    } else {
+        s >> min_length;
+        max_length = min_length;
+        if(!s.fail())
+            return true;
+    }
+
+    cerr << "Error parsing read length requirements. Aborting." << endl;
+    cerr << "Valid ranges look like: 64, or 64-72, or -64, or +64." << endl;
+    exit(-1);
+}
+
 Filter::Filter()
 : has_region(false)
 , count_limit(INT_MAX)
 , mapq_limit(0)
+, min_length(0)
+, max_length(INT_MAX)
 {}
 
 int Filter::runInternal()
@@ -152,7 +189,8 @@ int Filter::runInternal()
     if ( !has_region ) {
         BamAlignment * al = NULL;
         while (NULL != (al = getInputAlignment()) && count < count_limit) {
-            if(al->MapQuality >= mapq_limit) {
+            if(al->MapQuality >= mapq_limit 
+               && al->Length >= min_length && al->Length <= max_length) {
                 putOutputAlignment(al);
                 count++;
             }
@@ -176,7 +214,8 @@ int Filter::runInternal()
             while ( NULL != (al = getInputAlignment())  && count < count_limit) {
                 if ( (al->RefID >= region.LeftRefID)  && ( (al->Position + al->Length) >= region.LeftPosition ) &&
                     (al->RefID <= region.RightRefID) && ( al->Position <= region.RightPosition) 
-                    && (al->MapQuality >= mapq_limit)) {
+                    && (al->MapQuality >= mapq_limit)
+                    && al->Length >= min_length && al->Length <= max_length) {
                     putOutputAlignment(al);
                     count++;
                 } else {

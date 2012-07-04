@@ -36,6 +36,7 @@ void ViewCommand::getOptions()
     ("out,o", po::value<string>()->default_value("stdout"), "Output filename. Omit for stdout.")
     ("count,n", po::value<size_t>(), "Number of alignments to copy")
     ("mapq,q", po::value<int>(), "Minimum map quality")
+    ("length,l", po::value<string>(), "Range of acceptable read lengths")
     ("region,r", po::value<string>(), "Genomic region to use.");
 }
 
@@ -65,6 +66,9 @@ int ViewCommand::runCommand()
 
     if(vm.count("format"))
         writer.setFormat(vm["format"].as<string>());
+
+    if(vm.count("length"))
+        filter.setReadLengths(vm["length"].as<string>());
 
     bool hasregion = vm.count("region") != 0;
 
