@@ -80,7 +80,7 @@ int ViewCommand::runCommand()
     reader.addFiles(input_filenames);
     writer.setFilename(filename_out);
     
-    if(input_filenames.size() == 1 && input_filenames[0] == "stdout")
+    if(filename_out == "stdout")
         writer.setDefaultFormat(FORMAT_SAM);
     
     reader.runChain();
