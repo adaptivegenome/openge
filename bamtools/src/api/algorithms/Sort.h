@@ -50,8 +50,8 @@ struct API_EXPORT Sort {
     }
 
     //! Base class for our sorting function objects
-    typedef std::binary_function<BamAlignment, BamAlignment, bool> AlignmentSortBase;
-    typedef std::binary_function<BamAlignment *, BamAlignment *, bool> AlignmentPtrSortBase;
+    typedef std::less<BamAlignment> AlignmentSortBase;
+    typedef std::less<BamAlignment *> AlignmentPtrSortBase;
 
     /*! \struct BamTools::Algorithms::Sort::ByName
         \brief Function object for comparing alignments by name

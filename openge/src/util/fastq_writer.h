@@ -23,6 +23,9 @@
 #include <api/BamAlignment.h>
 #include <api/SamHeader.h>
 
+#include <map>
+#include <string>
+
 class FastqWriter : public FileWriterClass
 {
 public:
@@ -31,11 +34,16 @@ public:
     bool Close();
     bool SaveAlignment( BamTools::BamAlignment & al);
 protected:
-    std::ofstream file;
-    std::ostream * output_stream;
+    typedef struct {
+        std::string qual, seq;
+    } fastq_record_t;
+
+    std::ofstream fwd_file, rev_file, orphan_file;
+    std::ostream * fwd_stream, * rev_stream, * orphan_stream;
     BamTools::SamHeader header;
     BamTools::RefVector references;
     std::string filename;
+    std::map<std::string, fastq_record_t> potential_pairs;
 
     bool open;
 };
