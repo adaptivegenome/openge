@@ -3,9 +3,12 @@ project(openge_unit_tests)
 
 #add_subdirectory( commands )
 add_subdirectory( algorithms )
-#add_subdirectory( util )
+add_subdirectory( util )
 
-set( OPENGE_TEST_SOURCES main.cpp ${OPENGE_ALGORITHMS_TEST_SOURCES})
+set( OPENGE_TEST_SOURCES
+     main.cpp
+     ${OPENGE_ALGORITHMS_TEST_SOURCES}
+     ${OPENGE_UTIL_TEST_SOURCES} )
 set( TEST_EXE  openge_unit_tests )
 
 
