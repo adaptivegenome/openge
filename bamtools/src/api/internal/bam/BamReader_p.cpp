@@ -258,7 +258,6 @@ bool BamReaderPrivate::GetNextAlignmentCore(BamAlignment& alignment) {
 
         // if we get here, we found the next 'valid' alignment
         // (e.g. overlaps current region if one was set, simply the next alignment if not)
-        alignment.SupportData.HasCoreOnly = true;
         return true;
 
     } catch ( BamException& e ) {
@@ -311,7 +310,6 @@ BamAlignment * BamReaderPrivate::GetNextAlignmentCore() {
         
         // if we get here, we found the next 'valid' alignment
         // (e.g. overlaps current region if one was set, simply the next alignment if not)
-        alignment->SupportData.HasCoreOnly = true;
         return alignment;
         
     } catch ( BamException& e ) {
@@ -403,9 +401,10 @@ bool BamReaderPrivate::LoadNextAlignmentInternal(BamAlignment& alignment) {
     // read in the 'block length' value, make sure it's not zero
     char buffer[sizeof(uint32_t)];
     m_stream.Read(buffer, sizeof(uint32_t));
-    alignment.SupportData.BlockLength = BamTools::UnpackUnsignedInt(buffer);
-    if ( m_isBigEndian ) BamTools::SwapEndian_32(alignment.SupportData.BlockLength);
-    if ( alignment.SupportData.BlockLength == 0 )
+    BamAlignment::BamAlignmentSupportData SupportData;
+    SupportData.BlockLength = BamTools::UnpackUnsignedInt(buffer);
+    if ( m_isBigEndian ) BamTools::SwapEndian_32(SupportData.BlockLength);
+    if ( SupportData.BlockLength == 0 )
         return false;
 
     // read in core alignment data, make sure the right size of data was read
@@ -420,32 +419,32 @@ bool BamReaderPrivate::LoadNextAlignmentInternal(BamAlignment& alignment) {
     }
 
     // set BamAlignment 'core' and 'support' data
-    alignment.RefID    = BamTools::UnpackSignedInt(&x[0]);
-    alignment.Position = BamTools::UnpackSignedInt(&x[4]);
+    alignment.setRefID(BamTools::UnpackSignedInt(&x[0]));
+    alignment.setPosition(BamTools::UnpackSignedInt(&x[4]));
 
     unsigned int tempValue = BamTools::UnpackUnsignedInt(&x[8]);
-    alignment.Bin        = tempValue >> 16;
-    alignment.MapQuality = tempValue >> 8 & 0xff;
-    alignment.SupportData.QueryNameLength = tempValue & 0xff;
+    alignment.setBin(tempValue >> 16);
+    alignment.setMapQuality(tempValue >> 8 & 0xff);
+    SupportData.QueryNameLength = tempValue & 0xff;
 
     tempValue = BamTools::UnpackUnsignedInt(&x[12]);
-    alignment.AlignmentFlag = tempValue >> 16;
-    alignment.SupportData.NumCigarOperations = tempValue & 0xffff;
+    alignment.setAlignmentFlag(tempValue >> 16);
+    SupportData.NumCigarOperations = tempValue & 0xffff;
 
-    alignment.SupportData.QuerySequenceLength = BamTools::UnpackUnsignedInt(&x[16]);
-    alignment.MateRefID    = BamTools::UnpackSignedInt(&x[20]);
-    alignment.MatePosition = BamTools::UnpackSignedInt(&x[24]);
-    alignment.InsertSize   = BamTools::UnpackSignedInt(&x[28]);
+    SupportData.QuerySequenceLength = BamTools::UnpackUnsignedInt(&x[16]);
+    alignment.setMateRefID(BamTools::UnpackSignedInt(&x[20]));
+    alignment.setMatePosition(BamTools::UnpackSignedInt(&x[24]));
+    alignment.setInsertSize(BamTools::UnpackSignedInt(&x[28]));
 
     // read in character data - make sure proper data size was read
     bool readCharDataOK = false;
-    const unsigned int dataLength = alignment.SupportData.BlockLength - Constants::BAM_CORE_SIZE;
+    const unsigned int dataLength = SupportData.BlockLength - Constants::BAM_CORE_SIZE;
     RaiiBuffer allCharData(dataLength);
 
     if ( m_stream.Read(allCharData.Buffer, dataLength) == dataLength ) {
 
         // store 'allCharData' in supportData structure
-        alignment.SupportData.AllCharData.assign((const char*)allCharData.Buffer, dataLength);
+        SupportData.AllCharData.assign((const char*)allCharData.Buffer, dataLength);
 
         // set success flag
         readCharDataOK = true;
@@ -453,24 +452,29 @@ bool BamReaderPrivate::LoadNextAlignmentInternal(BamAlignment& alignment) {
         // save CIGAR ops
         // need to calculate this here so that  BamAlignment::GetEndPosition() performs correctly,
         // even when GetNextAlignmentCore() is called
-        const unsigned int cigarDataOffset = alignment.SupportData.QueryNameLength;
+        vector<CigarOp> CigarData;
+        CigarData.reserve(SupportData.NumCigarOperations);
+        const unsigned int cigarDataOffset = SupportData.QueryNameLength;
         uint32_t* cigarData = (uint32_t*)(allCharData.Buffer + cigarDataOffset);
-        CigarOp op;
-        alignment.CigarData.clear();
-        alignment.CigarData.reserve(alignment.SupportData.NumCigarOperations);
-        for ( unsigned int i = 0; i < alignment.SupportData.NumCigarOperations; ++i ) {
+        for ( unsigned int i = 0; i < SupportData.NumCigarOperations; ++i ) {
 
             // swap endian-ness if necessary
             if ( m_isBigEndian ) BamTools::SwapEndian_32(cigarData[i]);
 
             // build CigarOp structure
+            CigarOp op;
             op.Length = (cigarData[i] >> Constants::BAM_CIGAR_SHIFT);
             op.Type   = Constants::BAM_CIGAR_LOOKUP[ (cigarData[i] & Constants::BAM_CIGAR_MASK) ];
 
             // save CigarOp
-            alignment.CigarData.push_back(op);
+            CigarData.push_back(op);
         }
+        
+        alignment.setCigarData(CigarData);
     }
+    
+    SupportData.HasCoreOnly = true;
+    alignment.setSupportData(SupportData);
 
     // return success/failure
     return readCharDataOK;

@@ -174,7 +174,7 @@ public:
                            unsigned int& numBytesParsed) const;
 
     // internal data
-    private:
+    public:
 
         struct BamAlignmentSupportData {
       
@@ -195,11 +195,10 @@ public:
                 , HasCoreOnly(false)
             { }
         };
-        BamAlignmentSupportData SupportData;
-        friend class Internal::BamReaderPrivate;
-    public:
         const BamAlignmentSupportData & getSupportData() const { return SupportData; }
+        void setSupportData(const BamAlignmentSupportData & supportData) { SupportData = supportData; }
     private:
+        BamAlignmentSupportData SupportData;
 
         mutable std::string ErrorString; // mutable to allow updates even in logically const methods
     //! \endinternal
