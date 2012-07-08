@@ -43,9 +43,9 @@ int SplitByChromosome::runInternal()
         //this is essentially a modified implementation of AlgorithmModule::putOutputAlignment()
         write_count++;
         
-        int chain = read->RefID % number_of_splits;
+        int chain = read->getRefID() % number_of_splits;
 
-        if(read->RefID < 0)
+        if(read->getRefID() < 0)
             chain = 0;
 
         sinks[chain]->putInputAlignment(read);

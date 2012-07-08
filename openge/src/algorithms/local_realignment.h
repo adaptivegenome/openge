@@ -234,7 +234,7 @@ private:
         }
         
         int getReadLength() {
-            return readBases != NULL ? readBases->size() : read->Length;
+            return readBases != NULL ? readBases->size() : read->getLength();
         }
         
         std::string getReadBases();
@@ -248,7 +248,7 @@ private:
         // pull out the bases that aren't clipped out
         std::vector<BamTools::CigarOp> reclipCigar(std::vector<BamTools::CigarOp> & cigar);
     public:
-        std::vector<BamTools::CigarOp> & getCigar();
+        std::vector<BamTools::CigarOp> getCigar();
         // tentatively sets the new Cigar, but it needs to be confirmed later
         void setCigar(std::vector<BamTools::CigarOp> * cigar, bool fixClippedCigar = true);
         

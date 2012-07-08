@@ -102,19 +102,19 @@ bool FastqWriter::SaveAlignment(BamTools::BamAlignment & a) {
     a.BuildCharData();
     
     if(fwd_stream == rev_stream)
-        *fwd_stream << "@" << a.Name << endl << a.QueryBases << endl << "+" << a.Name << endl << a.Qualities << endl;
+        *fwd_stream << "@" << a.getName() << endl << a.getQueryBases() << endl << "+" << a.getName() << endl << a.getQualities() << endl;
     else {
-        map<string, fastq_record_t>::iterator it = potential_pairs.find(a.Name);
+        map<string, fastq_record_t>::iterator it = potential_pairs.find(a.getName());
 
         if(it == potential_pairs.end()) {
             fastq_record_t rec;
-            rec.seq = a.QueryBases;
-            rec.qual = a.Qualities;
-            potential_pairs[a.Name] = rec;
+            rec.seq = a.getQueryBases();
+            rec.qual = a.getQualities();
+            potential_pairs[a.getName()] = rec;
         } else {
             fastq_record_t & rec = it->second;
-            string seq = a.QueryBases;
-            string qual = a.Qualities;
+            string seq = a.getQueryBases();
+            string qual = a.getQualities();
 
             string & fwd_seq = a.IsReverseStrand() ? rec.seq : seq;
             string & fwd_qual = a.IsReverseStrand() ? rec.qual : qual; 
@@ -125,8 +125,8 @@ bool FastqWriter::SaveAlignment(BamTools::BamAlignment & a) {
             reverse(rev_qual.begin(), rev_qual.end());
             compliment(rev_seq);
 
-            *fwd_stream << "@" << a.Name << endl << fwd_seq << endl << "+" << a.Name << endl << fwd_qual << endl;
-            *rev_stream << "@" << a.Name << endl << rev_seq << endl << "+" << a.Name << endl << rev_qual << endl;
+            *fwd_stream << "@" << a.getName() << endl << fwd_seq << endl << "+" << a.getName() << endl << fwd_qual << endl;
+            *rev_stream << "@" << a.getName() << endl << rev_seq << endl << "+" << a.getName() << endl << rev_qual << endl;
             
             if(fwd_stream->fail() || rev_stream->fail()) {
                 cerr << "Error writing out line to fastq file. Aborting." << endl;

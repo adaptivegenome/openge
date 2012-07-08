@@ -70,8 +70,7 @@ using namespace std;
     \brief constructor
 */
 BamAlignment::BamAlignment(void)
-    : Length(0)
-    , RefID(-1)
+    : RefID(-1)
     , Position(-1)
     , Bin(0)
     , MapQuality(0)
@@ -86,7 +85,6 @@ BamAlignment::BamAlignment(void)
 */
 BamAlignment::BamAlignment(const BamAlignment& other)
     : Name(other.Name)
-    , Length(other.Length)
     , QueryBases(other.QueryBases)
     , AlignedBases(other.AlignedBases)
     , Qualities(other.Qualities)

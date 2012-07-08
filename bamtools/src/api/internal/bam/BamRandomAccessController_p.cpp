@@ -65,22 +65,22 @@ BamRandomAccessController::AlignmentState(const BamAlignment& alignment) const {
         return OverlapsRegion;
 
     // handle unmapped reads - return AFTER region to halt processing
-    if ( alignment.RefID == -1 )
+    if ( alignment.getRefID() == -1 )
         return AfterRegion;
 
     // if alignment is on any reference before left bound reference
-    if ( alignment.RefID < m_region.LeftRefID )
+    if ( alignment.getRefID() < m_region.LeftRefID )
         return BeforeRegion;
 
     // if alignment is on left bound reference
-    else if ( alignment.RefID == m_region.LeftRefID ) {
+    else if ( alignment.getRefID() == m_region.LeftRefID ) {
 
         // if alignment starts at or after left bound position
-        if ( alignment.Position >= m_region.LeftPosition) {
+        if ( alignment.getPosition() >= m_region.LeftPosition) {
 
             if ( m_region.isRightBoundSpecified() &&             // right bound is specified AND
                  m_region.LeftRefID == m_region.RightRefID &&    // left & right bounds on same reference AND
-                 alignment.Position >= m_region.RightPosition )  // alignment starts on or after right bound position
+                 alignment.getPosition() >= m_region.RightPosition )  // alignment starts on or after right bound position
                 return AfterRegion;
 
             // otherwise, alignment overlaps region
@@ -105,18 +105,18 @@ BamRandomAccessController::AlignmentState(const BamAlignment& alignment) const {
         if ( m_region.isRightBoundSpecified() ) {
 
             // alignment is on any reference between boundaries
-            if ( alignment.RefID < m_region.RightRefID )
+            if ( alignment.getRefID() < m_region.RightRefID )
                 return OverlapsRegion;
 
             // alignment is on any reference after right boundary
-            else if ( alignment.RefID > m_region.RightRefID )
+            else if ( alignment.getRefID() > m_region.RightRefID )
                 return AfterRegion;
 
             // alignment is on right bound reference
             else {
 
                 // if alignment starts before right bound position
-                if ( alignment.Position < m_region.RightPosition )
+                if ( alignment.getPosition() < m_region.RightPosition )
                     return OverlapsRegion;
                 else
                     return AfterRegion;

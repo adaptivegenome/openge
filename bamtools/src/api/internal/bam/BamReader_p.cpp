@@ -437,9 +437,6 @@ bool BamReaderPrivate::LoadNextAlignmentInternal(BamAlignment& alignment) {
     alignment.MatePosition = BamTools::UnpackSignedInt(&x[24]);
     alignment.InsertSize   = BamTools::UnpackSignedInt(&x[28]);
 
-    // set BamAlignment length
-    alignment.Length = alignment.SupportData.QuerySequenceLength;
-
     // read in character data - make sure proper data size was read
     bool readCharDataOK = false;
     const unsigned int dataLength = alignment.SupportData.BlockLength - Constants::BAM_CORE_SIZE;

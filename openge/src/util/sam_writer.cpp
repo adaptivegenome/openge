@@ -100,19 +100,19 @@ bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
     ostream & m_out = *output_stream;
     
     // write name & alignment flag
-    m_out << a.Name << "\t" << a.AlignmentFlag << "\t";
+    m_out << a.getName() << "\t" << a.getAlignmentFlag() << "\t";
     
     // write reference name
-    if ( (a.RefID >= 0) && (a.RefID < (int)references.size()) ) 
-        m_out << references[a.RefID].RefName << "\t";
+    if ( (a.getRefID() >= 0) && (a.getRefID() < (int)references.size()) ) 
+        m_out << references[a.getRefID()].RefName << "\t";
     else 
         m_out << "*\t";
     
     // write position & map quality
-    m_out << a.Position+1 << "\t" << a.MapQuality << "\t";
+    m_out << a.getPosition()+1 << "\t" << a.getMapQuality() << "\t";
     
     // write CIGAR
-    const vector<CigarOp>& cigarData = a.CigarData;
+    const vector<CigarOp>& cigarData = a.getCigarData();
     if ( cigarData.empty() ) m_out << "*\t";
     else {
         vector<CigarOp>::const_iterator cigarIter = cigarData.begin();
@@ -125,42 +125,42 @@ bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
     }
     
     // write mate reference name, mate position, & insert size
-    if ( a.IsPaired() && (a.MateRefID >= 0) && (a.MateRefID < (int)references.size()) ) {
-        if ( a.MateRefID == a.RefID )
+    if ( a.IsPaired() && (a.getMateRefID() >= 0) && (a.getMateRefID() < (int)references.size()) ) {
+        if ( a.getMateRefID() == a.getRefID() )
             m_out << "=\t";
         else
-            m_out << references[a.MateRefID].RefName << "\t";
-        m_out << a.MatePosition+1 << "\t" << a.InsertSize << "\t";
+            m_out << references[a.getMateRefID()].RefName << "\t";
+        m_out << a.getMatePosition()+1 << "\t" << a.getInsertSize() << "\t";
     } 
     else
         m_out << "*\t0\t0\t";
     
     // write sequence
-    if ( a.QueryBases.empty() )
+    if ( a.getQueryBases().empty() )
         m_out << "*\t";
     else
-        m_out << a.QueryBases << "\t";
+        m_out << a.getQueryBases() << "\t";
     
     // write qualities
-    if ( a.Qualities.empty() )
+    if ( a.getQualities().empty() )
         m_out << "*";
     else
-        m_out << a.Qualities;
+        m_out << a.getQualities();
     
     // write tag data
-    const char* tagData = a.TagData.c_str();
-    const size_t tagDataLength = a.TagData.length();
+    const char* tagData = a.getTagData().c_str();
+    const size_t tagDataLength = a.getTagData().length();
     
     size_t index = 0;
     while ( index < tagDataLength ) {
         
         // write tag name   
-        string tagName = a.TagData.substr(index, 2);
+        string tagName = a.getTagData().substr(index, 2);
         m_out << "\t" << tagName << ":";
         index += 2;
         
         // get data type
-        char type = a.TagData.at(index);
+        char type = a.getTagData().at(index);
         ++index;
         switch ( type ) {
             case (Constants::BAM_TAG_TYPE_ASCII) :

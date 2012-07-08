@@ -77,11 +77,11 @@ struct API_EXPORT Sort {
         { }
 
         // comparison function
-        bool operator()(const BamTools::BamAlignment& lhs, const BamTools::BamAlignment& rhs) {
-            return sort_helper(m_order, lhs.Name, rhs.Name);
+        bool operator()(const BamTools::BamAlignment& lhs, const BamTools::BamAlignment& rhs) const {
+            return sort_helper(m_order, lhs.getName(), rhs.getName());
         }
-        bool operator()(const BamTools::BamAlignment * lhs, const BamTools::BamAlignment * rhs) {
-            return sort_helper(m_order, lhs->Name, rhs->Name);
+        bool operator()(const BamTools::BamAlignment * lhs, const BamTools::BamAlignment * rhs) const {
+            return sort_helper(m_order, lhs->getName(), rhs->getName());
         }
 
         // used by BamMultiReader internals
@@ -119,15 +119,15 @@ struct API_EXPORT Sort {
         bool operator()(const BamTools::BamAlignment& lhs, const BamTools::BamAlignment& rhs) {
 
             // force unmapped aligmnents to end
-            if ( lhs.RefID == -1 ) return false;
-            if ( rhs.RefID == -1 ) return true;
+            if ( lhs.getRefID() == -1 ) return false;
+            if ( rhs.getRefID() == -1 ) return true;
 
             // if on same reference, sort on position
-            if ( lhs.RefID == rhs.RefID )
-                return sort_helper(m_order, lhs.Position, rhs.Position);
+            if ( lhs.getRefID() == rhs.getRefID() )
+                return sort_helper(m_order, lhs.getPosition(), rhs.getPosition());
 
             // otherwise sort on reference ID
-            return sort_helper(m_order, lhs.RefID, rhs.RefID);
+            return sort_helper(m_order, lhs.getRefID(), rhs.getRefID());
         }
         bool operator()(const BamTools::BamAlignment * lhs, const BamTools::BamAlignment * rhs) {
             return operator()(*lhs, *rhs);

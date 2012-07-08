@@ -89,7 +89,7 @@ void RevertTool::RevertToolPrivate::RevertAlignment(BamAlignment& al) {
     if ( !m_settings->IsKeepQualities ) {
         string originalQualities;
         if ( al.GetTag(OQ_TAG, originalQualities) ) {
-            al.Qualities = originalQualities;
+            al.setQualities(originalQualities);
             al.RemoveTag(OQ_TAG);
         }
     }

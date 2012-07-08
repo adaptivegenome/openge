@@ -107,22 +107,58 @@ class API_EXPORT BamAlignment {
                           bool usePadded = false) const;
 
     // public data fields
-    public:
-        std::string Name;               // read name
-        int32_t     Length;             // length of query sequence
-        std::string QueryBases;         // 'original' sequence (as reported from sequencing machine)
-        std::string AlignedBases;       // 'aligned' sequence (includes any indels, padding, clipping)
-        std::string Qualities;          // FASTQ qualities (ASCII characters, not numeric values)
-        std::string TagData;            // tag data (use provided methods to query/modify)
-        int32_t     RefID;              // ID number for reference sequence
-        int32_t     Position;           // position (0-based) where alignment starts
-        uint16_t    Bin;                // BAM (standard) index bin number for this alignment
-        uint16_t    MapQuality;         // mapping quality score
-        uint32_t    AlignmentFlag;      // alignment bit-flag (use provided methods to query/modify)
-        std::vector<CigarOp> CigarData; // CIGAR operations for this alignment
-        int32_t     MateRefID;          // ID number for reference sequence where alignment's mate was aligned
-        int32_t     MatePosition;       // position (0-based) where alignment's mate starts
-        int32_t     InsertSize;         // mate-pair insert size
+protected:
+    std::string Name;               // read name
+    //int32_t     Length;             // length of query sequence
+
+    std::string QueryBases;         // 'original' sequence (as reported from sequencing machine)
+    std::string AlignedBases;       // 'aligned' sequence (includes any indels, padding, clipping)
+    std::string Qualities;          // FASTQ qualities (ASCII characters, not numeric values)
+    std::string TagData;            // tag data (use provided methods to query/modify)
+    
+    int32_t     RefID;              // ID number for reference sequence
+    int32_t     Position;           // position (0-based) where alignment starts
+    uint16_t    Bin;                // BAM (standard) index bin number for this alignment
+    uint16_t    MapQuality;         // mapping quality score
+    uint32_t    AlignmentFlag;      // alignment bit-flag (use provided methods to query/modify)
+    
+    std::vector<CigarOp> CigarData; // CIGAR operations for this alignment
+    int32_t     MateRefID;          // ID number for reference sequence where alignment's mate was aligned
+    int32_t     MatePosition;       // position (0-based) where alignment's mate starts
+    int32_t     InsertSize;         // mate-pair insert size
+    
+public: 
+    const std::string & getName() const { return Name; } 
+    int32_t getLength() const { return QueryBases.size(); }
+    const std::string & getQueryBases() const { return QueryBases; }
+    const std::string & getAlignedBases() const { return AlignedBases; }
+    const std::string & getQualities() const { return Qualities; }
+    const std::string & getTagData() const { return TagData; }
+    int32_t getRefID() const { return RefID; }
+    int32_t getPosition() const { return Position; }
+    uint16_t getBin() const { return Bin; }
+    uint16_t getMapQuality() const { return MapQuality; }
+    uint32_t getAlignmentFlag() const { return AlignmentFlag; }
+    const std::vector<CigarOp> & getCigarData() const { return CigarData; }
+    int32_t getMateRefID() const { return MateRefID; }
+    int32_t getMatePosition() const { return MatePosition; }
+    int32_t getInsertSize() const { return InsertSize; }
+    
+    void setName(const std::string & newName) { Name = newName; };
+    void setQueryBases(const std::string & newQueryBases) { QueryBases = newQueryBases; };
+    void setAlignedBases(const std::string & newAlignedBases) { AlignedBases = newAlignedBases; };
+    void setQualities(const std::string & newQualities) { Qualities = newQualities; };
+    void setTagData(const std::string & newTagData) { TagData = newTagData; };
+    void setRefID(int32_t newRefID) { RefID = newRefID; }
+    void setPosition(int32_t newPosition) { Position = newPosition; }
+    void setBin(uint16_t newBin) { Bin = newBin; }
+    void setMapQuality(uint16_t newMapQuality) { MapQuality = newMapQuality; }
+    void setAlignmentFlag(uint32_t newAlignmentFlag) { AlignmentFlag = newAlignmentFlag; }
+    void setCigarData(std::vector<CigarOp> newCigarData) { CigarData = newCigarData; }
+    void setMateRefID(int32_t newMateRefID) { MateRefID = newMateRefID; }
+    void setMatePosition(int32_t newMatePosition) { MatePosition = newMatePosition; }
+    void setInsertSize(int32_t newInsertSize) { InsertSize = newInsertSize; }
+
 
     //! \internal
     // internal utility methods

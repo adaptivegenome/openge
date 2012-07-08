@@ -319,7 +319,7 @@ bool SplitTool::SplitToolPrivate::SplitReference(void) {
     while ( m_reader.GetNextAlignment(al) ) {
       
         // see if bool value exists
-        currentRefId = al.RefID;
+        currentRefId = al.getRefID();
         writerIter = outputFiles.find(currentRefId);
           
         // if no writer associated with this value

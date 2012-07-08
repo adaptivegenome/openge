@@ -189,8 +189,8 @@ int Filter::runInternal()
     if ( !has_region ) {
         BamAlignment * al = NULL;
         while (NULL != (al = getInputAlignment()) && count < count_limit) {
-            if(al->MapQuality >= mapq_limit 
-               && al->Length >= min_length && al->Length <= max_length) {
+            if(al->getMapQuality() >= mapq_limit 
+               && al->getLength() >= min_length && al->getLength() <= max_length) {
                 putOutputAlignment(al);
                 count++;
             }
@@ -212,10 +212,10 @@ int Filter::runInternal()
         if (ParseRegionString(region_string, region) ) {
             BamAlignment * al;
             while ( NULL != (al = getInputAlignment())  && count < count_limit) {
-                if ( (al->RefID >= region.LeftRefID)  && ( (al->Position + al->Length) >= region.LeftPosition ) &&
-                    (al->RefID <= region.RightRefID) && ( al->Position <= region.RightPosition) 
-                    && (al->MapQuality >= mapq_limit)
-                    && al->Length >= min_length && al->Length <= max_length) {
+                if ( (al->getRefID() >= region.LeftRefID)  && ( (al->getPosition() + al->getLength()) >= region.LeftPosition ) &&
+                    (al->getRefID() <= region.RightRefID) && ( al->getPosition() <= region.RightPosition) 
+                    && (al->getMapQuality() >= mapq_limit)
+                    && al->getLength() >= min_length && al->getLength() <= max_length) {
                     putOutputAlignment(al);
                     count++;
                 } else {

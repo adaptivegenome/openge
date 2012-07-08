@@ -188,7 +188,7 @@ bool RandomTool::RandomToolPrivate::Run(void) {
         // if jump & read successful, save first alignment that overlaps random refId & position
         if ( reader.Jump(randomRefId, randomPosition) ) {
             while ( reader.GetNextAlignmentCore(al) ) {
-                if ( al.RefID == randomRefId && al.Position >= randomPosition ) {
+                if ( al.getRefID() == randomRefId && al.getPosition() >= randomPosition ) {
                     writer.SaveAlignment(al);
                     ++i;
                     break;

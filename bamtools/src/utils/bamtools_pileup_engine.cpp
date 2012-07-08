@@ -53,8 +53,8 @@ bool PileupEngine::PileupEnginePrivate::AddAlignment(const BamAlignment& al) {
     if ( IsFirstAlignment ) {
       
         // set initial markers 
-        CurrentId       = al.RefID;
-        CurrentPosition = al.Position;
+        CurrentId       = al.getRefID();
+        CurrentPosition = al.getPosition();
         
         // store first entry
         CurrentAlignments.clear();
@@ -66,21 +66,21 @@ bool PileupEngine::PileupEnginePrivate::AddAlignment(const BamAlignment& al) {
     }
   
     // if same reference
-    if ( al.RefID == CurrentId ) {
+    if ( al.getRefID() == CurrentId ) {
       
         // if same position, store and move on
-        if ( al.Position == CurrentPosition )
+        if ( al.getPosition() == CurrentPosition )
             CurrentAlignments.push_back(al);
         
         // if less than CurrentPosition - sorting error => ABORT
-        else if ( al.Position < CurrentPosition ) {
+        else if ( al.getPosition() < CurrentPosition ) {
             cerr << "Pileup::Run() : Data not sorted correctly!" << endl;
             return false;
         }
         
         // else print pileup data until 'catching up' to CurrentPosition
         else {
-            while ( al.Position > CurrentPosition ) {
+            while ( al.getPosition() > CurrentPosition ) {
                 ApplyVisitors();
                 ++CurrentPosition;
             }
@@ -89,7 +89,7 @@ bool PileupEngine::PileupEnginePrivate::AddAlignment(const BamAlignment& al) {
     } 
 
     // if reference ID less than CurrentId - sorting error => ABORT
-    else if ( al.RefID < CurrentId ) {
+    else if ( al.getRefID() < CurrentId ) {
         cerr << "Pileup::Run() : Data not sorted correctly!" << endl;
         return false;
     }
@@ -106,8 +106,8 @@ bool PileupEngine::PileupEnginePrivate::AddAlignment(const BamAlignment& al) {
         // store first entry on this new reference, update markers
         CurrentAlignments.clear();
         CurrentAlignments.push_back(al);
-        CurrentId = al.RefID;
-        CurrentPosition = al.Position;
+        CurrentId = al.getRefID();
+        CurrentPosition = al.getPosition();
     }
   
     return true;
@@ -189,16 +189,16 @@ void PileupEngine::PileupEnginePrivate::ParseAlignmentCigar(const BamAlignment& 
     if ( !al.IsMapped() ) return;
     
     // intialize local variables
-    int  genomePosition      = al.Position;
+    int  genomePosition      = al.getPosition();
     int  positionInAlignment = 0;
     bool isNewReadSegment    = true;
     bool saveAlignment       = true;    
     PileupAlignment pileupAlignment(al);
     
     // iterate over CIGAR operations
-    const int numCigarOps = (const int)al.CigarData.size();
+    const int numCigarOps = (const int)al.getCigarData().size();
     for (int i = 0; i < numCigarOps; ++i ) { 
-        const CigarOp& op = al.CigarData.at(i);
+        const CigarOp& op = al.getCigarData().at(i);
       
         // if op is MATCH
         if ( op.Type == 'M' ) {
@@ -223,7 +223,7 @@ void PileupEngine::PileupEnginePrivate::ParseAlignmentCigar(const BamAlignment& 
                     if ( i < numCigarOps - 1 ) {
                         
                         // check next CIGAR op
-                        const CigarOp& nextOp = al.CigarData.at(i+1);
+                        const CigarOp& nextOp = al.getCigarData().at(i+1);
                         
                         // if next CIGAR op is DELETION
                         if ( nextOp.Type == 'D') {
@@ -242,7 +242,7 @@ void PileupEngine::PileupEnginePrivate::ParseAlignmentCigar(const BamAlignment& 
 
                             // if there is a CIGAR op after the DEL/INS
                             if ( i < numCigarOps - 2 ) {
-                                const CigarOp& nextNextOp = al.CigarData.at(i+2);
+                                const CigarOp& nextNextOp = al.getCigarData().at(i+2);
                                 
                                 // if next CIGAR op is clipping or ref_skip
                                 if ( nextNextOp.Type == 'S' || 

@@ -119,8 +119,8 @@ bool operator>(const ModelType& lhs, const ModelType& rhs) {
 uint16_t CalculateModelType(const BamAlignment& al) {
 
     // localize alignment's mate positions & orientations for convenience
-    const int32_t m1_begin = ( al.IsFirstMate() ? al.Position : al.MatePosition );
-    const int32_t m2_begin = ( al.IsFirstMate() ? al.MatePosition : al.Position );
+    const int32_t m1_begin = ( al.IsFirstMate() ? al.getPosition() : al.getMatePosition() );
+    const int32_t m2_begin = ( al.IsFirstMate() ? al.getMatePosition() : al.getPosition() );
     const bool m1_isReverseStrand = ( al.IsFirstMate() ? al.IsReverseStrand() : al.IsMateReverseStrand() );
     const bool m2_isReverseStrand = ( al.IsFirstMate() ? al.IsMateReverseStrand() : al.IsReverseStrand() );
 
@@ -193,7 +193,7 @@ ReadGroupResolver::ReadGroupResolver(void)
 }
 
 bool ReadGroupResolver::IsValidInsertSize(const BamAlignment& al) const {  
-    const int32_t absInsertSize = abs(al.InsertSize);
+    const int32_t absInsertSize = abs(al.getInsertSize());
     return ( absInsertSize >= MinFragmentLength &&
              absInsertSize <= MaxFragmentLength );
 }
@@ -952,7 +952,7 @@ bool ResolveTool::ResolveToolPrivate::MakeStats(void) {
             continue;
 
         // skip if alignment & mate not on same reference sequence
-        if ( al.RefID != al.MateRefID ) continue;
+        if ( al.getRefID() != al.getMateRefID() ) continue;
 
         // flesh out the char data, so we can retrieve its read group ID
         al.BuildCharData();
@@ -972,10 +972,10 @@ bool ResolveTool::ResolveToolPrivate::MakeStats(void) {
         ReadGroupResolver& resolver = (*rgIter).second;
 
         // determine unique-ness of current alignment
-        const bool isCurrentMateUnique = ( al.MapQuality >= m_settings->MinimumMapQuality );
+        const bool isCurrentMateUnique = ( al.getMapQuality() >= m_settings->MinimumMapQuality );
 
         // look up read name
-        readNameIter = resolver.ReadNames.find(al.Name);
+        readNameIter = resolver.ReadNames.find(al.getName());
 
         // if read name found (current alignment's mate already parsed)
         if ( readNameIter != resolver.ReadNames.end() ) {
@@ -985,12 +985,12 @@ bool ResolveTool::ResolveToolPrivate::MakeStats(void) {
             if ( isCurrentMateUnique && isStoredMateUnique ) {
 
                 // save read name in temp file as candidates for later pair marking
-                readNamesWriter.Write(readGroup, al.Name);
+                readNamesWriter.Write(readGroup, al.getName());
 
                 // determine model type & store fragment length for stats calculation
                 const uint16_t currentModelType = CalculateModelType(al);
                 assert( currentModelType != ModelType::DUMMY_ID );
-                resolver.Models[currentModelType].push_back( abs(al.InsertSize) );
+                resolver.Models[currentModelType].push_back( abs(al.getInsertSize()) );
             }
 
             // unique or not, remove read name from map
@@ -998,7 +998,7 @@ bool ResolveTool::ResolveToolPrivate::MakeStats(void) {
         }
 
         // if read name not found, store new entry
-        else resolver.ReadNames.insert( make_pair<string, bool>(al.Name, isCurrentMateUnique) );
+        else resolver.ReadNames.insert( make_pair<string, bool>(al.getName(), isCurrentMateUnique) );
     }
 
     // close files
@@ -1071,10 +1071,10 @@ void ResolveTool::ResolveToolPrivate::ResolveAlignment(BamAlignment& al) {
     if ( !al.IsMapped() || !al.IsMateMapped() ) return;
 
     // quit check if alignment & its mate are on differenct references
-    if ( al.RefID != al.MateRefID ) return;
+    if ( al.getRefID() != al.getMateRefID() ) return;
 
     // quit check if map quality less than cutoff
-    if ( al.MapQuality < m_settings->MinimumMapQuality ) return;
+    if ( al.getMapQuality() < m_settings->MinimumMapQuality ) return;
 
     // get read group from alignment
     // empty string if not found, this is OK - we handle empty read group case
@@ -1098,7 +1098,7 @@ void ResolveTool::ResolveToolPrivate::ResolveAlignment(BamAlignment& al) {
 
     // quit check if alignment is not a "candidate proper pair"
     map<string, bool>::const_iterator readNameIter;
-    readNameIter = resolver.ReadNames.find(al.Name);
+    readNameIter = resolver.ReadNames.find(al.getName());
     if ( readNameIter == resolver.ReadNames.end() )
         return;
 

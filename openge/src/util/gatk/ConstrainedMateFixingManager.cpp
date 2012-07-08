@@ -119,12 +119,12 @@ int computeInsertSize(const BamAlignment & firstEnd, const BamAlignment & second
     if (!firstEnd.IsMapped() || !secondEnd.IsMapped()) {
         return 0;
     }
-    if (!firstEnd.RefID == secondEnd.RefID) {
+    if (!firstEnd.getRefID() == secondEnd.getRefID()) {
         return 0;
     }
     
-    const int firstEnd5PrimePosition = firstEnd.IsReverseStrand()? firstEnd.Position + firstEnd.Length: firstEnd.Position;
-    const int secondEnd5PrimePosition = secondEnd.IsReverseStrand()? secondEnd.Position + secondEnd.Length: secondEnd.Position;
+    const int firstEnd5PrimePosition = firstEnd.IsReverseStrand()? firstEnd.getPosition() + firstEnd.getLength(): firstEnd.getPosition();
+    const int secondEnd5PrimePosition = secondEnd.IsReverseStrand()? secondEnd.getPosition() + secondEnd.getLength(): secondEnd.getPosition();
     
     const int adjustment = (secondEnd5PrimePosition >= firstEnd5PrimePosition) ? +1 : -1;
     return secondEnd5PrimePosition - firstEnd5PrimePosition + adjustment;
@@ -136,67 +136,65 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader & header) 
     // If neither read is unmapped just set their mate info
     if (rec1.IsMapped() && rec2.IsMapped()) {
         
-        rec1.MateRefID = rec2.MateRefID;
-        rec1.MatePosition = rec2.Position;
+        rec1.setMateRefID(rec2.getMateRefID());
+        rec1.setMatePosition(rec2.getPosition());
         rec1.SetIsReverseStrand(rec2.IsReverseStrand());
         rec1.SetIsMapped(true);
-        rec1.AddTag("MQ", "i", rec2.MapQuality);
+        rec1.AddTag("MQ", "i", rec2.getMapQuality());
         
-        rec2.MateRefID = rec1.RefID;
-        rec2.MatePosition = rec1.Position;
+        rec2.setMateRefID(rec1.getRefID());
+        rec2.setMatePosition(rec1.getPosition());
         rec2.SetIsReverseStrand( rec1.IsReverseStrand() );
         rec2.SetIsMapped(true);
-        rec2.AddTag("MQ", "i", rec1.MapQuality);
+        rec2.AddTag("MQ", "i", rec1.getMapQuality());
     }
     // Else if they're both unmapped set that straight
     else if (!rec1.IsMapped() && !rec2.IsMapped()) {
-        rec1.RefID = NO_ALIGNMENT_REFERENCE_INDEX;
-        rec1.Position = NO_ALIGNMENT_START;
-        rec1.MateRefID = NO_ALIGNMENT_REFERENCE_INDEX;
-        rec1.MatePosition = NO_ALIGNMENT_START;
+        rec1.setRefID(NO_ALIGNMENT_REFERENCE_INDEX);
+        rec1.setPosition(NO_ALIGNMENT_START);
+        rec1.setMateRefID(NO_ALIGNMENT_REFERENCE_INDEX);
+        rec1.setMatePosition(NO_ALIGNMENT_START);
         rec1.SetIsReverseStrand(rec2.IsReverseStrand());
         rec1.SetIsMapped(false);
         rec2.RemoveTag("MQ");
-        rec1.Length = 0;
         
-        rec2.RefID = NO_ALIGNMENT_REFERENCE_INDEX;
-        rec2.Position = NO_ALIGNMENT_START;
-        rec2.MateRefID = NO_ALIGNMENT_REFERENCE_INDEX;
-        rec2.MatePosition = NO_ALIGNMENT_START;
+        rec2.setRefID(NO_ALIGNMENT_REFERENCE_INDEX);
+        rec2.setPosition(NO_ALIGNMENT_START);
+        rec2.setMateRefID(NO_ALIGNMENT_REFERENCE_INDEX);
+        rec2.setMatePosition(NO_ALIGNMENT_START);
         rec2.SetIsReverseStrand(rec1.IsReverseStrand());
         rec2.SetIsMapped(false);
         rec2.RemoveTag("MQ");
-        rec2.Length = 0;
     }
     // And if only one is mapped copy it's coordinate information to the mate
     else {
         BamAlignment & mapped   = rec1.IsMapped() ? rec1 : rec2;
         BamAlignment & unmapped = rec1.IsMapped() ? rec2 : rec1;
-        unmapped.RefID = mapped.RefID;
-        unmapped.Position = mapped.Position;
+        unmapped.setRefID(mapped.getRefID());
+        unmapped.setPosition(mapped.getPosition());
         
-        mapped.MateRefID = unmapped.RefID;
-        mapped.MatePosition = unmapped.Position;
+        mapped.setMateRefID(unmapped.getRefID());
+        mapped.setMatePosition(unmapped.getPosition());
         mapped.SetIsMateReverseStrand(unmapped.IsReverseStrand());
         mapped.SetIsMateMapped(false);
-        mapped.Length = 0;
+        //mapped.setLength = 0;
         
-        unmapped.MateRefID = mapped.RefID;
-        unmapped.MatePosition = mapped.Position;
+        unmapped.setMateRefID(mapped.getRefID());
+        unmapped.setMatePosition(mapped.getPosition());
         unmapped.SetIsMateReverseStrand(mapped.IsReverseStrand());
         unmapped.SetIsMateMapped(true);
-        unmapped.Length = 0;
+        //unmapped.Length = 0;
     }
     
     const int insertSize = computeInsertSize(rec1, rec2);
-    rec1.Length = insertSize;
-    rec2.Length = -insertSize;
+    //rec1.Length = insertSize; LCB TODO verify correctness
+    //rec2.Length = -insertSize;
 }
 
 BamAlignment * ConstrainedMateFixingManager::remove(set<BamAlignment *> & treeSet) {
     BamAlignment * first = *treeSet.begin();
     if ( !treeSet.erase(first) ) {
-        cerr << "Error caching SAM record " << first->Name << ", which is usually caused by malformed SAM/BAM files in which multiple identical copies of a read are present." << endl;
+        cerr << "Error caching SAM record " << first->getName() << ", which is usually caused by malformed SAM/BAM files in which multiple identical copies of a read are present." << endl;
         exit(-1);
     }
     return first;
@@ -237,7 +235,7 @@ bool ConstrainedMateFixingManager::canMoveReads(const GenomeLoc & earliestPositi
 }
 
 bool ConstrainedMateFixingManager::noReadCanMoveBefore(int pos, BamAlignment * addedRead) {
-    return pos + 2 * MAX_POS_MOVE_ALLOWED < addedRead->Position;
+    return pos + 2 * MAX_POS_MOVE_ALLOWED < addedRead->getPosition();
 }
 void ConstrainedMateFixingManager::addReads(vector<BamAlignment *> newReads, set<BamAlignment *> modifiedReads) {
     for (vector<BamAlignment *>::iterator newRead =  newReads.begin(); newRead != newReads.end(); newRead++ )
@@ -248,7 +246,7 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
     if ( DEBUG ) {
         string OP;
         newRead->GetTag("OP", OP);
-        cerr << "New read pos " << newRead->Position << " OP = " << OP << " " << readWasModified << endl;
+        cerr << "New read pos " << newRead->getPosition() << " OP = " << OP << " " << readWasModified << endl;
     }
     
     //final long curTime = timer.currentTime();
@@ -259,14 +257,14 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
     
     // if the new read is on a different contig or we have too many reads, then we need to flush the queue and clear the map
     bool tooManyReads = getNReadsInQueue() >= MAX_RECORDS_IN_MEMORY;
-    if ( (canFlush && tooManyReads) || (getNReadsInQueue() > 0 && (*waitingReads.begin())->RefID != newRead->RefID) ) {
+    if ( (canFlush && tooManyReads) || (getNReadsInQueue() > 0 && (*waitingReads.begin())->getRefID() != newRead->getRefID()) ) {
         if ( DEBUG ) {
             stringstream ss("");
             if(tooManyReads)
                 ss << "too many reads";
             else
-                ss << "move to new contig #: " << newRead->RefID << " from #" << (*waitingReads.begin())->RefID;
-            cerr << "Flushing queue on " << ss << " at " << newRead->Position << endl;
+                ss << "move to new contig #: " << newRead->getRefID() << " from #" << (*waitingReads.begin())->getRefID();
+            cerr << "Flushing queue on " << ss << " at " << newRead->getPosition() << endl;
         }
         
         while ( getNReadsInQueue() > 1 ) {
@@ -275,7 +273,7 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
         }
         
         BamAlignment * lastRead = remove(waitingReads);
-        lastLocFlushed = (lastRead->RefID == -1) ? NULL : new GenomeLoc(loc_parser->createGenomeLoc(*lastRead));
+        lastLocFlushed = (lastRead->getRefID() == -1) ? NULL : new GenomeLoc(loc_parser->createGenomeLoc(*lastRead));
         writeRead(lastRead);
         
         if ( !tooManyReads )
@@ -288,8 +286,8 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
     // Since setMateInfo can move reads, we potentially need to remove the mate, and requeue
     // it to ensure proper sorting
     if ( newRead->IsPaired() ) {
-        if ( forMateMatching.count(newRead->Name) ) {
-            SAMRecordHashObject mate = forMateMatching.find(newRead->Name)->second;
+        if ( forMateMatching.count(newRead->getName()) ) {
+            SAMRecordHashObject mate = forMateMatching.find(newRead->getName())->second;
             // 1. Frustratingly, Picard's setMateInfo() method unaligns (by setting the reference contig
             // to '*') read pairs when both of their flags have the unmapped bit set.  This is problematic
             // when trying to emit reads in coordinate order because all of a sudden we have reads in the
@@ -320,9 +318,9 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
                 if ( reQueueMate ) waitingReads.insert(mate.record);
             }
             
-            forMateMatching.erase(newRead->Name);
+            forMateMatching.erase(newRead->getName());
         } else if ( pairedReadIsMovable(newRead) ) {
-            forMateMatching[newRead->Name] = SAMRecordHashObject(newRead, readWasModified);
+            forMateMatching[newRead->getName()] = SAMRecordHashObject(newRead, readWasModified);
         }
     }
     
@@ -332,28 +330,28 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
         while ( ! waitingReads.empty() ) { // there's something in the queue
             BamAlignment * read = *waitingReads.begin();
             
-            if ( noReadCanMoveBefore(read->Position, newRead) &&
+            if ( noReadCanMoveBefore(read->getPosition(), newRead) &&
                 (!pairedReadIsMovable(read)                               // we won't try to move such a read
-                 || noReadCanMoveBefore(read->MatePosition, newRead ) ) ) { // we're already past where the mate started
+                 || noReadCanMoveBefore(read->getMatePosition(), newRead ) ) ) { // we're already past where the mate started
                     
                     // remove reads from the map that we have emitted -- useful for case where the mate never showed up
-                    forMateMatching.erase(read->Name);
+                    forMateMatching.erase(read->getName());
                     
                     if ( DEBUG ) {
                         string OP;
                         newRead->GetTag("OP", OP);
-                        cerr << "EMIT!  At " << newRead->Position << ": read " << read->Name << " at " <<  read->Position << " with isize " << read->Length << ", mate start " << read->MatePosition << ", op = " << OP << endl;
+                        cerr << "EMIT!  At " << newRead->getPosition() << ": read " << read->getName() << " at " <<  read->getPosition() << " with isize " << read->getLength() << ", mate start " << read->getMatePosition() << ", op = " << OP << endl;
                     }
                     // emit to disk
                     writeRead(remove(waitingReads));
                 } else {
                     if ( DEBUG )
-                        cerr << "At " << newRead->Position << ": read " << read->Name << " at " << read->Position << " with isize " << read->Length << " couldn't be emited, mate start " << read->MatePosition << endl;
+                        cerr << "At " << newRead->getPosition() << ": read " << read->getName() << " at " << read->getPosition() << " with isize " << read->getLength() << " couldn't be emited, mate start " << read->getMatePosition() << endl;
                     break;
                 }
         }
         
-        if ( DEBUG ) cerr << "At " << newRead->Position << ": Done with emit cycle" << endl;
+        if ( DEBUG ) cerr << "At " << newRead->getPosition() << ": Done with emit cycle" << endl;
     }
 }
 
@@ -370,8 +368,8 @@ bool ConstrainedMateFixingManager::iSizeTooBigToMove(BamAlignment * read) {
 }
 
 bool ConstrainedMateFixingManager::iSizeTooBigToMove(BamAlignment * read, int maxInsertSizeForMovingReadPairs) {
-    return ( read->IsPaired() && read->IsMapped() && read->RefID != read->MateRefID ) // maps to different chromosomes
-    || abs(read->Length) > maxInsertSizeForMovingReadPairs;     // we won't try to move such a read
+    return ( read->IsPaired() && read->IsMapped() && read->getRefID() != read->getMateRefID() ) // maps to different chromosomes
+    || abs(read->getLength()) > maxInsertSizeForMovingReadPairs;     // we won't try to move such a read
 }
 
 void ConstrainedMateFixingManager::purgeUnmodifiedMates() {

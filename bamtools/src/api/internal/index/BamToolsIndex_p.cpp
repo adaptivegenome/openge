@@ -173,13 +173,13 @@ bool BamToolsIndex::Create(void) {
         while ( m_reader->LoadNextAlignment(al) ) {
 
             // if moved to new reference
-            if ( al.RefID != blockRefId ) {
+            if ( al.getRefID() != blockRefId ) {
 
                 // if first pass, check:
                 if ( currentBlockCount == 0 ) {
 
                     // write any empty references up to (but not including) al.RefID
-                    for ( int i = 0; i < al.RefID; ++i )
+                    for ( int i = 0; i < al.getRefID(); ++i )
                         WriteReferenceEntry( BtiReferenceEntry(i) );
                 }
 
@@ -196,7 +196,7 @@ bool BamToolsIndex::Create(void) {
 
                     // write any empty references between (but not including)
                     // the last blockRefID and current al.RefID
-                    for ( int i = blockRefId+1; i < al.RefID; ++i )
+                    for ( int i = blockRefId+1; i < al.getRefID(); ++i )
                         WriteReferenceEntry( BtiReferenceEntry(i) );
 
                     // reset block count
@@ -204,14 +204,14 @@ bool BamToolsIndex::Create(void) {
                 }
 
                 // set ID for new reference entry
-                refEntry.ID = al.RefID;
+                refEntry.ID = al.getRefID();
             }
 
             // if beginning of block, update counters
             if ( currentBlockCount == 0 ) {
-                blockRefId          = al.RefID;
+                blockRefId          = al.getRefID();
                 blockStartOffset    = currentAlignmentOffset;
-                blockStartPosition  = al.Position;
+                blockStartPosition  = al.getPosition();
                 blockMaxEndPosition = al.GetEndPosition();
             }
 

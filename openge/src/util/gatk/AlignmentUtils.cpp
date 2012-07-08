@@ -70,7 +70,7 @@ long AlignmentUtils::mismatchingQualities(const BamTools::BamAlignment *  r, str
 }
 
 AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const BamTools::BamAlignment *  r, string refSeq, int refIndex) {
-    return getMismatchCount(r, refSeq, refIndex, 0, r->Length);
+    return getMismatchCount(r, refSeq, refIndex, 0, r->getLength());
 }
 
 // todo -- this code and mismatchesInRefWindow should be combined and optimized into a single
@@ -80,8 +80,8 @@ AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const BamTools::B
     
     int readIdx = 0;
     int endOnRead = startOnRead + nReadBases - 1; // index of the last base on read we want to count
-    string readSeq = r->QueryBases;
-    const vector<CigarOp> & c = r->CigarData;
+    string readSeq = r->getQueryBases();
+    const vector<CigarOp> & c = r->getCigarData();
     for (int i = 0; i < c.size(); i++) {
         
         if (readIdx > endOnRead) break;
@@ -102,7 +102,7 @@ AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const BamTools::B
                     //    continue; // do not count Ns/Xs/etc ?
                     if (readChr != refChr) {
                         mc.numMismatches++;
-                        mc.mismatchQualities += r->Qualities[readIdx];
+                        mc.mismatchQualities += r->getQualities()[readIdx];
                     }
                 }
                 break;

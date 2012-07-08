@@ -179,12 +179,12 @@ string  LocalRealignment::AlignedRead::getBaseQualities() {
 void LocalRealignment::AlignedRead::getUnclippedBases() {
     readBases = new string('?', getReadLength());
     baseQuals = new string('?', getReadLength());
-    const string actualReadBases = read->QueryBases;// LCB should be AlignedBases?
-    const string actualBaseQuals = read->Qualities;
+    const string actualReadBases = read->getQueryBases();// LCB should be AlignedBases?
+    const string actualBaseQuals = read->getQualities();
     int fromIndex = 0, toIndex = 0;
     
-    for ( vector<CigarOp>::iterator ce = read->CigarData.begin(); ce != read->CigarData.end(); ce++ ) {
-        uint32_t & elementLength = ce->Length;
+    for ( vector<CigarOp>::const_iterator ce = read->getCigarData().begin(); ce != read->getCigarData().end(); ce++ ) {
+        uint32_t elementLength = ce->Length;
         switch ( ce->Type ) {
             case 'S':
                 fromIndex += elementLength;
@@ -214,8 +214,8 @@ vector<CigarOp> LocalRealignment::AlignedRead::reclipCigar(vector<CigarOp> & cig
     return LocalRealignment::reclipCigar(cigar, read);
 }
 
-vector<CigarOp> & LocalRealignment::AlignedRead::getCigar() {
-    return (newCigar != NULL ? *newCigar : read->CigarData);
+vector<CigarOp> LocalRealignment::AlignedRead::getCigar() {
+    return (newCigar != NULL ? *newCigar : read->getCigarData());
 }
 
 // tentatively sets the new Cigar, but it needs to be confirmed later
@@ -226,12 +226,12 @@ void LocalRealignment::AlignedRead::setCigar(vector<CigarOp> * cigar, bool fixCl
         return;
     }
     
-    if ( fixClippedCigar && getReadBases().length() < read->Length ) {
+    if ( fixClippedCigar && getReadBases().length() < read->getLength() ) {
         cigar = new vector<CigarOp>(reclipCigar(*cigar));
     }
     
     // no change?
-    if ( read->CigarData == *cigar ) {
+    if ( read->getCigarData() == *cigar ) {
         newCigar = NULL;
         return;
     }
@@ -243,7 +243,7 @@ void LocalRealignment::AlignedRead::setCigar(vector<CigarOp> * cigar, bool fixCl
             has_i_or_d = true;
 
     if ( !has_i_or_d) {
-        cerr << "Modifying a read with no associated indel; although this is possible, it is highly unlikely.  Perhaps this region should be double-checked: " << read->Name << " near read->getReferenceName():" << read->Position << endl; // FIXME LCB, can't easily access the reference name with current code organization. We should do something about this.
+        cerr << "Modifying a read with no associated indel; although this is possible, it is highly unlikely.  Perhaps this region should be double-checked: " << read->getName() << " near read->getReferenceName():" << read->getPosition() << endl; // FIXME LCB, can't easily access the reference name with current code organization. We should do something about this.
         //    newCigar = NULL;
         //    return;
     }
@@ -257,11 +257,11 @@ void LocalRealignment::AlignedRead::setAlignmentStart(int start) {
 }
 
 int LocalRealignment::AlignedRead::getAlignmentStart() {
-    return (newStart != -1 ? newStart : read->Position);
+    return (newStart != -1 ? newStart : read->getPosition());
 }
 
 int LocalRealignment::AlignedRead::getOriginalAlignmentStart() {
-    return read->Position;
+    return read->getPosition();
 }
 
 // constizes the changes made.
@@ -271,24 +271,24 @@ bool LocalRealignment::AlignedRead::constizeUpdate() {
     if ( newCigar == NULL )
         return false;
     if ( newStart == -1 )
-        newStart = read->Position;
-    else if ( abs(newStart - read->Position) > MAX_POS_MOVE_ALLOWED ) {
-        cerr << "Attempting to realign read " << read->Name << " at " << read->Position << " more than " << MAX_POS_MOVE_ALLOWED << " bases to " << newStart << ".";
+        newStart = read->getPosition();
+    else if ( abs(newStart - read->getPosition()) > MAX_POS_MOVE_ALLOWED ) {
+        cerr << "Attempting to realign read " << read->getName() << " at " << read->getPosition() << " more than " << MAX_POS_MOVE_ALLOWED << " bases to " << newStart << ".";
         return false;
     }
     
     // annotate the record with the original cigar (and optionally the alignment start)
     if ( !NO_ORIGINAL_ALIGNMENT_TAGS ) {
         stringstream cigar_ss("");
-        for(vector<CigarOp>::iterator i = read->CigarData.begin(); i != read->CigarData.end(); i++)
+        for(vector<CigarOp>::const_iterator i = read->getCigarData().begin(); i != read->getCigarData().end(); i++)
             cigar_ss << i->Length << i->Type;
         read->AddTag(ORIGINAL_CIGAR_TAG, "Z", cigar_ss.str());
-        if ( newStart != read->Position )
-            read->AddTag(ORIGINAL_POSITION_TAG, "i", read->Position);
+        if ( newStart != read->getPosition() )
+            read->AddTag(ORIGINAL_POSITION_TAG, "i", read->getPosition());
     }
     
-    read->CigarData = *newCigar;
-    read->Position = newStart;
+    read->setCigarData(*newCigar);
+    read->setPosition(newStart);
     
     return true;
 }
@@ -457,7 +457,7 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
     // edge case: when the last target interval abuts the end of the genome, we'll get one of the
     //   unmapped reads while the currentInterval still isn't null.  We need to trigger the cleaning
     //   at this point without trying to create a GenomeLoc.
-    if ( read->RefID == NO_ALIGNMENT_REFERENCE_INDEX ) {
+    if ( read->getRefID() == NO_ALIGNMENT_REFERENCE_INDEX ) {
         cleanAndCallMap(read, metaDataTracker, NULL);
         return 0;
     }
@@ -516,8 +516,8 @@ bool LocalRealignment::doNotTryToClean( BamAlignment * read) {
     return !read->IsMapped() ||
     !read->IsPrimaryAlignment() ||
     read->IsFailedQC() ||
-    read->MapQuality == 0 ||
-    read->Position == NO_ALIGNMENT_START ||
+    read->getMapQuality() == 0 ||
+    read->getPosition() == NO_ALIGNMENT_START ||
     ConstrainedMateFixingManager::iSizeTooBigToMove(read, MAX_ISIZE_FOR_MOVEMENT) ||
     is454;
 
@@ -742,7 +742,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
                 // NOTE: indels are printed out in the format specified for the low-coverage pilot1
                 //  indel calls (tab-delimited): chr position size type sequence
                 stringstream str;
-                str << getHeader().Sequences[reads[0]->RefID].Name;
+                str << getHeader().Sequences[reads[0]->getRefID()].Name;
                 int position = bestConsensus->positionOnReference + bestConsensus->cigar[0].Length;
                 str << "\t" << (leftmostIndex + position - 1);
                 CigarOp ce = bestConsensus->cigar[1];
@@ -773,12 +773,12 @@ void LocalRealignment::clean(ReadBin readsToClean) {
                     // For now, we will just arbitrarily add 10 to the mapping quality. [EB, 6/7/2010].
                     // TODO -- we need a better solution here
                     BamAlignment * read = aRead.getRead();  //TODO LCB verify the below mapping quality, since BamTools and SAM format are a bit different.
-                    if ( read->MapQuality != 255 ) // 255 == Unknown, so don't modify it
-                        read->MapQuality = min(aRead.getRead()->MapQuality + 10, 254);
+                    if ( read->getMapQuality() != 255 ) // 255 == Unknown, so don't modify it
+                        read->setMapQuality(min(aRead.getRead()->getMapQuality() + 10, 254));
                     
                     // before we fix the attribute tags we first need to make sure we have enough of the reference sequence
-                    int neededBasesToLeft = leftmostIndex - read->Position;
-                    int neededBasesToRight = read->Position + read->Length - leftmostIndex - reference->size() + 1;
+                    int neededBasesToLeft = leftmostIndex - read->getPosition();
+                    int neededBasesToRight = read->getPosition() + read->getLength() - leftmostIndex - reference->size() + 1;
                     int neededBases = max(neededBasesToLeft, neededBasesToRight);
                     if ( neededBases > 0 ) {
                         int padLeft = max(leftmostIndex-neededBases, 1);
@@ -837,7 +837,7 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
         BamAlignment * read = reads[read_ctr];
         
         // we can not deal with screwy records
-        if ( read->CigarData.size() == 0 ) {
+        if ( read->getCigarData().size() == 0 ) {
             refReadsToPopulate.push_back(read);
             continue;
         }
@@ -846,16 +846,16 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
         
         // first, move existing indels (for 1 indel reads only) to leftmost position within identical sequence
         int numBlocks = 0;
-        for(vector<CigarOp>::iterator i = read->CigarData.begin(); i != read->CigarData.end(); i++)
+        for(vector<CigarOp>::const_iterator i = read->getCigarData().begin(); i != read->getCigarData().end(); i++)
             if(i->Type == 'M' || i->Type == '=' || i->Type == 'X')
                 numBlocks++;
         //int numBlocks = AlignmentUtils::getNumAlignmentBlocks(read);
         if ( numBlocks == 2 ) {
-            vector<CigarOp> newCigar = AlignmentUtils::leftAlignIndel(unclipCigar(read->CigarData), reference, read->QueryBases, read->Position-leftmostIndex, 0);
+            vector<CigarOp> newCigar = AlignmentUtils::leftAlignIndel(unclipCigar(read->getCigarData()), reference, read->getQueryBases(), read->getPosition()-leftmostIndex, 0);
             aRead.setCigar(new vector<CigarOp>(newCigar), false);
         }
         
-        const int startOnRef = read->Position-leftmostIndex;
+        const int startOnRef = read->getPosition()-leftmostIndex;
         const int rawMismatchScore = mismatchQualitySumIgnoreCigar(aRead, reference, startOnRef, INT_MAX);
         
         // if this doesn't match perfectly to the reference, let's try to clean it
@@ -1222,7 +1222,7 @@ bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead> & reads, cons
         AlignedRead read = reads[i];
         
         int count_m_eq_x = 0;
-        for(vector<CigarOp>::iterator i = read.getRead()->CigarData.begin(); i != read.getRead()->CigarData.end(); i++)
+        for(vector<CigarOp>::const_iterator i = read.getRead()->getCigarData().begin(); i != read.getRead()->getCigarData().end(); i++)
             if(i->Type == 'M' || i->Type == '=' || i->Type == 'X')
                 count_m_eq_x++;
 
@@ -1293,7 +1293,7 @@ bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead> & reads, cons
         }
         if ( snpsOutput != NULL ) {
             if ( didMismatch ) {
-                const string & ref_name = getHeader().Sequences[reads[0].getRead()->RefID].Name;
+                const string & ref_name = getHeader().Sequences[reads[0].getRead()->getRefID()].Name;
                 sb << ref_name << ":" << (leftmostIndex + i);
                 if ( stillMismatches )
                     sb << " SAME_SNP\n" << endl;
@@ -1332,19 +1332,19 @@ vector<CigarOp> LocalRealignment::reclipCigar(vector<CigarOp> & cigar, BamAlignm
     vector<CigarOp> elements;
     
     int i = 0;
-    int n = read->CigarData.size();
-    while ( i < n && isClipOperator(read->CigarData[i].Type) )
-        elements.push_back(read->CigarData[i++]);
+    int n = read->getCigarData().size();
+    while ( i < n && isClipOperator(read->getCigarData()[i].Type) )
+        elements.push_back(read->getCigarData()[i++]);
     
     //add all elements of cigar to elements
     elements.insert(elements.end(), cigar.begin(), cigar.end());    
     
     i++;
-    while ( i < n && !isClipOperator(read->CigarData[i].Type) )
+    while ( i < n && !isClipOperator(read->getCigarData()[i].Type) )
         i++;
     
-    while ( i < n && isClipOperator(read->CigarData[i].Type) )
-        elements.push_back(read->CigarData[i++]);
+    while ( i < n && isClipOperator(read->getCigarData()[i].Type) )
+        elements.push_back(read->getCigarData()[i++]);
     
     return elements;
 }

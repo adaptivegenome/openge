@@ -205,8 +205,8 @@ void StatsTool::StatsToolPrivate::ProcessAlignment(const BamAlignment& al) {
         if ( al.IsProperPair() ) ++m_numProperPair;
         
         // store insert size for first mate 
-        if ( m_settings->IsShowingInsertSizeSummary && al.IsFirstMate() && (al.InsertSize != 0) ) {
-            int insertSize = abs(al.InsertSize);
+        if ( m_settings->IsShowingInsertSizeSummary && al.IsFirstMate() && (al.getInsertSize() != 0) ) {
+            int insertSize = abs(al.getInsertSize());
             m_insertSizes.push_back( insertSize );
         }
     }

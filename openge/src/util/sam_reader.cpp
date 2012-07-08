@@ -318,19 +318,7 @@ BamAlignment * SamReader::ParseAlignment(const char * line_s)
 {
     BamAlignment * al = new BamAlignment();
     BamAlignment & alignment = *al;
-    
-    string & qname = alignment.Name;
-    uint32_t & flag = alignment.AlignmentFlag;
-    //string rname;
-    int & pos = alignment.Position;
-    uint16_t & mapq = alignment.MapQuality;
-    //string cigar;
-    //string rnext;
-    int & pnext = alignment.MatePosition;
-    int & tlen = alignment.InsertSize;
-    string & seq = alignment.QueryBases;
-    string & qual = alignment.Qualities;
-    
+
     size_t line_length = strlen(line_s);
     if(line_length < 10)    //if the line is shorter than 10 chars, it is definitely not a full SAM line.
         return NULL;
@@ -351,43 +339,42 @@ BamAlignment * SamReader::ParseAlignment(const char * line_s)
         }
     }
     
-    qname.assign(field_starts[0]);
-    flag = atoi(field_starts[1]);
+    alignment.setName(field_starts[0]);
+    alignment.setAlignmentFlag(atoi(field_starts[1]));
     const char * rname = field_starts[2];
-    pos = atoi(field_starts[3]);
-    mapq = atoi(field_starts[4]);
+    alignment.setPosition(atoi(field_starts[3]));
+    alignment.setMapQuality( atoi(field_starts[4]));
     const char * cigar = field_starts[5];
     const char * rnext = field_starts[6];
-    pnext = atoi(field_starts[7]);
-    tlen = atoi(field_starts[8]);
-    seq.assign(field_starts[9]);
-    qual.assign(field_starts[10]);
-    al->Length = seq.size();
+    alignment.setMatePosition( atoi(field_starts[7]));
+    alignment.setInsertSize( atoi(field_starts[8]));
+    alignment.setQueryBases( field_starts[9]);
+    alignment.setQualities(field_starts[10]);
 
     // zero based indexes:
-    alignment.Position--;
-    alignment.MatePosition--;
+    alignment.setPosition(alignment.getPosition() - 1);
+    alignment.setMatePosition(alignment.getMatePosition() - 1);
 
     // rname
     if(rname[0] == '*')
-        alignment.RefID = -1;
+        alignment.setRefID(-1);
     else if(header.Sequences.Contains(rname))
-        alignment.RefID = header.Sequences.IndexOfString(rname);
+        alignment.setRefID(header.Sequences.IndexOfString(rname));
     else {
         cerr << "Rname " << rname << " missing from sequence dictionary" << endl;
-        alignment.RefID = -1;
+        alignment.setRefID(-1);
     }
 
     // rnext
     if(rnext[0] == '=')
-        alignment.MateRefID = alignment.RefID;
+        alignment.setMateRefID(alignment.getRefID());
     else if(rnext[0] == '*')
-        alignment.MateRefID = -1;
+        alignment.setMateRefID(-1);
     else if(header.Sequences.Contains(rnext))
-        alignment.MateRefID = header.Sequences.IndexOfString(rnext);
+        alignment.setMateRefID(header.Sequences.IndexOfString(rnext));
     else {
         cerr << "RNext " << rnext << " missing from sequence dictionary" << endl;
-        alignment.MateRefID = -1;
+        alignment.setMateRefID(-1);
     }
 
     //CIGAR ops
@@ -402,7 +389,9 @@ BamAlignment * SamReader::ParseAlignment(const char * line_s)
             num = strtol(cigar_p, &cigar_p, 10);
             c = *cigar_p;
             cigar_p++;
-            alignment.CigarData.push_back(CigarOp(c,num));
+            vector<CigarOp> cigar = alignment.getCigarData();
+            cigar.push_back(CigarOp(c,num));
+            alignment.setCigarData(cigar);
             cigar_ct ++;
             assert(cigar_ct < 100);
         }

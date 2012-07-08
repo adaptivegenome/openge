@@ -307,7 +307,7 @@ bool BamStandardIndex::Create(void) {
         while ( m_reader->LoadNextAlignment(al) ) {
 
             // changed to new reference
-            if ( lastRefID != al.RefID ) {
+            if ( lastRefID != al.getRefID() ) {
 
                 // if not first reference, save previous reference data
                 if ( lastRefID != (int32_t)defaultValue ) {
@@ -317,50 +317,50 @@ bool BamStandardIndex::Create(void) {
                     ClearReferenceEntry(refEntry);
 
                     // write any empty references between (but *NOT* including) lastRefID & al.RefID
-                    for ( int i = lastRefID+1; i < al.RefID; ++i ) {
+                    for ( int i = lastRefID+1; i < al.getRefID(); ++i ) {
                         BaiReferenceEntry emptyEntry(i);
                         WriteReferenceEntry(emptyEntry);
                     }
 
                     // update bin markers
                     currentOffset = lastOffset;
-                    currentBin    = al.Bin;
-                    lastBin       = al.Bin;
-                    currentRefID  = al.RefID;
+                    currentBin    = al.getBin();
+                    lastBin       = al.getBin();
+                    currentRefID  = al.getRefID();
                 }
 
                 // otherwise, this is first pass
                 // be sure to write any empty references up to (but *NOT* including) current RefID
                 else {
-                    for ( int i = 0; i < al.RefID; ++i ) {
+                    for ( int i = 0; i < al.getRefID(); ++i ) {
                         BaiReferenceEntry emptyEntry(i);
                         WriteReferenceEntry(emptyEntry);
                     }
                 }
 
                 // update reference markers
-                refEntry.ID = al.RefID;
-                lastRefID   = al.RefID;
+                refEntry.ID = al.getRefID();
+                lastRefID   = al.getRefID();
                 lastBin     = defaultValue;
             }
 
             // if lastPosition greater than current alignment position - file not sorted properly
-            else if ( lastPosition > al.Position ) {
+            else if ( lastPosition > al.getPosition() ) {
                 stringstream s("");
                 s << "BAM file is not properly sorted by coordinate" << endl
-                  << "Current alignment position: " << al.Position
+                  << "Current alignment position: " << al.getPosition()
                   << " < previous alignment position: " << lastPosition
-                  << " on reference ID: " << al.RefID << endl;
+                  << " on reference ID: " << al.getRefID() << endl;
                 SetErrorString("BamStandardIndex::Create", s.str());
                 return false;
             }
 
             // if alignment's ref ID is valid & its bin is not a 'leaf'
-            if ( (al.RefID >= 0) && (al.Bin < 4681) )
-                SaveLinearOffsetEntry(refEntry.LinearOffsets, al.Position, al.GetEndPosition(), lastOffset);
+            if ( (al.getRefID() >= 0) && (al.getBin() < 4681) )
+                SaveLinearOffsetEntry(refEntry.LinearOffsets, al.getPosition(), al.GetEndPosition(), lastOffset);
 
             // changed to new BAI bin
-            if ( al.Bin != lastBin ) {
+            if ( al.getBin() != lastBin ) {
 
                 // if not first bin on reference, save previous bin data
                 if ( currentBin != defaultValue )
@@ -368,9 +368,9 @@ bool BamStandardIndex::Create(void) {
 
                 // update markers
                 currentOffset = lastOffset;
-                currentBin    = al.Bin;
-                lastBin       = al.Bin;
-                currentRefID  = al.RefID;
+                currentBin    = al.getBin();
+                lastBin       = al.getBin();
+                currentRefID  = al.getRefID();
 
                 // if invalid RefID, break out
                 if ( currentRefID < 0 )
@@ -385,7 +385,7 @@ bool BamStandardIndex::Create(void) {
 
             // update lastOffset & lastPosition
             lastOffset   = m_reader->Tell();
-            lastPosition = al.Position;
+            lastPosition = al.getPosition();
         }
 
         // after finishing alignments, if any data was read, check:

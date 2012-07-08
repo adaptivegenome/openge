@@ -75,7 +75,7 @@ ReadMetaDataTracker::ReadMetaDataTracker(GenomeLocParser * genomeLocParser, BamA
 map<int, set<GATKFeature> > ReadMetaDataTracker::createReadAlignment(BamAlignment * record, map<int, RODMetaDataContainer> q, string name) {
     map<int, set<GATKFeature> > ret;
     GenomeLoc location = genomeLocParser->createGenomeLoc(*record);
-    int length = record->Length;
+    int length = record->getLength();
     for(map<int, RODMetaDataContainer>::iterator loc_iter = q.begin(); loc_iter != q.end(); loc_iter++) {
         const int loc = loc_iter->first;
         int position = loc - location.getStart();
@@ -91,8 +91,8 @@ map<int, set<GATKFeature> > ReadMetaDataTracker::createReadAlignment(BamAlignmen
 
 map<int, set<GATKFeature> > ReadMetaDataTracker::createGenomeLocAlignment(const BamAlignment & record, map<int, RODMetaDataContainer> mapping, string name) {
     map<int, set<GATKFeature> > ret;
-    int start = record.Position;
-    int stop = record.Position + record.Length;
+    int start = record.getPosition();
+    int stop = record.getPosition() + record.getLength();
     for (map<int, RODMetaDataContainer>::iterator it = mapping.begin(); it != mapping.end(); it++) {
         int location = it->first;
         if (location >= start && location <= stop)

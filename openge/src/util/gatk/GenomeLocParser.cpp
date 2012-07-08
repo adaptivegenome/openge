@@ -393,13 +393,13 @@ private int parsePosition(string pos) {
 //@Requires("read != null")
 //@Ensures("result != null")
 GenomeLoc GenomeLocParser::createGenomeLoc(const BamAlignment & read) const {
-    if ( !read.IsMapped() && read.RefID == -1 )
+    if ( !read.IsMapped() && read.getRefID() == -1 )
         // read is unmapped and not placed anywhere on the genome
         return GenomeLoc::UNMAPPED;
     else {
         // Use max to ensure that end >= start (Picard assigns the end to reads that are entirely within an insertion as start-1)
-        int end = read.IsMapped() ? max(read.Position + read.Length, read.Position):read.Position ;
-        return createGenomeLoc(getContig(read.RefID), read.Position, end);
+        int end = read.IsMapped() ? max(read.getPosition() + read.getLength(), read.getPosition()):read.getPosition() ;
+        return createGenomeLoc(getContig(read.getRefID()), read.getPosition(), end);
     }
 }
 #if 0

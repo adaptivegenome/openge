@@ -275,11 +275,11 @@ void ConvertTool::ConvertToolPrivate::PrintBed(const BamAlignment& a) {
     // (e.g. a 50-base read aligned to pos 10 could have BED coordinates (10, 60) instead of BAM coordinates (10, 59) )
     // <chromName> <chromStart> <chromEnd> <readName> <score> <strand>
 
-    m_out << m_references.at(a.RefID).RefName << "\t"
-          << a.Position << "\t"
+    m_out << m_references.at(a.getRefID()).RefName << "\t"
+          << a.getPosition() << "\t"
           << a.GetEndPosition() << "\t"
-          << a.Name << "\t"
-          << a.MapQuality << "\t"
+          << a.getName() << "\t"
+          << a.getMapQuality() << "\t"
           << (a.IsReverseStrand() ? "-" : "+") << endl;
 }
 
@@ -294,10 +294,10 @@ void ConvertTool::ConvertToolPrivate::PrintFasta(const BamAlignment& a) {
     // N.B. - QueryBases are reverse-complemented if aligned to reverse strand
   
     // print header
-    m_out << ">" << a.Name << endl;
+    m_out << ">" << a.getName() << endl;
     
     // handle reverse strand alignment - bases 
-    string sequence = a.QueryBases;
+    string sequence = a.getQueryBases();
     if ( a.IsReverseStrand() )
         Utilities::ReverseComplement(sequence);
     
@@ -335,13 +335,13 @@ void ConvertTool::ConvertToolPrivate::PrintFastq(const BamAlignment& a) {
     //        Name is appended "/1" or "/2" if paired-end, to reflect which mate this entry is.
   
     // handle paired-end alignments
-    string name = a.Name;
+    string name = a.getName();
     if ( a.IsPaired() )
         name.append( (a.IsFirstMate() ? "/1" : "/2") );
   
     // handle reverse strand alignment - bases & qualities
-    string qualities = a.Qualities;
-    string sequence  = a.QueryBases;
+    string qualities = a.getQualities();
+    string sequence  = a.getQueryBases();
     if ( a.IsReverseStrand() ) {
         Utilities::Reverse(qualities);
         Utilities::ReverseComplement(sequence);
@@ -358,17 +358,17 @@ void ConvertTool::ConvertToolPrivate::PrintFastq(const BamAlignment& a) {
 void ConvertTool::ConvertToolPrivate::PrintJson(const BamAlignment& a) {
   
     // write name & alignment flag
-    m_out << "{\"name\":\"" << a.Name << "\",\"alignmentFlag\":\"" << a.AlignmentFlag << "\",";
+    m_out << "{\"name\":\"" << a.getName() << "\",\"alignmentFlag\":\"" << a.getAlignmentFlag() << "\",";
     
     // write reference name
-    if ( (a.RefID >= 0) && (a.RefID < (int)m_references.size()) ) 
-        m_out << "\"reference\":\"" << m_references[a.RefID].RefName << "\",";
+    if ( (a.getRefID() >= 0) && (a.getRefID() < (int)m_references.size()) ) 
+        m_out << "\"reference\":\"" << m_references[a.getRefID()].RefName << "\",";
     
     // write position & map quality
-    m_out << "\"position\":" << a.Position+1 << ",\"mapQuality\":" << a.MapQuality << ",";
+    m_out << "\"position\":" << a.getPosition()+1 << ",\"mapQuality\":" << a.getMapQuality() << ",";
     
     // write CIGAR
-    const vector<CigarOp>& cigarData = a.CigarData;
+    const vector<CigarOp>& cigarData = a.getCigarData();
     if ( !cigarData.empty() ) {
         m_out << "\"cigar\":[";
         vector<CigarOp>::const_iterator cigarBegin = cigarData.begin();
@@ -384,30 +384,30 @@ void ConvertTool::ConvertToolPrivate::PrintJson(const BamAlignment& a) {
     }
     
     // write mate reference name, mate position, & insert size
-    if ( a.IsPaired() && (a.MateRefID >= 0) && (a.MateRefID < (int)m_references.size()) ) {
+    if ( a.IsPaired() && (a.getMateRefID() >= 0) && (a.getMateRefID() < (int)m_references.size()) ) {
         m_out << "\"mate\":{"
-              << "\"reference\":\"" << m_references[a.MateRefID].RefName << "\","
-              << "\"position\":" << a.MatePosition+1
-              << ",\"insertSize\":" << a.InsertSize << "},";
+              << "\"reference\":\"" << m_references[a.getMateRefID()].RefName << "\","
+              << "\"position\":" << a.getMatePosition()+1
+              << ",\"insertSize\":" << a.getInsertSize() << "},";
     }
     
     // write sequence
-    if ( !a.QueryBases.empty() ) 
-        m_out << "\"queryBases\":\"" << a.QueryBases << "\",";
+    if ( !a.getQueryBases().empty() ) 
+        m_out << "\"queryBases\":\"" << a.getQueryBases() << "\",";
     
     // write qualities
-    if ( !a.Qualities.empty() ) {
-        string::const_iterator s = a.Qualities.begin();
+    if ( !a.getQualities().empty() ) {
+        string::const_iterator s = a.getQualities().begin();
         m_out << "\"qualities\":[" << static_cast<short>(*s) - 33;
         ++s;
-        for ( ; s != a.Qualities.end(); ++s )
+        for ( ; s != a.getQualities().end(); ++s )
             m_out << "," << static_cast<short>(*s) - 33;
         m_out << "],";
     }
 
     // write tag data
-    const char* tagData = a.TagData.c_str();
-    const size_t tagDataLength = a.TagData.length();
+    const char* tagData = a.getTagData().c_str();
+    const size_t tagDataLength = a.getTagData().length();
     size_t index = 0;
     if ( index < tagDataLength ) {
 
@@ -419,11 +419,11 @@ void ConvertTool::ConvertToolPrivate::PrintJson(const BamAlignment& a) {
                 m_out << ",";
             
             // write tag name
-            m_out << "\"" << a.TagData.substr(index, 2) << "\":";
+            m_out << "\"" << a.getTagData().substr(index, 2) << "\":";
             index += 2;
             
             // get data type
-            char type = a.TagData.at(index);
+            char type = a.getTagData().at(index);
             ++index;
             switch ( type ) {
                 case (Constants::BAM_TAG_TYPE_ASCII) :
@@ -494,19 +494,19 @@ void ConvertTool::ConvertToolPrivate::PrintSam(const BamAlignment& a) {
     // <QNAME> <FLAG> <RNAME> <POS> <MAPQ> <CIGAR> <MRNM> <MPOS> <ISIZE> <SEQ> <QUAL> [ <TAG>:<VTYPE>:<VALUE> [...] ]
   
     // write name & alignment flag
-    m_out << a.Name << "\t" << a.AlignmentFlag << "\t";
+    m_out << a.getName() << "\t" << a.getAlignmentFlag() << "\t";
     
     // write reference name
-    if ( (a.RefID >= 0) && (a.RefID < (int)m_references.size()) ) 
-        m_out << m_references[a.RefID].RefName << "\t";
+    if ( (a.getRefID() >= 0) && (a.getRefID() < (int)m_references.size()) ) 
+        m_out << m_references[a.getRefID()].RefName << "\t";
     else 
         m_out << "*\t";
     
     // write position & map quality
-    m_out << a.Position+1 << "\t" << a.MapQuality << "\t";
+    m_out << a.getPosition()+1 << "\t" << a.getMapQuality() << "\t";
     
     // write CIGAR
-    const vector<CigarOp>& cigarData = a.CigarData;
+    const vector<CigarOp>& cigarData = a.getCigarData();
     if ( cigarData.empty() ) m_out << "*\t";
     else {
         vector<CigarOp>::const_iterator cigarIter = cigarData.begin();
@@ -519,42 +519,42 @@ void ConvertTool::ConvertToolPrivate::PrintSam(const BamAlignment& a) {
     }
     
     // write mate reference name, mate position, & insert size
-    if ( a.IsPaired() && (a.MateRefID >= 0) && (a.MateRefID < (int)m_references.size()) ) {
-        if ( a.MateRefID == a.RefID )
+    if ( a.IsPaired() && (a.getMateRefID() >= 0) && (a.getMateRefID() < (int)m_references.size()) ) {
+        if ( a.getMateRefID() == a.getRefID() )
             m_out << "=\t";
         else
-            m_out << m_references[a.MateRefID].RefName << "\t";
-        m_out << a.MatePosition+1 << "\t" << a.InsertSize << "\t";
+            m_out << m_references[a.getMateRefID()].RefName << "\t";
+        m_out << a.getMatePosition()+1 << "\t" << a.getInsertSize() << "\t";
     } 
     else
         m_out << "*\t0\t0\t";
     
     // write sequence
-    if ( a.QueryBases.empty() )
+    if ( a.getQueryBases().empty() )
         m_out << "*\t";
     else
-        m_out << a.QueryBases << "\t";
+        m_out << a.getQueryBases() << "\t";
     
     // write qualities
-    if ( a.Qualities.empty() )
+    if ( a.getQualities().empty() )
         m_out << "*";
     else
-        m_out << a.Qualities;
+        m_out << a.getQualities();
     
     // write tag data
-    const char* tagData = a.TagData.c_str();
-    const size_t tagDataLength = a.TagData.length();
+    const char* tagData = a.getTagData().c_str();
+    const size_t tagDataLength = a.getTagData().length();
     
     size_t index = 0;
     while ( index < tagDataLength ) {
 
         // write tag name   
-        string tagName = a.TagData.substr(index, 2);
+        string tagName = a.getTagData().substr(index, 2);
         m_out << "\t" << tagName << ":";
         index += 2;
         
         // get data type
-        char type = a.TagData.at(index);
+        char type = a.getTagData().at(index);
         ++index;
         switch ( type ) {
             case (Constants::BAM_TAG_TYPE_ASCII) :
@@ -616,26 +616,26 @@ void ConvertTool::ConvertToolPrivate::PrintYaml(const BamAlignment& a) {
 
     // write alignment name
     m_out << "---" << endl;
-    m_out << a.Name << ":" << endl;
+    m_out << a.getName() << ":" << endl;
 
     // write alignment data
-    m_out << "   " << "AlndBases: "     << a.AlignedBases << endl;
-    m_out << "   " << "Qualities: "     << a.Qualities << endl;
-    m_out << "   " << "Name: "          << a.Name << endl;
-    m_out << "   " << "Length: "        << a.Length << endl;
-    m_out << "   " << "TagData: "       << a.TagData << endl;
-    m_out << "   " << "RefID: "         << a.RefID << endl;
-    m_out << "   " << "RefName: "       << m_references[a.RefID].RefName << endl;
-    m_out << "   " << "Position: "      << a.Position << endl;
-    m_out << "   " << "Bin: "           << a.Bin << endl;
-    m_out << "   " << "MapQuality: "    << a.MapQuality << endl;
-    m_out << "   " << "AlignmentFlag: " << a.AlignmentFlag << endl;
-    m_out << "   " << "MateRefID: "     << a.MateRefID << endl;
-    m_out << "   " << "MatePosition: "  << a.MatePosition << endl;
-    m_out << "   " << "InsertSize: "    << a.InsertSize << endl;
+    m_out << "   " << "AlndBases: "     << a.getAlignedBases() << endl;
+    m_out << "   " << "Qualities: "     << a.getQualities() << endl;
+    m_out << "   " << "Name: "          << a.getName() << endl;
+    m_out << "   " << "Length: "        << a.getLength() << endl;
+    m_out << "   " << "TagData: "       << a.getTagData() << endl;
+    m_out << "   " << "RefID: "         << a.getRefID() << endl;
+    m_out << "   " << "RefName: "       << m_references[a.getRefID()].RefName << endl;
+    m_out << "   " << "Position: "      << a.getPosition() << endl;
+    m_out << "   " << "Bin: "           << a.getBin() << endl;
+    m_out << "   " << "MapQuality: "    << a.getMapQuality() << endl;
+    m_out << "   " << "AlignmentFlag: " << a.getAlignmentFlag() << endl;
+    m_out << "   " << "MateRefID: "     << a.getMateRefID() << endl;
+    m_out << "   " << "MatePosition: "  << a.getMatePosition() << endl;
+    m_out << "   " << "InsertSize: "    << a.getInsertSize() << endl;
 
     // write Cigar data
-    const vector<CigarOp>& cigarData = a.CigarData;
+    const vector<CigarOp>& cigarData = a.getCigarData();
     if ( !cigarData.empty() ) {
         m_out << "   " <<  "Cigar: ";
         vector<CigarOp>::const_iterator cigarBegin = cigarData.begin();
@@ -805,13 +805,13 @@ void ConvertPileupFormatVisitor::Visit(const PileupPosition& pileupData ) {
         
         // if beginning of read segment
         if ( pa.IsSegmentBegin )
-            bases << '^' << ( ((int)ba.MapQuality > 93) ? (char)126 : (char)((int)ba.MapQuality+33) );
+            bases << '^' << ( ((int)ba.getMapQuality() > 93) ? (char)126 : (char)((int)ba.getMapQuality()+33) );
         
         // if current base is not a DELETION
         if ( !pa.IsCurrentDeletion ) {
           
             // get base at current position
-            char base = ba.QueryBases.at(pa.PositionInAlignment);
+            char base = ba.getQueryBases().at(pa.PositionInAlignment);
             
             // if base matches reference
             if ( base == '=' || 
@@ -831,7 +831,7 @@ void ConvertPileupFormatVisitor::Visit(const PileupPosition& pileupData ) {
             if ( pa.IsNextInsertion ) {
                 bases << '+' << pa.InsertionLength;
                 for (int i = 1; i <= pa.InsertionLength; ++i) {
-                    char insertedBase = (char)ba.QueryBases.at(pa.PositionInAlignment + i);
+                    char insertedBase = (char)ba.getQueryBases().at(pa.PositionInAlignment + i);
                     bases << (ba.IsReverseStrand() ? (char)tolower(insertedBase) : (char)toupper(insertedBase) );
                 }
             }
@@ -860,11 +860,11 @@ void ConvertPileupFormatVisitor::Visit(const PileupPosition& pileupData ) {
             bases << '$';
         
         // store current base quality
-        baseQualities << ba.Qualities.at(pa.PositionInAlignment);
+        baseQualities << ba.getQualities().at(pa.PositionInAlignment);
         
         // save alignment map quality if desired
         if ( m_isPrintingMapQualities )
-            mapQualities << ( ((int)ba.MapQuality > 93) ? (char)126 : (char)((int)ba.MapQuality+33) );
+            mapQualities << ( ((int)ba.getMapQuality() > 93) ? (char)126 : (char)((int)ba.getMapQuality()+33) );
     }
     
     // ----------------------

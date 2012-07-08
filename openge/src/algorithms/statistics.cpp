@@ -122,16 +122,16 @@ int Statistics::runInternal()
             if ( al.IsProperPair() ) ++m_numProperPair;
             
             // store insert size for first mate 
-            if ( m_showInsertSizeSummary && al.IsFirstMate() && (al.InsertSize != 0) ) {
-                int insertSize = abs(al.InsertSize);
+            if ( m_showInsertSizeSummary && al.IsFirstMate() && (al.getInsertSize() != 0) ) {
+                int insertSize = abs(al.getInsertSize());
                 m_insertSizes.push_back( insertSize );
             }
         }
         
-        if(read_len_ct.end() != read_len_ct.find(al.Length))
-            read_len_ct[al.Length]++;
+        if(read_len_ct.end() != read_len_ct.find(al.getLength()))
+            read_len_ct[al.getLength()]++;
         else
-            read_len_ct[al.Length] = 1;
+            read_len_ct[al.getLength()] = 1;
 
         putOutputAlignment(pal);
     }

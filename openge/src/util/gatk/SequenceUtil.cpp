@@ -56,9 +56,9 @@ vector<AlignmentBlock> getAlignmentBlocks(const BamAlignment * read) {
 
     vector<AlignmentBlock> alignmentBlocks;
     int readBase = 1;
-    int refBase  = read->Position;
+    int refBase  = read->getPosition();
 
-    for (vector<CigarOp>::const_iterator e = read->CigarData.begin(); e != read->CigarData.end(); e++) {
+    for (vector<CigarOp>::const_iterator e = read->getCigarData().begin(); e != read->getCigarData().end(); e++) {
         switch (e->Type) {
             case 'H' : break; // ignore hard clips
             case 'P' : break; // ignore pads
@@ -133,7 +133,7 @@ int SequenceUtil::countMismatches(const BamAlignment * read, const string refere
 
     int mismatches = 0;
     
-    const string readBases = read->QueryBases;//read.getReadBases();
+    const string readBases = read->getQueryBases();//read.getReadBases();
     
     vector<AlignmentBlock> blocks = getAlignmentBlocks(read);
     for (vector<AlignmentBlock>::iterator block = blocks.begin(); block != blocks.end(); block++) {
@@ -169,7 +169,7 @@ int SequenceUtil::countMismatches(const BamAlignment * read, const string refere
  */
 int SequenceUtil::calculateSamNmTag(const BamAlignment * read, const std::string referenceBases, const int referenceOffset, const bool bisulfiteSequence) {
     int samNm = countMismatches(read, referenceBases, referenceOffset, bisulfiteSequence);
-    for (vector<CigarOp>::const_iterator el = read->CigarData.begin(); el != read->CigarData.end(); el++) {
+    for (vector<CigarOp>::const_iterator el = read->getCigarData().begin(); el != read->getCigarData().end(); el++) {
         if (el->Type == 'I' || el->Type == 'D') {
             samNm += el->Length;
         }
@@ -190,12 +190,12 @@ int SequenceUtil::calculateSamNmTag(const BamAlignment * read, const std::string
 int SequenceUtil::sumQualitiesOfMismatches(const BamAlignment * read, const std::string referenceBases, const int referenceOffset, const bool bisulfiteSequence) {
     int qualities = 0;
     
-    const string readBases = read->QueryBases;  //LCB TODO could be AlignedBases? getReadBases
-    const string readQualities = read->Qualities;
+    const string readBases = read->getQueryBases();  //LCB TODO could be AlignedBases? getReadBases
+    const string readQualities = read->getQualities();
     
-    if (read->Position <= referenceOffset) {
-        assert(read->Position > referenceOffset);
-        cerr << "read.getAlignmentStart(" << read->Position << ") <= referenceOffset(" << referenceOffset << ")" << endl;
+    if (read->getPosition() <= referenceOffset) {
+        assert(read->getPosition() > referenceOffset);
+        cerr << "read.getAlignmentStart(" << read->getPosition() << ") <= referenceOffset(" << referenceOffset << ")" << endl;
     }
     
     vector<AlignmentBlock> blocks = getAlignmentBlocks(read);

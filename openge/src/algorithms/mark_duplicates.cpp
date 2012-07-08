@@ -43,7 +43,7 @@ string MarkDuplicates::getBufferFileName()
 
 int MarkDuplicates::getReferenceLength(const BamAlignment &rec) {
     int length = 0;
-    for(vector<CigarOp>::const_iterator i = rec.CigarData.begin(); i != rec.CigarData.end(); i++) {
+    for(vector<CigarOp>::const_iterator i = rec.getCigarData().begin(); i != rec.getCigarData().end(); i++) {
         switch (i->Type) {
             case 'M':
             case 'D':
@@ -62,7 +62,7 @@ int MarkDuplicates::getReferenceLength(const BamAlignment &rec) {
  * @return 1-based inclusive leftmost position of the clippped sequence, or 0 if there is no position.
  */
 int MarkDuplicates::getAlignmentStart(const BamAlignment & rec) {
-    return rec.Position;
+    return rec.getPosition();
 }
 
 /**
@@ -86,7 +86,7 @@ int MarkDuplicates::getAlignmentEnd(const BamAlignment & rec) {
 int MarkDuplicates::getUnclippedStart(const BamAlignment & rec) {
     int pos = getAlignmentStart(rec);
     
-    for (vector<CigarOp>::const_iterator op = rec.CigarData.begin(); op != rec.CigarData.end(); op++ ) {
+    for (vector<CigarOp>::const_iterator op = rec.getCigarData().begin(); op != rec.getCigarData().end(); op++ ) {
         if (op->Type == 'S' || op->Type == 'H') {
             pos -= op->Length;
         }
@@ -108,8 +108,8 @@ int MarkDuplicates::getUnclippedStart(const BamAlignment & rec) {
 int MarkDuplicates::getUnclippedEnd(const BamAlignment & rec) {
     int pos = getAlignmentEnd(rec);
     
-    for (int i=rec.CigarData.size() - 1; i>=0; --i) {
-        const CigarOp & op = rec.CigarData[i];
+    for (int i=rec.getCigarData().size() - 1; i>=0; --i) {
+        const CigarOp & op = rec.getCigarData()[i];
         
         if (op.Type == 'S' || op.Type =='H') {
             pos += op.Length;
@@ -128,8 +128,8 @@ int MarkDuplicates::getUnclippedEnd(const BamAlignment & rec) {
 /** Calculates a score for the read which is the sum of scores over Q20. */
 short MarkDuplicates::getScore(const BamAlignment & rec) {
     short score = 0;
-    for (int i = 0; i < rec.Qualities.size(); i++) {
-        uint8_t b = rec.Qualities[i]-33;   //33 comes from the conversion in BamAlignment
+    for (int i = 0; i < rec.getQualities().size(); i++) {
+        uint8_t b = rec.getQualities()[i]-33;   //33 comes from the conversion in BamAlignment
         if (b >= 15) score += b;
     }
     
@@ -139,7 +139,7 @@ short MarkDuplicates::getScore(const BamAlignment & rec) {
 /** Builds a read ends object that represents a single read. */
 ReadEnds * MarkDuplicates::buildReadEnds(SamHeader & header, long index, const BamAlignment & rec) {
     ReadEnds * ends = new ReadEnds();
-    ends->read1Sequence    = rec.RefID;
+    ends->read1Sequence    = rec.getRefID();
     ends->read1Coordinate  = rec.IsReverseStrand() ? getUnclippedEnd(rec) : getUnclippedStart(rec);
     ends->orientation = rec.IsReverseStrand() ? RE_R : RE_F;
     ends->read1IndexInFile = index;
@@ -147,7 +147,7 @@ ReadEnds * MarkDuplicates::buildReadEnds(SamHeader & header, long index, const B
     
     // Doing this lets the ends object know that it's part of a pair
     if (rec.IsPaired() && rec.IsMateMapped()) {
-        ends->read2Sequence = rec.MateRefID;
+        ends->read2Sequence = rec.getMateRefID();
     }
     
     // Fill in the library ID
@@ -194,7 +194,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
 
         BamAlignment & rec = *prec;
 
-        if (!rec.IsMapped() || rec.RefID == -1) {
+        if (!rec.IsMapped() || rec.getRefID() == -1) {
             // When we hit the unmapped reads or reads with no coordinate, just write them.
         }
         else if (rec.IsPrimaryAlignment()){
@@ -204,8 +204,8 @@ void MarkDuplicates::buildSortedReadEndLists() {
             if (rec.IsPaired() && rec.IsMateMapped()) {
                 string read_group;
                 rec.GetTag("RG", read_group);
-                string key = read_group + ":" + rec.Name;
-                ReadEnds * pairedEnds = tmp.remove(rec.RefID, key);
+                string key = read_group + ":" + rec.getName();
+                ReadEnds * pairedEnds = tmp.remove(rec.getRefID(), key);
                 
                 // See if we've already seen the first end or not
                 if (pairedEnds == NULL) {
@@ -242,7 +242,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
         
         // Print out some stats every 1m reads
         if (verbose && ++index % 100000 == 0) {
-            cerr << "\rRead " << index << " records. Tracking " << tmp.size() << " as yet unmatched pairs. Last sequence index: " << rec.Position << std::flush;
+            cerr << "\rRead " << index << " records. Tracking " << tmp.size() << " as yet unmatched pairs. Last sequence index: " << rec.getPosition() << std::flush;
         }
         
         writer.SaveAlignment(rec);

@@ -75,10 +75,10 @@ struct BamAlignmentChecker {
             const string& propertyName = (*propertyIter).first;
             const PropertyFilterValue& valueFilter = (*propertyIter).second;
             
-            if      ( propertyName == ALIGNMENTFLAG_PROPERTY )  keepAlignment &= valueFilter.check(al.AlignmentFlag);
+            if      ( propertyName == ALIGNMENTFLAG_PROPERTY )  keepAlignment &= valueFilter.check(al.getAlignmentFlag());
             else if ( propertyName == CIGAR_PROPERTY ) {
                 stringstream cigarSs;
-                const vector<CigarOp>& cigarData = al.CigarData;
+                const vector<CigarOp>& cigarData = al.getCigarData();
                 if ( !cigarData.empty() ) {
                     vector<CigarOp>::const_iterator cigarBegin = cigarData.begin();
                     vector<CigarOp>::const_iterator cigarIter = cigarBegin;
@@ -90,7 +90,7 @@ struct BamAlignmentChecker {
                     keepAlignment &= valueFilter.check(cigarSs.str());
                 }
             }
-            else if ( propertyName == INSERTSIZE_PROPERTY )           keepAlignment &= valueFilter.check(al.InsertSize);
+            else if ( propertyName == INSERTSIZE_PROPERTY )           keepAlignment &= valueFilter.check(al.getInsertSize());
             else if ( propertyName == ISDUPLICATE_PROPERTY )          keepAlignment &= valueFilter.check(al.IsDuplicate());
             else if ( propertyName == ISFAILEDQC_PROPERTY )           keepAlignment &= valueFilter.check(al.IsFailedQC());
             else if ( propertyName == ISFIRSTMATE_PROPERTY )          keepAlignment &= valueFilter.check(al.IsFirstMate());
@@ -106,20 +106,20 @@ struct BamAlignmentChecker {
                 const bool isSingleton = al.IsPaired() && al.IsMapped() && !al.IsMateMapped();
                 keepAlignment &= valueFilter.check(isSingleton);
             }
-            else if ( propertyName == MAPQUALITY_PROPERTY )           keepAlignment &= valueFilter.check(al.MapQuality);
-            else if ( propertyName == MATEPOSITION_PROPERTY )         keepAlignment &= ( al.IsPaired() && al.IsMateMapped() && valueFilter.check(al.MateRefID) );
+            else if ( propertyName == MAPQUALITY_PROPERTY )           keepAlignment &= valueFilter.check(al.getMapQuality());
+            else if ( propertyName == MATEPOSITION_PROPERTY )         keepAlignment &= ( al.IsPaired() && al.IsMateMapped() && valueFilter.check(al.getMateRefID()) );
             else if ( propertyName == MATEREFERENCE_PROPERTY ) {
                 if ( !al.IsPaired() || !al.IsMateMapped() ) return false;
-                BAMTOOLS_ASSERT_MESSAGE( (al.MateRefID>=0 && (al.MateRefID<(int)filterToolReferences.size())), "Invalid MateRefID");
-                const string& refName = filterToolReferences.at(al.MateRefID).RefName;
+                BAMTOOLS_ASSERT_MESSAGE( (al.getMateRefID()>=0 && (al.getMateRefID()<(int)filterToolReferences.size())), "Invalid MateRefID");
+                const string& refName = filterToolReferences.at(al.getMateRefID()).RefName;
                 keepAlignment &= valueFilter.check(refName);
             }
-            else if ( propertyName == NAME_PROPERTY )                 keepAlignment &= valueFilter.check(al.Name);
-            else if ( propertyName == POSITION_PROPERTY )             keepAlignment &= valueFilter.check(al.Position);
-            else if ( propertyName == QUERYBASES_PROPERTY )           keepAlignment &= valueFilter.check(al.QueryBases);
+            else if ( propertyName == NAME_PROPERTY )                 keepAlignment &= valueFilter.check(al.getName());
+            else if ( propertyName == POSITION_PROPERTY )             keepAlignment &= valueFilter.check(al.getPosition());
+            else if ( propertyName == QUERYBASES_PROPERTY )           keepAlignment &= valueFilter.check(al.getQueryBases());
             else if ( propertyName == REFERENCE_PROPERTY ) {
-                BAMTOOLS_ASSERT_MESSAGE( (al.RefID>=0 && (al.RefID<(int)filterToolReferences.size())), "Invalid RefID");
-                const string& refName = filterToolReferences.at(al.RefID).RefName;
+                BAMTOOLS_ASSERT_MESSAGE( (al.getRefID()>=0 && (al.getRefID()<(int)filterToolReferences.size())), "Invalid RefID");
+                const string& refName = filterToolReferences.at(al.getRefID()).RefName;
                 keepAlignment &= valueFilter.check(refName);
             }
             else if ( propertyName == TAG_PROPERTY ) keepAlignment &= checkAlignmentTag(valueFilter, al);
@@ -754,8 +754,8 @@ bool FilterTool::FilterToolPrivate::Run(void) {
             // find overlapping alignments
             else {
                 while ( reader.GetNextAlignment(al) ) {
-                    if ( (al.RefID >= region.LeftRefID)  && ((al.Position + al.Length) >= region.LeftPosition) &&
-                         (al.RefID <= region.RightRefID) && ( al.Position <= region.RightPosition) ) 
+                    if ( (al.getRefID() >= region.LeftRefID)  && ((al.getPosition() + al.getLength()) >= region.LeftPosition) &&
+                         (al.getRefID() <= region.RightRefID) && ( al.getPosition() <= region.RightPosition) ) 
                     {
                         if ( CheckAlignment(al) ) 
                             writer.SaveAlignment(al);
