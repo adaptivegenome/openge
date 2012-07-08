@@ -183,7 +183,7 @@ bool BamWriterPrivate::SaveAlignment(const BamAlignment& al) {
 
         // if BamAlignment contains only the core data and a raw char data buffer
         // (as a result of BamReader::GetNextAlignmentCore())
-        if ( al.SupportData.HasCoreOnly )
+        if ( al.getSupportData().HasCoreOnly )
             WriteCoreAlignment(al);
 
         // otherwise, BamAlignment should contain character in the standard fields: Name, QueryBases, etc
@@ -214,23 +214,23 @@ void BamWriterPrivate::SetWriteCompressed(bool ok) {
 void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
 
     // calculate char lengths
-    const unsigned int nameLength         = al.Name.size() + 1;
-    const unsigned int numCigarOperations = al.CigarData.size();
-    const unsigned int queryLength        = al.QueryBases.size();
-    const unsigned int tagDataLength      = al.TagData.size();
+    const unsigned int nameLength         = al.getName().size() + 1;
+    const unsigned int numCigarOperations = al.getCigarData().size();
+    const unsigned int queryLength        = al.getQueryBases().size();
+    const unsigned int tagDataLength      = al.getTagData().size();
 
     // no way to tell if alignment's bin is already defined (there is no default, invalid value)
     // so we'll go ahead calculate its bin ID before storing
-    const uint32_t alignmentBin = CalculateMinimumBin(al.Position, al.GetEndPosition());
+    const uint32_t alignmentBin = CalculateMinimumBin(al.getPosition(), al.GetEndPosition());
 
     // create our packed cigar string
     string packedCigar;
-    CreatePackedCigar(al.CigarData, packedCigar);
+    CreatePackedCigar(al.getCigarData(), packedCigar);
     const unsigned int packedCigarLength = packedCigar.size();
 
     // encode the query
     string encodedQuery;
-    EncodeQuerySequence(al.QueryBases, encodedQuery);
+    EncodeQuerySequence(al.getQueryBases(), encodedQuery);
     const unsigned int encodedQueryLength = encodedQuery.size();
 
     // write the block size
@@ -245,14 +245,14 @@ void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
 
     // assign the BAM core data
     uint32_t buffer[Constants::BAM_CORE_BUFFER_SIZE];
-    buffer[0] = al.RefID;
-    buffer[1] = al.Position;
-    buffer[2] = (alignmentBin << 16) | (al.MapQuality << 8) | nameLength;
-    buffer[3] = (al.AlignmentFlag << 16) | numCigarOperations;
+    buffer[0] = al.getRefID();
+    buffer[1] = al.getPosition();
+    buffer[2] = (alignmentBin << 16) | (al.getMapQuality() << 8) | nameLength;
+    buffer[3] = (al.getAlignmentFlag() << 16) | numCigarOperations;
     buffer[4] = queryLength;
-    buffer[5] = al.MateRefID;
-    buffer[6] = al.MatePosition;
-    buffer[7] = al.InsertSize;
+    buffer[5] = al.getMateRefID();
+    buffer[6] = al.getMatePosition();
+    buffer[7] = al.getInsertSize();
 
     // swap BAM core endian-ness, if necessary
     if ( m_isBigEndian ) {
@@ -264,7 +264,7 @@ void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
     m_stream.Write((char*)&buffer, Constants::BAM_CORE_SIZE);
 
     // write the query name
-    m_stream.Write(al.Name.c_str(), nameLength);
+    m_stream.Write(al.getName().c_str(), nameLength);
 
     // write the packed cigar
     if ( m_isBigEndian ) {
@@ -284,7 +284,7 @@ void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
     m_stream.Write(encodedQuery.data(), encodedQueryLength);
 
     // write the base qualities
-    char* pBaseQualities = (char*)al.Qualities.data();
+    char* pBaseQualities = (char*)al.getQualities().data();
     for ( size_t i = 0; i < queryLength; ++i )
         pBaseQualities[i] -= 33; // FASTQ conversion
     m_stream.Write(pBaseQualities, queryLength);
@@ -293,7 +293,7 @@ void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
     if ( m_isBigEndian ) {
 
         char* tagData = new char[tagDataLength]();
-        memcpy(tagData, al.TagData.data(), tagDataLength);
+        memcpy(tagData, al.getTagData().data(), tagDataLength);
 
         size_t i = 0;
         while ( i < tagDataLength ) {
@@ -385,29 +385,29 @@ void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
         delete[] tagData; // TODO: cleanup on Write exception thrown?
     }
     else
-        m_stream.Write(al.TagData.data(), tagDataLength);
+        m_stream.Write(al.getTagData().data(), tagDataLength);
 }
 
 void BamWriterPrivate::WriteCoreAlignment(const BamAlignment& al) {
 
     // write the block size
-    unsigned int blockSize = al.SupportData.BlockLength;
+    unsigned int blockSize = al.getSupportData().BlockLength;
     if ( m_isBigEndian ) BamTools::SwapEndian_32(blockSize);
     m_stream.Write((char*)&blockSize, Constants::BAM_SIZEOF_INT);
 
     // re-calculate bin (in case BamAlignment's position has been previously modified)
-    const uint32_t alignmentBin = CalculateMinimumBin(al.Position, al.GetEndPosition());
+    const uint32_t alignmentBin = CalculateMinimumBin(al.getPosition(), al.GetEndPosition());
 
     // assign the BAM core data
     uint32_t buffer[Constants::BAM_CORE_BUFFER_SIZE];
-    buffer[0] = al.RefID;
-    buffer[1] = al.Position;
-    buffer[2] = (alignmentBin << 16) | (al.MapQuality << 8) | al.SupportData.QueryNameLength;
-    buffer[3] = (al.AlignmentFlag << 16) | al.SupportData.NumCigarOperations;
-    buffer[4] = al.SupportData.QuerySequenceLength;
-    buffer[5] = al.MateRefID;
-    buffer[6] = al.MatePosition;
-    buffer[7] = al.InsertSize;
+    buffer[0] = al.getRefID();
+    buffer[1] = al.getPosition();
+    buffer[2] = (alignmentBin << 16) | (al.getMapQuality() << 8) | al.getSupportData().QueryNameLength;
+    buffer[3] = (al.getAlignmentFlag() << 16) | al.getSupportData().NumCigarOperations;
+    buffer[4] = al.getSupportData().QuerySequenceLength;
+    buffer[5] = al.getMateRefID();
+    buffer[6] = al.getMatePosition();
+    buffer[7] = al.getInsertSize();
 
     // swap BAM core endian-ness, if necessary
     if ( m_isBigEndian ) {
@@ -419,8 +419,8 @@ void BamWriterPrivate::WriteCoreAlignment(const BamAlignment& al) {
     m_stream.Write((char*)&buffer, Constants::BAM_CORE_SIZE);
 
     // write the raw char data
-    m_stream.Write((char*)al.SupportData.AllCharData.data(),
-                   al.SupportData.BlockLength-Constants::BAM_CORE_SIZE);
+    m_stream.Write((char*)al.getSupportData().AllCharData.data(),
+                   al.getSupportData().BlockLength-Constants::BAM_CORE_SIZE);
 }
 
 void BamWriterPrivate::WriteMagicNumber(void) {

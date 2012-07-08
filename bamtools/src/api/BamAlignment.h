@@ -197,7 +197,9 @@ public:
         };
         BamAlignmentSupportData SupportData;
         friend class Internal::BamReaderPrivate;
-        friend class Internal::BamWriterPrivate;
+    public:
+        const BamAlignmentSupportData & getSupportData() const { return SupportData; }
+    private:
 
         mutable std::string ErrorString; // mutable to allow updates even in logically const methods
     //! \endinternal
