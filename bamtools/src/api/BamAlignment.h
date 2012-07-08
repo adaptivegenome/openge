@@ -20,14 +20,6 @@
 #include <iostream>
 namespace BamTools {
 
-//! \cond
-// forward declaration of BamAlignment's "friends"
-namespace Internal {
-    class BamReaderPrivate;
-    class BamWriterPrivate;
-} // namespace Internal
-//! \endcond
-
 // BamAlignment data structure
 class API_EXPORT BamAlignment {
 
