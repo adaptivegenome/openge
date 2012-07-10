@@ -332,7 +332,6 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
     }
     
     string contig(line);
-    //delete [] line;
 
     // is the contig valid?
     if (!contigIsInDictionary(contig)) {
@@ -343,6 +342,7 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
     if (stop == INT_MAX)
         // lookup the actually stop position!
         stop = strtol((*contigInfo)[contig].Length.c_str(), NULL, 10);
+    delete [] line;
     
     return createGenomeLoc(contig, getContigIndex(contig), start, stop, true);
 }
