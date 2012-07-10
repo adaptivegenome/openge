@@ -682,7 +682,7 @@ vector<CigarOp> AlignmentUtils::leftAlignIndel( vector<CigarOp> cigar, const str
         // check to make sure we haven't run off the end of the read
         bool reachedEndOfRead = cigarHasZeroSizeElement(newCigar);
         
-        if (0 == strcmp(altString->c_str(), newAltString.c_str())) {
+        if (*altString == newAltString) {
             cigar = newCigar;
             i = -1;
             if (reachedEndOfRead)
@@ -796,7 +796,7 @@ string * AlignmentUtils::createIndelString(const vector<CigarOp> & cigar, const 
         return NULL;
     //System.arraycopy(refSeq, refIndex, alt, currentPos, refSeq.length - refIndex);
     
-    memcpy(&alt[currentPos], &readSeq[readIndex], refSeq.size() - refIndex);
+    memcpy(&alt[currentPos], &refSeq[refIndex], refSeq.size() - refIndex);
     
     return new string(alt);
 }

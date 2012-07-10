@@ -181,6 +181,7 @@ GenomeLoc GenomeLocParser::createGenomeLoc(const string & contig, int index, con
 
 //@ThrowEnsures({"UserException.MalformedGenomeLoc", "!isValidGenomeLoc(contig, start, stop,mustBeOnReference)"})
 GenomeLoc GenomeLocParser::createGenomeLoc(const string & contig, int index, const int start, const int stop, bool mustBeOnReference) const {
+    //cerr << "CGL: " << contig << " ix: " << index << " " << start << ":" << stop << endl;
     validateGenomeLoc(contig, index, start, stop, mustBeOnReference, true);
     return GenomeLoc(contig, index, start, stop);
 }
@@ -311,7 +312,7 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
         *hyphen_loc = 0;
     }
     
-    int start = strtol(colon_loc + 1, NULL, 10);
+    int start = strtol(colon_loc + 1, NULL, 10) - 1;
     
     if(errno) {
         cerr << "Could not find start in interval file: " << str << endl;
@@ -321,7 +322,7 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
     
     int stop = start;   //for the chr1:1 case
     if(hyphen_loc) {    // chr1:1-4 case
-        stop = strtol(hyphen_loc + 1, NULL, 10);
+        stop = strtol(hyphen_loc + 1, NULL, 10) - 1;
         
         if(errno) {
             cerr << "Could not find stop in interval file: " << str << endl;
@@ -331,6 +332,7 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
     }
     
     string contig(line);
+    //delete [] line;
 
     // is the contig valid?
     if (!contigIsInDictionary(contig)) {
@@ -399,6 +401,7 @@ GenomeLoc GenomeLocParser::createGenomeLoc(const BamAlignment & read) const {
     else {
         // Use max to ensure that end >= start (Picard assigns the end to reads that are entirely within an insertion as start-1)
         int end = read.IsMapped() ? max(read.Position + read.Length, read.Position):read.Position ;
+        //cerr << "CGL READ: " << getContig(read.RefID) << " Pos: " << read.Position << ":" << end << " len:" << read.Length << " mapped: " << (int) read.IsMapped() << "read " << read.QueryBases[0] << endl;
         return createGenomeLoc(getContig(read.RefID), read.Position, end);
     }
 }

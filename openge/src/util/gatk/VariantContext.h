@@ -44,8 +44,9 @@
 
 #include <vector>
 #include "Allele.h"
+#include "GATKFeature.h"
 
-class VariantContext {
+class VariantContext : public GATKFeature{
 public:
     typedef enum {
         NO_VARIATION,
@@ -55,10 +56,7 @@ public:
         SYMBOLIC,
         MIXED,
     } Type;
-protected:   
-    std::string contig;
-    long start;
-    long stop;
+
 private:
     // a fast cached access point to the ref / alt alleles for biallelic case
     Allele * REF;

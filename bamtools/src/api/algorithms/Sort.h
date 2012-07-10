@@ -121,7 +121,10 @@ struct API_EXPORT Sort {
             // force unmapped aligmnents to end
             if ( lhs.RefID == -1 ) return false;
             if ( rhs.RefID == -1 ) return true;
-
+            
+            if ( lhs.RefID == rhs.RefID  && lhs.Position == rhs.Position)
+                return sort_helper<std::string>(m_order, lhs.Name, rhs.Name);
+            
             // if on same reference, sort on position
             if ( lhs.RefID == rhs.RefID )
                 return sort_helper(m_order, lhs.Position, rhs.Position);

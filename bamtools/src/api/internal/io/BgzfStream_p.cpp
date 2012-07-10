@@ -808,7 +808,7 @@ void BgzfStream::Open(const string& filename, const IBamIODevice::OpenMode mode)
     Close();
     BT_ASSERT_X( (m_device == 0), "BgzfStream::Open() - unable to properly close previous IO device" );
 
-    if(BamParallelismSettings::isMultithreadingEnabled())
+    if(BamParallelismSettings::isMultithreadingEnabled() && mode == IBamIODevice::WriteOnly)
         m_thread_pool = new BamThreadPool();
 	
     // retrieve new IO device depending on filename

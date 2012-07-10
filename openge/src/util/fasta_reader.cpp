@@ -25,6 +25,8 @@
 
 #include "fasta_reader.h"
 #include <sys/mman.h>
+
+#include <algorithm>
 using namespace std;
 using namespace BamTools;
 
@@ -43,7 +45,10 @@ FastaReader::~FastaReader()
 SamSequenceDictionary FastaReader::getSequenceDictionary()
 {
     SamSequenceDictionary d;
-    assert(0);  //this function is unimplemented
+    
+    for(vector<fasta_sequence_t>::const_iterator i = ordered_sequences.begin(); i != ordered_sequences.end(); i++)
+        d.Add(i->name, i->length);
+
     return d;
 }
 
@@ -89,7 +94,61 @@ string FastaReader::getSubsequenceAt(string name, size_t start, size_t stop)
 string FastaReader::readSequence(string name, size_t start, size_t length)
 {
     string read;
-    //TODO LCB IMPORTANT
+    
+    map<string, fasta_sequence_t>::iterator i = sequences.find(name);
+    
+    if(i == sequences.end()) {
+        cerr << "Sequence " << name << " not found in FASTA. Aborting." << endl;
+        exit(-1);
+    }
+    
+    fasta_sequence_t & seq = i->second;
+    
+    if(start + length >= seq.length) {
+        cerr << "Requested FASTA read is beyond end of sequence. Aborting." << endl;
+        assert(0);
+        exit(-1);
+    }
+    
+    size_t lines_to_skip = start / seq.line_data_length;
+
+    char * data_p = seq.sequence_start + lines_to_skip * seq.line_length;
+    size_t data_ix = lines_to_skip * seq.line_data_length;
+    
+    // first line to be read doesn't necessarily start from the beginning of the line,
+    // or end at the end of the line.
+    {
+        char * read_start = data_p + (start - data_ix);
+        size_t len_minus_start = seq.line_data_length - (start - data_ix);
+        int read_len = min(length, len_minus_start);
+        
+        read.append(read_start, read_len);
+        
+        if(read.find('\n') != read.npos)
+            assert(0);
+        
+        data_p += seq.line_length;
+        data_ix += seq.line_data_length;
+    }
+    
+    
+    //Read lines, starting from the beginning of the line.
+    while(data_ix < start + length) {
+        
+        int read_len = min((size_t)seq.line_data_length, start+length - data_ix);
+
+        read.append(data_p, read_len);
+        
+        if(read.find('\n') != read.npos)
+            assert(0);
+        
+        data_p += seq.line_length;
+        data_ix += seq.line_data_length;
+    }
+    
+    if(read.find('\n') != read.npos)
+        assert(0);
+
     return read;
 }
 

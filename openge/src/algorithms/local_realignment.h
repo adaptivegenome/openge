@@ -208,7 +208,8 @@ private:
     static std::vector<BamTools::CigarOp> unclipCigar(const std::vector<BamTools::CigarOp> & cigar);    
     static bool isClipOperator(const BamTools::CigarOp op);
     static std::vector<BamTools::CigarOp> reclipCigar(std::vector<BamTools::CigarOp> & cigar, BamTools::BamAlignment * read);
-    
+
+#pragma mark AlignedRead
     class AlignedRead {
     private:
         BamTools::BamAlignment * read;
@@ -223,6 +224,8 @@ private:
         static int NO_ORIGINAL_ALIGNMENT_TAGS;
         AlignedRead(BamTools::BamAlignment * read) 
         : read(read) 
+        , readBases(NULL)
+        , baseQuals(NULL)
         , newCigar(NULL)
         , newStart(-1)
         , mismatchScoreToReference(0)
@@ -334,7 +337,7 @@ private:
     // the reads and known indels that fall into the current interval
     ReadBin readsToClean;
     std::vector<BamTools::BamAlignment *> readsNotToClean;
-    std::vector<VariantContext *> knownIndelsToTry;
+    std::vector<VariantContext> knownIndelsToTry;
     std::set<GATKFeature> indelRodsSeen;
     std::set<BamTools::BamAlignment *> readsActuallyCleaned;
     
@@ -390,7 +393,7 @@ public:
 private:
     void populateKnownIndels(ReadMetaDataTracker metaDataTracker) ;
     
-    static int mismatchQualitySumIgnoreCigar(AlignedRead aRead, const std::string refSeq, int refIndex, int quitAboveThisValue);
+    static int mismatchQualitySumIgnoreCigar(AlignedRead aRead, const std::string & refSeq, int refIndex, int quitAboveThisValue);
     
     void clean(ReadBin readsToClean) ;
     void generateAlternateConsensesFromKnownIndels(std::set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const std::string reference);

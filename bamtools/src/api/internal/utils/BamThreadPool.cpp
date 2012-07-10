@@ -156,6 +156,7 @@ BamThreadJob * BamThreadPool::startJob()
     perror("Error locking jobs mutex");
     assert(0);
   }
+    assert(jobs.size() > 0);
 	BamThreadJob * job = jobs.front();
 	jobs.pop();
 	jobs_in_process++;

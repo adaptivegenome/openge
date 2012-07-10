@@ -1249,7 +1249,7 @@ private static List<Allele> makeAlleles(Collection<Allele> alleles) {
 // ---------------------------------------------------------------------------------------------------------
 #endif
     string VariantContext::getChr() {
-    return contig;
+    return chr;
 }
 
 int VariantContext::getStart() {
@@ -1257,7 +1257,7 @@ int VariantContext::getStart() {
 }
 
 int VariantContext::getEnd() {
-    return (int)stop;
+    return (int)end;
 }
 #if 0
 

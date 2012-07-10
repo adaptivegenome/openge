@@ -101,11 +101,15 @@ import java.util.*;
 
 #include "../../algorithms/local_realignment.h"
 
+#include <api/algorithms/Sort.h>
+
 #include <map>
 #include <string>
 #include <set>
 #include <list>
 #include <vector>
+#include <functional>
+#include <algorithm>
 #include <sstream>
 using namespace std;
 
@@ -130,7 +134,7 @@ int computeInsertSize(const BamAlignment & firstEnd, const BamAlignment & second
     return secondEnd5PrimePosition - firstEnd5PrimePosition + adjustment;
 }
 
-void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader & header) {
+void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader * header) {
     const int NO_ALIGNMENT_REFERENCE_INDEX = -1;
     const int NO_ALIGNMENT_START = -1;
     // If neither read is unmapped just set their mate info
@@ -140,13 +144,13 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader & header) 
         rec1.MatePosition = rec2.Position;
         rec1.SetIsReverseStrand(rec2.IsReverseStrand());
         rec1.SetIsMapped(true);
-        rec1.AddTag("MQ", "i", rec2.MapQuality);
+        rec1.AddTag<int>("MQ", "i", rec2.MapQuality);
         
         rec2.MateRefID = rec1.RefID;
         rec2.MatePosition = rec1.Position;
         rec2.SetIsReverseStrand( rec1.IsReverseStrand() );
         rec2.SetIsMapped(true);
-        rec2.AddTag("MQ", "i", rec1.MapQuality);
+        rec2.AddTag<int>("MQ", "i", rec1.MapQuality);
     }
     // Else if they're both unmapped set that straight
     else if (!rec1.IsMapped() && !rec2.IsMapped()) {
@@ -157,7 +161,7 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader & header) 
         rec1.SetIsReverseStrand(rec2.IsReverseStrand());
         rec1.SetIsMapped(false);
         rec2.RemoveTag("MQ");
-        rec1.Length = 0;
+        rec1.InsertSize = 0;
         
         rec2.RefID = NO_ALIGNMENT_REFERENCE_INDEX;
         rec2.Position = NO_ALIGNMENT_START;
@@ -166,7 +170,7 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader & header) 
         rec2.SetIsReverseStrand(rec1.IsReverseStrand());
         rec2.SetIsMapped(false);
         rec2.RemoveTag("MQ");
-        rec2.Length = 0;
+        rec2.InsertSize = 0;
     }
     // And if only one is mapped copy it's coordinate information to the mate
     else {
@@ -179,13 +183,13 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader & header) 
         mapped.MatePosition = unmapped.Position;
         mapped.SetIsMateReverseStrand(unmapped.IsReverseStrand());
         mapped.SetIsMateMapped(false);
-        mapped.Length = 0;
+        mapped.InsertSize = 0;
         
         unmapped.MateRefID = mapped.RefID;
         unmapped.MatePosition = mapped.Position;
         unmapped.SetIsMateReverseStrand(mapped.IsReverseStrand());
         unmapped.SetIsMateMapped(true);
-        unmapped.Length = 0;
+        unmapped.InsertSize = 0;
     }
     
     const int insertSize = computeInsertSize(rec1, rec2);
@@ -224,6 +228,8 @@ ConstrainedMateFixingManager::ConstrainedMateFixingManager( LocalRealignment * w
 , lastLocFlushed(NULL)
 , counter(0)
 , loc_parser(loc_parser)
+, cmp(Algorithms::Sort::ByPosition())
+, waitingReads(cmp)
 { }
 
 int ConstrainedMateFixingManager::getNReadsInQueue() { return waitingReads.size(); }
@@ -260,13 +266,13 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
     // if the new read is on a different contig or we have too many reads, then we need to flush the queue and clear the map
     bool tooManyReads = getNReadsInQueue() >= MAX_RECORDS_IN_MEMORY;
     if ( (canFlush && tooManyReads) || (getNReadsInQueue() > 0 && (*waitingReads.begin())->RefID != newRead->RefID) ) {
-        if ( DEBUG ) {
+        if ( true || DEBUG ) {
             stringstream ss("");
             if(tooManyReads)
                 ss << "too many reads";
             else
                 ss << "move to new contig #: " << newRead->RefID << " from #" << (*waitingReads.begin())->RefID;
-            cerr << "Flushing queue on " << ss << " at " << newRead->Position << endl;
+            cerr << "Flushing queue on " << ss.str() << " at " << newRead->Position << endl;
         }
         
         while ( getNReadsInQueue() > 1 ) {
@@ -316,7 +322,7 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
                 }
                 
                 // we've already seen our mate -- set the mate info and remove it from the map
-                //SamPairUtil.setMateInfo(mate.record, newRead, NULL);
+                setMateInfo(*mate.record, *newRead, NULL);
                 if ( reQueueMate ) waitingReads.insert(mate.record);
             }
             

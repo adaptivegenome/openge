@@ -48,6 +48,8 @@
 #include "GenomeLoc.h"
 #include "GenomeLocParser.h"
 
+#include "api/algorithms/Sort.h"
+
 #include <list>
 #include <map>
 #include <set>
@@ -102,6 +104,8 @@ private:
     
     /** read.name -> records */
     std::map<std::string, SAMRecordHashObject> forMateMatching;
+    //std::less<BamTools::BamAlignment *> cmp;
+    BamTools::Algorithms::Sort::AlignmentPtrSortBase cmp;
     std::set<BamTools::BamAlignment *> waitingReads;
     
 private:

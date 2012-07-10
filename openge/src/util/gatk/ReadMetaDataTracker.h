@@ -97,7 +97,7 @@ private:
      *
      * @return a mapping from the position in the read to the reference ordered datum
      */
-    std::map<int, std::set<GATKFeature> > createGenomeLocAlignment(const BamTools::BamAlignment & record, std::map<int, RODMetaDataContainer> mapping, std::string name);
+    std::map<int, std::set<GATKFeature> > createGenomeLocAlignment(const BamTools::BamAlignment & record, std::map<int, RODMetaDataContainer> mapping, std::string * name);
     
     /**
      * get the position mapping, from read offset to ROD

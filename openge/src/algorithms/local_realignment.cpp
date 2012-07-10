@@ -91,6 +91,7 @@ using namespace BamTools;
 #include <string>
 #include <sstream>
 #include <cstdlib>  //for rand()
+#include <cassert>
 #include <algorithm>
 using namespace std;
 
@@ -175,6 +176,15 @@ string  LocalRealignment::AlignedRead::getBaseQualities() {
     return *baseQuals;
 }
 
+string cigarToString(vector<CigarOp> cigar)
+{
+    stringstream ss;
+    for(vector<CigarOp>::iterator i = cigar.begin(); i != cigar.end(); i++)
+        ss << i->Length << i->Type;
+    
+    return ss.str();
+}
+
 // pull out the bases that aren't clipped out
 void LocalRealignment::AlignedRead::getUnclippedBases() {
     readBases = new string('?', getReadLength());
@@ -191,8 +201,9 @@ void LocalRealignment::AlignedRead::getUnclippedBases() {
                 break;
             case 'M':
             case 'I':
-                readBases->replace( fromIndex, elementLength, string(actualReadBases, fromIndex, elementLength));
-                baseQuals->replace( fromIndex, elementLength, string(actualBaseQuals, fromIndex, elementLength));
+                readBases->replace( toIndex, elementLength, string(actualReadBases, fromIndex, elementLength));
+                baseQuals->replace( toIndex, elementLength, string(actualBaseQuals, fromIndex, elementLength));
+                //arraycopy: src, srcpos, dst, dstpos, len
                 //System.arraycopy(actualReadBases, fromIndex, readBases, toIndex, elementLength);
                 //System.arraycopy(actualBaseQuals, fromIndex, baseQuals, toIndex, elementLength);
                 fromIndex += elementLength;
@@ -244,8 +255,8 @@ void LocalRealignment::AlignedRead::setCigar(vector<CigarOp> * cigar, bool fixCl
 
     if ( !has_i_or_d) {
         cerr << "Modifying a read with no associated indel; although this is possible, it is highly unlikely.  Perhaps this region should be double-checked: " << read->Name << " near read->getReferenceName():" << read->Position << endl; // FIXME LCB, can't easily access the reference name with current code organization. We should do something about this.
-        //    newCigar = NULL;
-        //    return;
+            newCigar = NULL;
+            return;
     }
     
     newCigar = cigar;
@@ -328,10 +339,11 @@ string * LocalRealignment::ReadBin::getReference(FastaReader & referenceReader) 
     // set up the reference if we haven't done so yet
     if ( reference == NULL ) {
         // first, pad the reference to handle deletions in narrow windows (e.g. those with only 1 read)
-        int padLeft = max(loc->getStart()-REFERENCE_PADDING, 1);
+        int padLeft = max(loc->getStart()-REFERENCE_PADDING, 0);    //LCB 1->0
         int padRight = min(loc->getStop()+REFERENCE_PADDING, atoi(referenceReader.getSequenceDictionary()[loc->getContig()].Length.c_str()));
         loc = new GenomeLoc(loc_parser->createGenomeLoc(loc->getContig(), padLeft, padRight));
-        reference = new string(referenceReader.readSequence(loc->getContig(), loc->getStart(), loc->getStop() - loc->getStart()));
+        reference = new string(referenceReader.readSequence(loc->getContig(), loc->getStart(), loc->getStop() - loc->getStart() - 1));
+        cerr << "RefStart " << loc->getStart() << endl;
 
         //transform to upper case. STL sometimes makes things harder than they should be.
         std::transform(reference->begin(), reference->end(), reference->begin(), (int (*)(int))std::toupper); 
@@ -451,6 +463,7 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
     const int NO_ALIGNMENT_REFERENCE_INDEX = -1;
     if ( currentInterval == NULL ) {
         emit(read);
+        cerr << "MAP A" << endl;
         return 0;
     }
     
@@ -459,15 +472,17 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
     //   at this point without trying to create a GenomeLoc.
     if ( read->RefID == NO_ALIGNMENT_REFERENCE_INDEX ) {
         cleanAndCallMap(read, metaDataTracker, NULL);
+        cerr << "MAP B" << endl;
         return 0;
     }
-    
+    //cerr << "MAP CG" << endl;
     GenomeLoc readLoc = loc_parser->createGenomeLoc(*read);
     // hack to get around unmapped reads having screwy locations
     if ( readLoc.getStop() == 0 )
         readLoc = loc_parser->createGenomeLoc(readLoc.getContig(), readLoc.getStart(), readLoc.getStart());
     
     if ( readLoc.isBefore(*currentInterval) ) {
+        //cerr << "MAP C" << endl;
         if ( !sawReadInCurrentInterval )
             emit(read);
         else
@@ -477,8 +492,10 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
         sawReadInCurrentInterval = true;
         
         if ( doNotTryToClean(read) ) {
+            cerr << "MAP D1" << endl;
             readsNotToClean.push_back(read);
         } else {
+            //cerr << "MAP D2" << endl;
             readsToClean.add(read);
             
             // add the rods to the list of known variants
@@ -486,11 +503,13 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
         }
         
         if ( readsToClean.size() + readsNotToClean.size() >= MAX_READS ) {
+            cerr << "MAP D3" << endl;
             fprintf(stderr, "Not attempting realignment in interval %s because there are too many reads.", currentInterval->toString().c_str());
             abortCleanForCurrentInterval();
         }
     }
     else {  // the read is past the current interval
+        //cerr << "MAP E" << endl;
         cleanAndCallMap(read, metaDataTracker, &readLoc);
     }
     
@@ -499,7 +518,7 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
 
 void LocalRealignment::abortCleanForCurrentInterval() {
     emitReadLists();
-    currentInterval = ++interval_it != intervalsFile.end() ? *interval_it : NULL;
+    currentInterval = (++interval_it != intervalsFile.end()) ? *interval_it : NULL;
     sawReadInCurrentInterval = false;
 }
 
@@ -535,7 +554,7 @@ void LocalRealignment::cleanAndCallMap( BamAlignment * read, ReadMetaDataTracker
     
     emitReadLists();
     do {
-        currentInterval = ++interval_it != intervalsFile.end() ? *interval_it : NULL;
+        currentInterval = (++interval_it != intervalsFile.end()) ? *interval_it : NULL;
         
     } while ( currentInterval != NULL && (readLoc == NULL || currentInterval->isBefore(*readLoc)) );
     sawReadInCurrentInterval = false;
@@ -575,6 +594,9 @@ void LocalRealignment::onTraversalDone(int result) {
     
     manager->close();
     
+    for(vector<GenomeLoc *>::const_iterator interval_it = intervalsFile.begin(); interval_it != intervalsFile.end(); interval_it++)
+        delete *interval_it;
+    
     if ( CHECKEARLY ) {
         fprintf(stderr, "SW alignments runs: %ld\n", SWalignmentRuns);
         fprintf(stderr, "SW alignments successfull: %ld (%ld%% of SW runs)", SWalignmentSuccess, SWalignmentSuccess/SWalignmentRuns);
@@ -585,11 +607,9 @@ void LocalRealignment::onTraversalDone(int result) {
 
 void LocalRealignment::populateKnownIndels(ReadMetaDataTracker metaDataTracker) {
     map<int, set<GATKFeature> > contigOffsetMapping = metaDataTracker.getContigOffsetMapping();
-    
-    //vector<vector<GATKFeature> *> values = metaDataTracker.getContigOffsetMapping().values();
+
     for ( map<int, set<GATKFeature> >::iterator rods_it  = contigOffsetMapping.begin(); rods_it != contigOffsetMapping.end(); rods_it++) {
-        set<GATKFeature>::iterator rodIter = rods_it->second.begin();
-        while ( rodIter != rods_it->second.end() ) {
+        for(set<GATKFeature>::iterator rodIter = rods_it->second.begin(); rodIter != rods_it->second.end();rodIter++) {
             const GATKFeature & feature = *rodIter;
             const GATKFeature & rod = feature;    // LCB TODO verify the correctness of this function vs original source code
             if ( indelRodsSeen.count(rod) > 0 )
@@ -597,16 +617,14 @@ void LocalRealignment::populateKnownIndels(ReadMetaDataTracker metaDataTracker) 
             indelRodsSeen.insert(rod);
             //LCB TODO do we need to include the next two lines? What is the significance of GATK's child being a VariantContext??
             //if ( dynamic_cast<VariantContext *>(&rod) ) //we need to statically decide this in OGE
-            //    knownIndelsToTry.push_back(rod);
-            
-            rodIter++;
+            //    knownIndelsToTry.push_back(*(dynamic_cast<const VariantContext*>(&rod)));
         }
     }
 }
 
-int LocalRealignment::mismatchQualitySumIgnoreCigar(AlignedRead aRead, const string refSeq, int refIndex, int quitAboveThisValue) {
-    string readSeq = aRead.getReadBases();
-    string quals = aRead.getBaseQualities();
+int LocalRealignment::mismatchQualitySumIgnoreCigar(AlignedRead aRead, const string & refSeq, int refIndex, int quitAboveThisValue) {
+    const string & readSeq = aRead.getReadBases();
+    const string & quals = aRead.getBaseQualities();
     int sum = 0;
     for (int readIndex = 0 ; readIndex < readSeq.size() ; refIndex++, readIndex++ ) {
         if ( refIndex >= refSeq.size() ) {
@@ -620,7 +638,7 @@ int LocalRealignment::mismatchQualitySumIgnoreCigar(AlignedRead aRead, const str
             if ( !BaseUtils::isRegularBase(readChr) || !BaseUtils::isRegularBase(refChr) )
                 continue; // do not count Ns/Xs/etc ?
             if ( readChr != refChr ) {
-                sum += (int)quals[readIndex];
+                sum += (int)quals[readIndex] -33;   // Our qualities are still stored in ASCII
                 // optimization: once we pass the threshold, stop calculating
                 if ( sum > quitAboveThisValue )
                     return sum;
@@ -647,6 +665,8 @@ void LocalRealignment::clean(ReadBin readsToClean) {
     // if there are any known indels for this region, get them and create alternate consenses
     generateAlternateConsensesFromKnownIndels(altConsenses, leftmostIndex, *reference);
     
+    cerr << altConsenses.size() << "ACs from indels" << endl;
+    
     // decide which reads potentially need to be cleaned;
     // if there are reads with a single indel in them, add that indel to the list of alternate consenses
     long totalRawMismatchSum = determineReadsThatNeedCleaning(reads, refReads, altReads, altAlignmentsToTest, altConsenses, leftmostIndex, *reference);
@@ -655,26 +675,28 @@ void LocalRealignment::clean(ReadBin readsToClean) {
     //LCB if ( consensusModel == ConsensusDeterminationModel.USE_SW )
     //  generateAlternateConsensesFromReads(altAlignmentsToTest, altConsenses, *reference, leftmostIndex);
     
-    // if ( debugOn ) System.out.println("------\nChecking consenses...\n--------\n");
+    if ( true ) cerr << "------\nChecking consenses...(" << altConsenses.size() << ")\n--------\n";
     
     Consensus * bestConsensus = NULL;
-    set<Consensus *>::iterator iter = altConsenses.begin();
+
+    //assert(altConsenses.size() > 0);
     
-    while ( iter != altConsenses.end() ) {
-        Consensus * consensus = *(iter++);
-        //logger.debug("Trying new consensus: " + consensus.cigar + " " + new String(consensus.str));
-        
-        //            if ( DEBUG ) {
-        //                System.out.println("Checking consensus with alignment at "+consensus.positionOnReference+" cigar "+consensus.cigar);
-        //                System.out.println(new String(consensus.str));
-        //                int z = 0;
-        //                for ( ; z < consensus.positionOnReference; z++ )  System.out.print('.');
-        //                for ( z=0 ; z < consensus.cigar.getCigarElement(0).getLength() ; z++ ) System.out.print('.');
-        //                if ( consensus.cigar.getCigarElement(1).getOperator() == CigarOperator.I ) for ( z= 0; z < consensus.cigar.getCigarElement(1).getLength(); z++ )  System.out.print('I');
-        //                System.out.println();
-        //            }
-        
-        // if ( debugOn ) System.out.println("Consensus: "+consensus.str);
+    for (set<Consensus *>::iterator iter = altConsenses.begin(); iter != altConsenses.end(); iter++) {
+        Consensus * consensus = *iter;
+
+        if ( true ) {
+            cerr << "Checking consensus with alignment at " << consensus->positionOnReference << " cigar " << cigarToString(consensus->cigar) << endl;
+            cerr << consensus->str << endl;
+            int z = 0;
+            for ( ; z < consensus->positionOnReference; z++ ) 
+                cerr << ".";
+            for ( z=0 ; z < consensus->cigar[0].Length ; z++ ) 
+                cerr << ".";
+            if ( consensus->cigar[1].Type == 'I' ) 
+                for ( z= 0; z < consensus->cigar[1].Length; z++ )  
+                    cerr << "I";
+            cerr << endl;
+        }
         
         for ( int j = 0; j < altReads.size(); j++ ) {
             AlignedRead toTest = altReads[j];
@@ -683,6 +705,8 @@ void LocalRealignment::clean(ReadBin readsToClean) {
             // the mismatch score is the min of its alignment vs. the reference and vs. the alternate
             int myScore = altAlignment.second;
             
+            cerr << "orig myscore" << myScore << endl;
+            
             if ( myScore > toTest.getAlignerMismatchScore() || myScore >= toTest.getMismatchScoreToReference() )
                 myScore = toTest.getMismatchScoreToReference();
             // keep track of reads that align better to the alternate consensus.
@@ -690,7 +714,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
             else
                 consensus->readIndexes.push_back( pair<int, int>(j, altAlignment.first));
             
-            //logger.debug(consensus.cigar +  " vs. " + toTest.getRead().getReadName() + "-" + toTest.getRead().getReadString() + " => " + myScore + " vs. " + toTest.getMismatchScoreToReference());
+            cerr << cigarToString(consensus->cigar) << " vs. " << toTest.getRead()->Name << "-" << toTest.getRead()->QueryBases << " => " << myScore << " vs. " << toTest.getMismatchScoreToReference() << endl;
             if ( !toTest.getRead()->IsDuplicate() )
                 consensus->mismatchSum += myScore;
             
@@ -700,14 +724,14 @@ void LocalRealignment::clean(ReadBin readsToClean) {
                 break;
         }
         
-        //logger.debug("Mismatch sum of new consensus: " + consensus.mismatchSum);
+        cerr << "Mismatch sum of new consensus: " << consensus->mismatchSum << endl;
         if ( bestConsensus == NULL || bestConsensus->mismatchSum > consensus->mismatchSum) {
             // we do not need this alt consensus, release memory right away!!
             if ( bestConsensus != NULL ) {
                 bestConsensus->readIndexes.clear();
             }
             bestConsensus = consensus;
-            //logger.debug("New consensus " + bestConsensus.cigar +  " is now best consensus");
+            cerr << "New consensus " << cigarToString(bestConsensus->cigar) <<  " is now best consensus" << endl;
         } else {
             // we do not need this alt consensus, release memory right away!!
             consensus->readIndexes.clear();
@@ -737,7 +761,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
                 statsOutput << improvement << endl;
             }
         } else {
-            //logger.debug("CLEAN: " + bestConsensus.cigar + " " + bestConsensus.str.toString() + " " + bestConsensus.cigar.numCigarElements() );
+            cerr << "CLEAN: " << cigarToString(bestConsensus->cigar) << " " << bestConsensus->str << " " + bestConsensus->cigar.size() << endl;
             if ( indelOutput != NULL && bestConsensus->cigar.size() > 1 ) {
                 // NOTE: indels are printed out in the format specified for the low-coverage pilot1
                 //  indel calls (tab-delimited): chr position size type sequence
@@ -811,8 +835,8 @@ void LocalRealignment::clean(ReadBin readsToClean) {
 }
 
 void LocalRealignment::generateAlternateConsensesFromKnownIndels(set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const string reference) {
-    for ( vector<VariantContext *>::iterator knownIndelIt  = knownIndelsToTry.begin(); knownIndelIt != knownIndelsToTry.end(); knownIndelIt++ ) {
-        VariantContext * knownIndel = *knownIndelIt;
+    for ( vector<VariantContext>::iterator knownIndelIt  = knownIndelsToTry.begin(); knownIndelIt != knownIndelsToTry.end(); knownIndelIt++ ) {
+        VariantContext * knownIndel = &*knownIndelIt;
         if ( knownIndel == NULL || !knownIndel->isIndel() || knownIndel->isComplexIndel() )
             continue;
         string indelStr = knownIndel->isSimpleInsertion() ? knownIndel->getAlternateAllele(0).getBases() : string( knownIndel->getReference().length(), '-');  //string constructor used here makes n copies of one character
@@ -860,8 +884,7 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
         
         // if this doesn't match perfectly to the reference, let's try to clean it
         if ( rawMismatchScore > 0 ) {
-            altReadsToPopulate.push_back(aRead);
-            //logger.debug("Adding " + read.getReadName() + " with raw mismatch score " + rawMismatchScore + " to non-ref reads");
+            cerr << "Adding " << read->Name << " with raw mismatch score " << rawMismatchScore << " to non-ref reads" << endl;
             
             if ( !read->IsDuplicate() )
                 totalRawMismatchSum += rawMismatchScore;
@@ -871,16 +894,19 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
             // if it has an indel, let's see if that's the best consensus
             if ( consensusModel != KNOWNS_ONLY && numBlocks == 2 )  {
                 Consensus * c = createAlternateConsensus(startOnRef, aRead.getCigar(), reference, aRead.getReadBases());
-                if ( c != NULL )
+                if ( c != NULL ) {
+                    cerr << "  \\|/New consensus " << cigarToString(c->cigar) << endl;
                     altConsenses.insert(c);
-                delete c;
+                }
             } else {
                 altAlignmentsToTest.push_back(aRead);
             }
+            
+            altReadsToPopulate.push_back(aRead);
         }
         // otherwise, we can emit it as is
         else {
-            //logger.debug("Adding " + read.getReadName() + " with raw mismatch score " + rawMismatchScore + " to ref reads");
+            cerr << "Adding " << read->Name << " with raw mismatch score " << rawMismatchScore << " to ref reads" << endl;
             refReadsToPopulate.push_back(read);
         }
     }
@@ -1303,7 +1329,7 @@ bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead> & reads, cons
         }
     }
     
-    //logger.debug("Original mismatch columns = " + originalMismatchColumns + "; cleaned mismatch columns = " + cleanedMismatchColumns);
+    cerr << "Original mismatch columns = " << originalMismatchColumns << "; cleaned mismatch columns = " << cleanedMismatchColumns << endl;
     
     const bool reduces = (originalMismatchColumns == 0 || cleanedMismatchColumns < originalMismatchColumns);
     if ( reduces && snpsOutput != NULL ) {
@@ -1394,5 +1420,7 @@ int LocalRealignment::runInternal()
         map_func(al, rmdt);
     };
     
-    return -1;
+    onTraversalDone(0);
+    
+    return 0;
 }

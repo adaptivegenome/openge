@@ -89,14 +89,18 @@ map<int, set<GATKFeature> > ReadMetaDataTracker::createReadAlignment(BamAlignmen
     
 }
 
-map<int, set<GATKFeature> > ReadMetaDataTracker::createGenomeLocAlignment(const BamAlignment & record, map<int, RODMetaDataContainer> mapping, string name) {
+map<int, set<GATKFeature> > ReadMetaDataTracker::createGenomeLocAlignment(const BamAlignment & record, map<int, RODMetaDataContainer> mapping, string * name) {
     map<int, set<GATKFeature> > ret;
     int start = record.Position;
     int stop = record.Position + record.Length;
     for (map<int, RODMetaDataContainer>::iterator it = mapping.begin(); it != mapping.end(); it++) {
         int location = it->first;
-        if (location >= start && location <= stop)
-            ret[location] = mapping[location].getSet(name);
+        if (location >= start && location <= stop) {
+            if(name)
+                ret[location] = mapping[location].getSet(*name);
+            else
+                ret[location] = mapping[location].getSet();
+        }
     }
     return ret;
 }
@@ -114,7 +118,7 @@ map<int, set<GATKFeature> > ReadMetaDataTracker::getReadOffsetMapping(string nam
 }
 
 map<int, set<GATKFeature> > ReadMetaDataTracker::getContigOffsetMapping(string name) {
-    return createGenomeLocAlignment(*record, mapping, name);
+    return createGenomeLocAlignment(*record, mapping, &name);
 }
 #if 0
 map<int, vector<GATKFeature> > ReadMetaDataTracker::getReadOffsetMapping(Class cl) {
