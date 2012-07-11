@@ -148,7 +148,7 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader * header) 
         
         rec2.MateRefID = rec1.RefID;
         rec2.MatePosition = rec1.Position;
-        rec2.SetIsReverseStrand( rec1.IsReverseStrand() );
+        rec2.SetIsMateReverseStrand( rec1.IsReverseStrand() );
         rec2.SetIsMapped(true);
         rec2.AddTag<int>("MQ", "i", rec1.MapQuality);
     }
@@ -158,7 +158,7 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader * header) 
         rec1.Position = NO_ALIGNMENT_START;
         rec1.MateRefID = NO_ALIGNMENT_REFERENCE_INDEX;
         rec1.MatePosition = NO_ALIGNMENT_START;
-        rec1.SetIsReverseStrand(rec2.IsReverseStrand());
+        rec1.SetIsMateReverseStrand(rec2.IsReverseStrand());
         rec1.SetIsMapped(false);
         rec2.RemoveTag("MQ");
         rec1.InsertSize = 0;
