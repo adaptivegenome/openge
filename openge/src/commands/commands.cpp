@@ -34,8 +34,6 @@ namespace po = boost::program_options;
 
 int OpenGECommand::runWithParameters(int argc, const char ** argv)
 {
-    options.add(global_options);
-    options.add(io_options);
     options_positional.add("in", -1);
     getOptions();
     
@@ -104,11 +102,9 @@ int OpenGECommand::runWithParameters(int argc, const char ** argv)
 
 OpenGECommand::OpenGECommand()
 {
-    io_options.add_options()
+    options.add_options()
     ("in,i", po::value<vector<string> >(),"Input files. If not specified, defaults to stdin. Can be specified without --in or -i")
     ("format,F", po::value<string>(),"File output format")
-    ;
-    global_options.add_options()
     ("verbose,v" ,"Display detailed messages while processing")
     ("threads,t", po::value<unsigned int>()->default_value(ThreadPool::availableCores()), "Select the number of threads to be used in each threadpool")
     ("nothreads,d", "Disable use of thread pools for parallel processing.")

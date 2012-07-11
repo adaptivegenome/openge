@@ -40,11 +40,6 @@ int HelpCommand::runCommand()
     
     command->getOptions();
     
-    cerr << "Global options:" << endl;
-    cerr << command->global_options << endl;
-    cerr << "File I/O options:" << endl;
-    cerr << command->io_options << endl;
-    cerr << command_name << "-specific options:" << endl;
     cerr << command->options << endl;
     
     return 0;

@@ -213,8 +213,6 @@ The view command returns a portion of a file optionally restricted to:
 \end{itemize}
 or any combination of the above.
 
-The view command can also trim bases from the beginning or end of reads. If the amount being trimmed from the beginning and end combined exceeds the length of the read, the read will be omitted.
-
 Parameters:
 \begin{center}
 \begin{tabular}{llp{3.5in}}
@@ -224,8 +222,6 @@ Flag&Long flag&Description\\ \hline
 -r \textit{region}&{-}{-}region \textit{region}&Region string (see below for format)\\
 -q \textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapq allowed\\
 -l \textit{length}&{-}{-}length \textit{length}&Allowed range of read lengths (see below for format)\\
--B \textit{length}&{-}{-}trimbegin \textit{length}&Trim \textit{length} bases from the beginning of all reads\\
--E \textit{length}&{-}{-}trimend \textit{length}&Trim \textit{length} bases from the end of all reads\\
 \end{tabular}
 \end{center}
 

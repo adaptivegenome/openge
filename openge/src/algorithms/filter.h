@@ -40,12 +40,9 @@ public:
     int getQualityLimit() { return mapq_limit;}
     void setMinimumReadLength(int min_length) { this->min_length = min_length; }
     void setMaximumReadLength(int max_length) { this->max_length = max_length; }
-    void setTrimBeginLength(int length) { trim_begin_length = length; }
-    void setTrimEndLength(int length) { trim_end_length = length; }
     bool setReadLengths(const std::string & length_string);
 protected:
     virtual int runInternal();
-    void trim(BamTools::BamAlignment & al);
 protected:
     bool ParseRegionString(const std::string& regionString, BamTools::BamRegion& region);
     std::string region_string;
@@ -53,7 +50,6 @@ protected:
     size_t count_limit;
     int mapq_limit;
     int min_length, max_length;
-    int trim_begin_length, trim_end_length;
 };
 
 #endif

@@ -44,8 +44,6 @@ protected:
     
     program_options::positional_options_description options_positional;
     program_options::options_description options;
-    program_options::options_description io_options;
-    program_options::options_description global_options;
     program_options::variables_map vm;
     
     // Automatically set- when true, include extra description of what is happening. Eg- progress indicators,
