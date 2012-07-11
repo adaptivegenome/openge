@@ -179,11 +179,25 @@ Filter::Filter()
 , mapq_limit(0)
 , min_length(0)
 , max_length(INT_MAX)
+, trim_begin_length(0)
+, trim_end_length(0)
 {}
+
+void Filter::trim(BamAlignment & al)
+{
+    if(trim_begin_length == 0 && trim_end_length == 0)
+        return;
+
+    al.QueryBases = al.QueryBases.substr(trim_begin_length, (al.QueryBases.size() - trim_begin_length - trim_end_length));
+    al.Qualities = al.Qualities.substr(trim_begin_length, (al.Qualities.size() - trim_begin_length - trim_end_length));
+}
 
 int Filter::runInternal()
 {
     size_t count = 0;
+
+    //make sure that we omit a read if there would be nothing left after trimming.
+    max_length = min(max_length, trim_begin_length + trim_end_length);  
 
     // if no region specified, store entire contents of file(s)
     if ( !has_region ) {
@@ -191,6 +205,7 @@ int Filter::runInternal()
         while (NULL != (al = getInputAlignment()) && count < count_limit) {
             if(al->MapQuality >= mapq_limit 
                && al->Length >= min_length && al->Length <= max_length) {
+                trim(*al);
                 putOutputAlignment(al);
                 count++;
             }
@@ -216,6 +231,7 @@ int Filter::runInternal()
                     (al->RefID <= region.RightRefID) && ( al->Position <= region.RightPosition) 
                     && (al->MapQuality >= mapq_limit)
                     && al->Length >= min_length && al->Length <= max_length) {
+                    trim(*al);
                     putOutputAlignment(al);
                     count++;
                 } else {
