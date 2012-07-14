@@ -87,7 +87,7 @@ int MeasureCoverage::runInternal()
             char name[32] = {0};
             int n1, n2;
             const char * name_buffer = al->Name.c_str();
-            char * first_underscore = strchr(al->Name.c_str(), '_');
+            const char * first_underscore = strchr(al->Name.c_str(), '_');
             strncpy(name, name_buffer, first_underscore - name_buffer);
             if( first_underscore ) {
                 int ret = sscanf(first_underscore, "_%d_%d", &n1, &n2);
