@@ -135,9 +135,9 @@ int MeasureCoverage::runInternal()
         ofstream outfile(out_filename.c_str());
         
         if(verify_mapping)
-            outfile << "chromosome,position,coverage,correct_maps\n";
+            outfile << "chromosome\tposition\tcoverage\tcorrect_maps\n";
         else
-            outfile << "chromosome,position,coverage\n";
+            outfile << "chromosome\tposition\tcoverage\n";
         int write_ct = 0;
         for(map<string, vector<int> >::const_iterator vec = coverage_map.begin(); vec != coverage_map.end(); vec++) {
             const int * count_data = &(vec->second[0]);
@@ -146,9 +146,9 @@ int MeasureCoverage::runInternal()
             for(int i = 0; i != vec->second.size(); i++) {
                 if(print_zero_cover_bases || count_data[i] != 0) {
                     if(verify_mapping)
-                        outfile << vec->first << "," << i+1 << "," << count_data[i] << "," << correctness_data[i] << "\n";
+                        outfile << vec->first << "\t" << i+1 << "\t" << count_data[i] << "\t" << correctness_data[i] << "\n";
                     else
-                        outfile << vec->first << "," << i+1 << "," << count_data[i] << "\n";
+                        outfile << vec->first << "\t" << i+1 << "\t" << count_data[i] << "\n";
                 }
 
                 write_ct++;

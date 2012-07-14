@@ -112,7 +112,7 @@ Optionally, detailed information on the coverage of every base of the reference 
 \begin{tabular}{llp{3.5in}}
 \hline
 Flag&Long flag&Description\\ \hline
--o  \textit{filename}&{-}{-}output \textit{filename}&Output coverage data base-by-base to a CSV file.\\
+-o  \textit{filename}&{-}{-}output \textit{filename}&Output coverage data base-by-base to a TSV file.\\
 &{-}{-}omituncoveredbases&Omit bases from the output file that are not covered by any read\\
 -V&{-}{-}verifymapping&Verify that mapping was performed correctly (see below)\\
 \end{tabular}
@@ -124,7 +124,7 @@ To only print out the coverage percentage for each chromosome:
 \cmd{openge coverage a.bam}
 
 Or, to output the coverage information for each base, and verify the mapping correctness:
-\cmd{openge coverage b.bam -o bases.csv -V}
+\cmd{openge coverage b.bam -o bases.tsv -V}
 
 \subsection {dedup}
 The dedup command either marks duplicate reads (compatible with Picard) or removes the duplicate reads. 
