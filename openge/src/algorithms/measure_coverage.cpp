@@ -113,8 +113,12 @@ int MeasureCoverage::runInternal()
     
     //now print coverage:
     cerr << "Average coverage:" << endl;
-    for(map<string, vector<int> >::const_iterator vec = coverage_map.begin(); vec != coverage_map.end(); vec++) 
-        cerr << "   " << setw(20) << vec->first << ": " << setw(8) << double( std::accumulate(vec->second.begin(), vec->second.end(), 0)) / vec->second.size() << "x" << endl;
+    for(map<string, vector<int> >::const_iterator vec = coverage_map.begin(); vec != coverage_map.end(); vec++) {
+        int64_t total_coverage = 0;
+        for(int i = 0; i < vec->second.size(); i++)
+            total_coverage += vec->second[i];
+        cerr << "   " << setw(20) << vec->first << ": " << setw(8) << double( total_coverage) / vec->second.size() << "x" << endl;
+    }
     
     if(verbose && verify_mapping)
         cerr << "Found " << num_correct_maps << " / " << write_count << " (" << 100. * num_correct_maps / write_count << " %) reads were correctly mapped." << endl;
