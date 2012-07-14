@@ -31,6 +31,7 @@ where \textit{command} is one of the commands listed in the following table, and
 \hline
 Command&Description\\ \hline
 count&Count reads in a file\\
+coverage&Measure the coverage of file\\
 dedup&Mark (or remove) duplicate reads\\
 help&View detailed help for any OpenGE command\\
 mergesort&Merge and sort multiple input files\\
@@ -101,6 +102,29 @@ The count command returns the number of reads contained in one or more files. No
 Example:
 \cmd{openge count a.bam}
 \cmd{openge count b.bam c.bam d.bam}
+
+\subsection {coverage}
+The coverage command analyses how well the data in a supplied input file covers the reference genome(s) used.
+
+Optionally, detailed information on the coverage of every base of the reference genome can be printed out. This file can be very large and time consuming to generate, so it is not enabled by default.
+
+\begin{center}
+\begin{tabular}{llp{3.5in}}
+\hline
+Flag&Long flag&Description\\ \hline
+-o  \textit{filename}&{-}{-}output \textit{filename}&Output coverage data base-by-base to a CSV file.\\
+&{-}{-}omituncoveredbases&Omit bases from the output file that are not covered by any read\\
+-V&{-}{-}verifymapping&Verify that mapping was performed correctly (see below)\\
+\end{tabular}
+\end{center}
+
+Coverage can also be used to verify that mappings have been performed correctly. To do this, reads must be named with a name that starts with the chromosome name and contains the position of the read start and end, each separated with underscores ('\_'). For example, "chr1\_2345\_2388" is valid, as is "chr99\_3350203\_3350299\_long\_name\_9993352:2334". A read is marked as correctly mapped if the mapped chromosome matches the chromosome in the name, and the position is within 5 bases of either of the positions identified in the name. The number of correctly mapped bases is included in the output file, if enabled (ie, if -o and -V are used).
+
+To only print out the coverage percentage for each chromosome:
+\cmd{openge coverage a.bam}
+
+Or, to output the coverage information for each base, and verify the mapping correctness:
+\cmd{openge coverage b.bam -o bases.csv -V}
 
 \subsection {dedup}
 The dedup command either marks duplicate reads (compatible with Picard) or removes the duplicate reads. 

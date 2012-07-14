@@ -121,6 +121,8 @@ OpenGECommand * CommandMarshall::commandWithName(const string name) {
     
     if(!strcmp(cname, "count"))
         return new CountCommand;
+    if(!strcmp(cname, "coverage"))
+        return new CoverageCommand;
     else if(!strcmp(cname, "dedup"))
         return new DedupCommand;
     else if(!strcmp(cname, "help"))

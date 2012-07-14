@@ -87,6 +87,13 @@ protected:
     virtual int runCommand();
 };
 
+class CoverageCommand : public OpenGECommand
+{
+protected:
+    void getOptions();
+    virtual int runCommand();
+};
+
 class DedupCommand: public OpenGECommand
 {
 protected:
