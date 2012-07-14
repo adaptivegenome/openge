@@ -37,8 +37,8 @@ void ViewCommand::getOptions()
     ("count,n", po::value<size_t>(), "Number of alignments to copy")
     ("mapq,q", po::value<int>(), "Minimum map quality")
     ("length,l", po::value<string>(), "Range of acceptable read lengths")
-    ("trimbegin,E", po::value<int>()->default_value(0), "Trim the beginning of read by arg bases")
-    ("trimend,B", po::value<int>()->default_value(0), "Trim the beginning of read by end bases")
+    ("trimbegin,B", po::value<int>()->default_value(0), "Trim the beginning of read by arg bases")
+    ("trimend,E", po::value<int>(), "Trim the beginning of read by end bases")
     ("region,r", po::value<string>(), "Genomic region to use.");
 }
 
@@ -73,7 +73,9 @@ int ViewCommand::runCommand()
         filter.setReadLengths(vm["length"].as<string>());
     
     filter.setTrimBeginLength(vm["trimbegin"].as<int>());
-    filter.setTrimEndLength(vm["trimend"].as<int>());
+
+    if(vm.count("trimend") > 0)
+        filter.setTrimEndLength(vm["trimend"].as<int>());
 
     bool hasregion = vm.count("region") != 0;
 

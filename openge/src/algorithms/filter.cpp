@@ -196,15 +196,13 @@ int Filter::runInternal()
 {
     size_t count = 0;
 
-    //make sure that we omit a read if there would be nothing left after trimming.
-    max_length = min(max_length, trim_begin_length + trim_end_length);  
-
     // if no region specified, store entire contents of file(s)
     if ( !has_region ) {
         BamAlignment * al = NULL;
         while (NULL != (al = getInputAlignment()) && count < count_limit) {
             if(al->MapQuality >= mapq_limit 
-               && al->Length >= min_length && al->Length <= max_length) {
+               && al->Length >= min_length && al->Length <= max_length
+               && al->Length > (trim_begin_length + trim_end_length)) {
                 trim(*al);
                 putOutputAlignment(al);
                 count++;
@@ -230,7 +228,8 @@ int Filter::runInternal()
                 if ( (al->RefID >= region.LeftRefID)  && ( (al->Position + al->Length) >= region.LeftPosition ) &&
                     (al->RefID <= region.RightRefID) && ( al->Position <= region.RightPosition) 
                     && (al->MapQuality >= mapq_limit)
-                    && al->Length >= min_length && al->Length <= max_length) {
+                    && al->Length >= min_length && al->Length <= max_length
+                    && al->Length > (trim_begin_length + trim_end_length)) {
                     trim(*al);
                     putOutputAlignment(al);
                     count++;
