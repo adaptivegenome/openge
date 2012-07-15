@@ -46,5 +46,6 @@ public:
     void setFormat(file_format_t format) { file_format = format; }   //force this format to be used
     void setFormat(const std::string & format_name);
     void setDefaultFormat(file_format_t format) { default_file_format = format; }    //format to be used if auto detection doesn't work
+    file_format_t getFileFormat();
 };
 #endif

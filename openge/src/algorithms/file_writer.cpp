@@ -51,15 +51,23 @@ void FileWriter::setFormat(const std::string & format_name)
     setFormat(ret);
 }
 
+file_format_t FileWriter::getFileFormat() {
+    file_format_t determined_format = file_format;
+    
+    if(determined_format == FORMAT_UNKNOWN) {
+        determined_format = detectFileFormatFromFilename(filename);
+        if(determined_format == FORMAT_UNKNOWN)
+            determined_format = default_file_format;
+    }
+    
+    return determined_format;
+}
+
 int FileWriter::runInternal()
 {
     ogeNameThread("am_FileWriter");
     
-    if(file_format == FORMAT_UNKNOWN) {
-        file_format = detectFileFormatFromFilename(filename);
-        if(file_format == FORMAT_UNKNOWN)
-            file_format = default_file_format;
-    }
+    file_format = getFileFormat();
 
     switch(file_format) {
         case FORMAT_SAM:
