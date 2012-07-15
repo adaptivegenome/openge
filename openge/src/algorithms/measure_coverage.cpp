@@ -33,6 +33,7 @@ using namespace std;
 MeasureCoverage::MeasureCoverage()
 : verify_mapping(false)
 , print_zero_cover_bases(false)
+, binsize(100)
 { }
 
 int MeasureCoverage::runInternal()
@@ -92,7 +93,7 @@ int MeasureCoverage::runInternal()
             if( first_underscore ) {
                 int ret = sscanf(first_underscore, "_%d_%d", &n1, &n2);
                if( 0 == strcmp(name, chr.c_str()) && ret == 2
-               && (5 >= abs(n1 - al->Position) || 5 >= abs(n1 - al->Position))
+               && (5 >= abs(n1 - al->Position) || (strict || 5 >= abs(n1 - al->Position)))
                ) {
                 
                     assert(correctness_map.count(chr) > 0);
@@ -125,7 +126,7 @@ int MeasureCoverage::runInternal()
 
     if(verbose) {
         if(print_zero_cover_bases)
-            cerr << "Writing coverage file (expect " << total_length << " lines)" << endl;
+            cerr << "Writing coverage file (expect " << total_length/binsize << " lines)" << endl;
         else
             cerr << "Writing coverage file" << endl;
     }
@@ -143,17 +144,25 @@ int MeasureCoverage::runInternal()
             const int * count_data = &(vec->second[0]);
             const int * correctness_data = &(correctness_map[vec->first][0]);
             
-            for(int i = 0; i != vec->second.size(); i++) {
-                if(print_zero_cover_bases || count_data[i] != 0) {
+            for(int i = 0; i < vec->second.size(); i+= binsize) {
+                int64_t count_accumulator = 0;
+                int64_t correct_accumulator = 0;
+                for(int j = i; j < min<size_t>(vec->second.size(), i + binsize); j++) {
+                    count_accumulator += count_data[j];
                     if(verify_mapping)
-                        outfile << vec->first << "\t" << i+1 << "\t" << count_data[i] << "\t" << correctness_data[i] << "\n";
-                    else
-                        outfile << vec->first << "\t" << i+1 << "\t" << count_data[i] << "\n";
+                        correct_accumulator += correctness_data[j];
                 }
 
-                write_ct++;
+                if(print_zero_cover_bases || count_accumulator != 0) {
+                    if(verify_mapping)
+                        outfile << vec->first << "\t" << i+1 << "\t" << count_accumulator << "\t" << correct_accumulator << "\n";
+                    else
+                        outfile << vec->first << "\t" << i+1 << "\t" << count_accumulator << "\n";
+                }
+
+                write_ct += binsize;
                 if(verbose && write_ct % 5000000 == 0)
-                    cerr << "\rWriting " << 100. * write_ct / total_length << "% done";
+                    cerr << "\rWriting " << 100. * i / vec->second.size() << "% done";
             }
         }
         if(verbose)

@@ -106,7 +106,7 @@ Example:
 \subsection {coverage}
 The coverage command analyses how well the data in a supplied input file covers the reference genome(s) used.
 
-Optionally, detailed information on the coverage of every base of the reference genome can be printed out. This file can be very large and time consuming to generate, so it is not enabled by default.
+Optionally, detailed information on the coverage of every base of the reference genome can be printed out. This file can be very large and time consuming to generate, so it is not enabled by default. One way to reduce file size is to eliminate uncovered bases or to put data into bins- see the respective commands below.
 
 \begin{center}
 \begin{tabular}{llp{3.5in}}
@@ -115,6 +115,7 @@ Flag&Long flag&Description\\ \hline
 -o  \textit{filename}&{-}{-}output \textit{filename}&Output coverage data base-by-base to a TSV file.\\
 &{-}{-}omituncoveredbases&Omit bases from the output file that are not covered by any read\\
 -V&{-}{-}verifymapping&Verify that mapping was performed correctly (see below)\\
+-B \textit{size}&{-}{-}binsize \textit{size}&Bin output data into bins of \textit{size} bases\\
 \end{tabular}
 \end{center}
 

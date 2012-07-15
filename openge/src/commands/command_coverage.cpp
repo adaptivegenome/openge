@@ -26,9 +26,10 @@ using namespace std;
 void CoverageCommand::getOptions()
 {
     options.add_options()
-    ("out,o", po::value<string>()->default_value("stdout"), "Output csv filename. Omit for stdout.")
+    ("out,o", po::value<string>()->default_value("stdout"), "Output tsv filename. Omit for stdout.")
     ("verifymapping,V", "Verify mapping with read name (see docs)")
     ("omituncoveredbases", "Do not output info on bases with no coverage")
+    ("binsize,b",po::value<int>()->default_value(100),"Bin size of output data")
     ;
 }
 
@@ -40,6 +41,7 @@ int CoverageCommand::runCommand()
     coverage.setOutputFile(vm["out"].as<string>());
     coverage.setVerifyCorrectMapping(vm.count("verifymapping") > 0);
     coverage.setPrintZeroCoverageBases(vm.count("omituncoveredbases") == 0);
+    coverage.setBinSize(vm["binsize"].as<int>());
     
     reader.addSink(&coverage);
 
