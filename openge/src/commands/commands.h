@@ -59,6 +59,9 @@ protected:
     // Directory in which to put temporary files. Recommended to be fast storage.
     std::string tmpdir;
     
+    // Command line options, reconstructed from argc/argv
+    std::string command_line;
+    
     // Multithreading is disabled
     bool nothreads;
     

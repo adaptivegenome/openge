@@ -87,6 +87,7 @@ int ViewCommand::runCommand()
     
     reader.addFiles(input_filenames);
     writer.setFilename(filename_out);
+    writer.addProgramLine(command_line);
 
     if((vm.count("trimbegin") > 0 || vm.count("trimend") > 0) && writer.getFileFormat() != FORMAT_FASTQ) {
         cerr << "Trimming reads is only supported for the FASTQ format at this time. Aborting." << endl;

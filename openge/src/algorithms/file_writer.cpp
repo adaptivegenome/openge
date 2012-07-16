@@ -68,13 +68,21 @@ int FileWriter::runInternal()
     ogeNameThread("am_FileWriter");
     
     file_format = getFileFormat();
+    SamHeader header = getHeader();
+    
+    if(command_line_options.size() > 0) {
+        SamProgram pg;
+        pg.ID = "openge";
+        pg.CommandLine = command_line_options;
+        header.Programs.Add(pg);
+    }
 
     switch(file_format) {
         case FORMAT_SAM:
             {
                 SamWriter writer;
                 
-                if(!writer.Open(filename, getHeader().ToString(), getReferences())) {
+                if(!writer.Open(filename, header.ToString(), getReferences())) {
                     cerr << "Error opening BAM file to write." << endl;
                     return -1;
                 }
@@ -99,7 +107,7 @@ int FileWriter::runInternal()
             {
                 FastqWriter writer;
                 
-                if(!writer.Open(filename, getHeader().ToString(), getReferences())) {
+                if(!writer.Open(filename, header.ToString(), getReferences())) {
                     cerr << "Error opening FASTQ file to write." << endl;
                     return -1;
                 }
@@ -124,7 +132,7 @@ int FileWriter::runInternal()
             {
                 BamWriter writer;
                 
-                if(!writer.Open(filename, getHeader(), getReferences())) {
+                if(!writer.Open(filename, header, getReferences())) {
                     cerr << "Error opening BAM file to write." << endl;
                     return -1;
                 }

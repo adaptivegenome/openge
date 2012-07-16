@@ -34,6 +34,11 @@ namespace po = boost::program_options;
 
 int OpenGECommand::runWithParameters(int argc, const char ** argv)
 {
+    for(int i = 0; i < argc; i++) {
+        command_line.append(argv[i]);
+        command_line.append(" ");
+    }
+    
     options.add(global_options);
     options.add(io_options);
     options_positional.add("in", -1);

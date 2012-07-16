@@ -37,7 +37,7 @@ protected:
     std::string filename;
     int compression_level;
     file_format_t file_format, default_file_format;
-    
+    std::string command_line_options;
 public:
     FileWriter() : compression_level(6), file_format(FORMAT_UNKNOWN), default_file_format(FORMAT_BAM) {}
     void setFilename(std::string filename) { this->filename = filename; }
@@ -46,6 +46,7 @@ public:
     void setFormat(file_format_t format) { file_format = format; }   //force this format to be used
     void setFormat(const std::string & format_name);
     void setDefaultFormat(file_format_t format) { default_file_format = format; }    //format to be used if auto detection doesn't work
+    void addProgramLine(const std::string & command_options) { this->command_line_options = command_options; }
     file_format_t getFileFormat();
 };
 #endif
