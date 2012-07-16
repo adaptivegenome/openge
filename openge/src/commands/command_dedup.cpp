@@ -34,7 +34,6 @@ void DedupCommand::getOptions()
     options.add_options()
     ("out,o", po::value<string>()->default_value("stdout"), "Output filename. Omit for stdout.")
     ("remove,r", "Remove duplicates")
-    ("compression,c", po::value<int>()->default_value(6), "Compression level of the output. Valid 0-9.")
     ;
 }
 

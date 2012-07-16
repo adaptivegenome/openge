@@ -131,14 +131,16 @@ int FileWriter::runInternal()
         case FORMAT_BAM:
             {
                 BamWriter writer;
-                
+
+                cerr << "compression" << compression_level << endl;
+                writer.SetCompressionMode(BamWriter::Compressed);
+                writer.SetCompressionLevel(compression_level);
+
                 if(!writer.Open(filename, header, getReferences())) {
                     cerr << "Error opening BAM file to write." << endl;
                     return -1;
                 }
-                
-                writer.SetCompressionLevel(compression_level);
-                
+
                 BamAlignment * al;
                 
                 while(true)

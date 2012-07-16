@@ -49,6 +49,7 @@ int LocalRealignCommand::runCommand()
         writer.setFormat(vm["format"].as<string>());
     writer.setFilename(vm["out"].as<string>());
     writer.addProgramLine(command_line);
+    writer.setCompressionLevel(vm["compression"].as<int>());
 
     local_realignment.verbose = verbose;
     

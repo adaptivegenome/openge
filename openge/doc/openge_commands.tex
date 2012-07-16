@@ -50,6 +50,7 @@ Flag&Long flag&Description\\ \hline
 -i \textit{filename}&{-}{-}in \textit{filename}&Input filename. Input files can also be specified without this flag. Defaults to stein if no input is specified.\\
 -o \textit{filename}&{-}{-}out \textit{filename}&Output filename. Defaults to stdout if omitted. \\
 -v&{-}{-}verbose&Display additional information to stderr during operation (e.g. progress indicators and other informational messages). Optional.\\
+-c \textit{level}&{-}{-}compression \textit{level}&Compression level- defaults to 6. Valid levels are 0-9, and correspond to zlib's deflate compression levels. Optional.\\
 -T&{-}{-}tmpdir&Specify a directory to store temporary files. (default /tmp) Optional.\\
 -t&{-}{-}threads&Set the number of threads to be used for multithreaded operations. Optional.\\
 -d&{-}{-}nothreads&Disable multithreading. Optional.\\
@@ -170,7 +171,6 @@ Parameters:
 \begin{tabular}{llp{3.5in}}
 \hline
 Flag&Long flag&Description\\ \hline
--c \textit{level}&{-}{-}compression \textit{level}&Compression level- defaults to 6. Valid levels are 0-9, and correspond to zlib's deflate compression levels. \\
 -r \textit{region}&{-}{-}region \textit{region}&Genomic region to use\\
 -q \textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapping quality for a read to be included in the mergesort.\\
 -n \textit{reads}&{-}{-}n \textit{reads}&Number of reads to use per temporary file. Defaults to 500,000.\\
