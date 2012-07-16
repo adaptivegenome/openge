@@ -45,7 +45,6 @@ void MergeSortCommand::getOptions()
     ("compresstempfiles,C", "Compress temp files. By default, uncompressed")
     ("markduplicates,d", "Mark duplicates after sorting.")
     ("removeduplicates,R", "Remove duplicates.")
-    ("nosplit","Do not split by chromosome (for speed) when processing")
     ;
 }
 

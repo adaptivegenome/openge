@@ -35,7 +35,6 @@ void DedupCommand::getOptions()
     ("out,o", po::value<string>()->default_value("stdout"), "Output filename. Omit for stdout.")
     ("remove,r", "Remove duplicates")
     ("compression,c", po::value<int>()->default_value(6), "Compression level of the output. Valid 0-9.")
-    ("nosplit","Do not split by chromosome (for speed) when processing")
     ;
 }
 

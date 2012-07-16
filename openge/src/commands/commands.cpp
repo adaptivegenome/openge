@@ -118,6 +118,7 @@ OpenGECommand::OpenGECommand()
     ("threads,t", po::value<unsigned int>()->default_value(ThreadPool::availableCores()), "Select the number of threads to be used in each threadpool")
     ("nothreads,d", "Disable use of thread pools for parallel processing.")
     ("tmpdir,T", po::value<string>()->default_value("/tmp"), "Directory to use for temporary files")
+    ("nosplit","Do not split by chromosome (for speed) when processing")
     ;
 }
 

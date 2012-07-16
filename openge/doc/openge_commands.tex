@@ -53,9 +53,12 @@ Flag&Long flag&Description\\ \hline
 -T&{-}{-}tmpdir&Specify a directory to store temporary files. (default /tmp) Optional.\\
 -t&{-}{-}threads&Set the number of threads to be used for multithreaded operations. Optional.\\
 -d&{-}{-}nothreads&Disable multithreading. Optional.\\
+&{-}{-}nosplit&Disable splitting by chromosome (see below). Optional.\\
 -F \textit{format}&{-}{-}format \textit{format}&Select file format. Optional.\\
 \end{tabular}
 \end{center}
+
+When running some commands, OpenGE may process chromosomes in separate threads in order to increase speed. Whether or not this occurs depends on the number of cores available on your machine. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
 
 When input or output files are required, stdin or stdout may be used by simply omitting \textit{filename}. For example, the following command:
 
@@ -138,15 +141,12 @@ Duplicates are marked by setting the 'duplicate' bitflag for each read found to 
 \hline
 Flag&Long flag&Description\\ \hline
 -r&{-}{-}remove&Remove duplicates instead of only marking them.\\
-&{-}{-}nosplit&Disable splitting by chromosome (see below).\\
 \end{tabular}
 \end{center}
 
 For example,
 \cmd{openge dedup a.bam -o z.bam} 
 identifies duplicates in a.bam, and writes all reads to z.bam with duplicates identified.
-
-When marking duplicates, dedup may process chromosomes in separate threads in order to increase speed. Whether or not this occurs depends on the number of cores available on your machine. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
 
 \subsection {help}
 The help command shows available options for any OpenGE command. 
@@ -175,15 +175,12 @@ Flag&Long flag&Description\\ \hline
 -q \textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapping quality for a read to be included in the mergesort.\\
 -n \textit{reads}&{-}{-}n \textit{reads}&Number of reads to use per temporary file. Defaults to 500,000.\\
 -C&{-}{-}compresstempfiles&Compress temporary files. By default, temporary files are not compressed.\\
-&{-}{-}nosplit&Disable splitting by chromosome (see below).\\
 -m&{-}{-}markduplicates&Mark duplicates after sorting.\\
 -R&{-}{-}removeduplicates&Mark and remove duplicates after sorting.\\
 \end{tabular}
 \end{center}
 
 The number of reads per temporary file can have a substantial effect on speed when processing large datasets. Increasing the number of reads per file produces larger (and fewer) temporary files at the expense of memory, but reduces the processing time.
-
-When marking duplicates, mergesort may process chromosomes in separate threads in order to increase speed. Whether or not this occurs depends on the number of cores available on your machine. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
 
 \subsection{stats}
 Prints out statistics about a file. No flags are required.
