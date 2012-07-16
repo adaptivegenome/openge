@@ -30,6 +30,7 @@ void CoverageCommand::getOptions()
     ("verifymapping,V", "Verify mapping with read name (see docs)")
     ("omituncoveredbases", "Do not output info on bases with no coverage")
     ("binsize,b",po::value<int>()->default_value(100),"Bin size of output data")
+    ("strict,S","When verifying mapping, use both coordinates (see docs)")
     ;
 }
 
@@ -42,6 +43,7 @@ int CoverageCommand::runCommand()
     coverage.setVerifyCorrectMapping(vm.count("verifymapping") > 0);
     coverage.setPrintZeroCoverageBases(vm.count("omituncoveredbases") == 0);
     coverage.setBinSize(vm["binsize"].as<int>());
+    coverage.setStrict(vm.count("strict") > 0);
     
     reader.addSink(&coverage);
 

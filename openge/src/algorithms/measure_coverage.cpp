@@ -33,6 +33,7 @@ using namespace std;
 MeasureCoverage::MeasureCoverage()
 : verify_mapping(false)
 , print_zero_cover_bases(false)
+, strict(false)
 , binsize(100)
 { }
 
@@ -92,8 +93,11 @@ int MeasureCoverage::runInternal()
             strncpy(name, name_buffer, first_underscore - name_buffer);
             if( first_underscore ) {
                 int ret = sscanf(first_underscore, "_%d_%d", &n1, &n2);
-               if( 0 == strcmp(name, chr.c_str()) && ret == 2
-               && (5 >= abs(n1 - al->Position) || (strict || 5 >= abs(n1 - al->Position)))
+                bool n1_match = (5 >= abs(n1 - al->Position));
+                bool n2_match = (5 >= abs(n2 - al->Position));
+                bool n_match = strict ? n1_match : (n1_match || n2_match);
+                if( 0 == strcmp(name, chr.c_str()) && ret == 2
+                   && n_match
                ) {
                 
                     assert(correctness_map.count(chr) > 0);
@@ -124,14 +128,14 @@ int MeasureCoverage::runInternal()
     if(verbose && verify_mapping)
         cerr << "Found " << num_correct_maps << " / " << write_count << " (" << 100. * num_correct_maps / write_count << " %) reads were correctly mapped." << endl;
 
-    if(verbose) {
-        if(print_zero_cover_bases)
-            cerr << "Writing coverage file (expect " << total_length/binsize << " lines)" << endl;
-        else
-            cerr << "Writing coverage file" << endl;
-    }
     
     if(out_filename != "stdout") {
+        if(verbose) {
+            if(print_zero_cover_bases)
+                cerr << "Writing coverage file (expect " << total_length/binsize << " lines)" << endl;
+            else
+                cerr << "Writing coverage file" << endl;
+        }
 
         ofstream outfile(out_filename.c_str());
         

@@ -32,6 +32,7 @@ public:
     void setVerifyCorrectMapping(bool verify) { verify_mapping = verify; }
     void setOutputFile(const std::string & filename) { out_filename = filename; }
     void setPrintZeroCoverageBases(bool print_zero_cover_bases) { this->print_zero_cover_bases = print_zero_cover_bases; }
+    void setStrict(bool strict) { this->strict = strict; }
     void setBinSize(int bin_size) { this->binsize = bin_size; }
 protected:
     virtual int runInternal();
@@ -42,6 +43,7 @@ protected:
     bool verify_mapping;
     bool print_zero_cover_bases;
     std::string out_filename;
+    bool strict;
     int binsize;
 };
 
