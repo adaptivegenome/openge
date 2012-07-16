@@ -37,7 +37,7 @@ void ViewCommand::getOptions()
     ("count,n", po::value<size_t>(), "Number of alignments to copy")
     ("mapq,q", po::value<int>(), "Minimum map quality")
     ("length,l", po::value<string>(), "Range of acceptable read lengths")
-    ("trimbegin,B", po::value<int>()->default_value(0), "Trim the beginning of read by arg bases")
+    ("trimbegin,B", po::value<int>(), "Trim the beginning of read by arg bases")
     ("trimend,E", po::value<int>(), "Trim the beginning of read by end bases")
     ("region,r", po::value<string>(), "Genomic region to use.");
 }
@@ -72,7 +72,8 @@ int ViewCommand::runCommand()
     if(vm.count("length"))
         filter.setReadLengths(vm["length"].as<string>());
     
-    filter.setTrimBeginLength(vm["trimbegin"].as<int>());
+    if(vm.count("trimbegin") > 0)
+        filter.setTrimBeginLength(vm["trimbegin"].as<int>());
 
     if(vm.count("trimend") > 0)
         filter.setTrimEndLength(vm["trimend"].as<int>());
@@ -86,6 +87,11 @@ int ViewCommand::runCommand()
     
     reader.addFiles(input_filenames);
     writer.setFilename(filename_out);
+
+    if((vm.count("trimbegin") > 0 || vm.count("trimend") > 0) && writer.getFileFormat() != FORMAT_FASTQ) {
+        cerr << "Trimming reads is only supported for the FASTQ format at this time. Aborting." << endl;
+        exit(-1);
+    }
     
     if(filename_out == "stdout")
         writer.setDefaultFormat(FORMAT_SAM);
