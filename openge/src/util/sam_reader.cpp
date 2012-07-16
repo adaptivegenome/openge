@@ -154,7 +154,11 @@ void * SamReader::LineGenerationThread(void * data)
         while( reader->jobs.size() > MAX_LINE_QUEUE_SIZE)
             usleep(20000);
         
-        fgets(line_s, sizeof(line_s)-1, fp);
+        char * read = fgets(line_s, sizeof(line_s)-1, fp);
+        
+        if(!read)
+            break;
+
         if(ferror(fp)) {
             cerr << "Error reading lines from SAM file." << endl;
             if(errno)
@@ -162,10 +166,10 @@ void * SamReader::LineGenerationThread(void * data)
             break;
         }
 
-        if(parsing_header) {
-            if(line_s[0] == '@') {
-                header_txt << string(line_s);
-            } else {
+        if(line_s[0] == '@') {
+            header_txt << string(line_s);
+        } else {
+            if(parsing_header) {
                 reader->header.SetHeaderText(header_txt.str());
                 
                 reader->m_refData.reserve(reader->header.Sequences.Size());
@@ -183,7 +187,7 @@ void * SamReader::LineGenerationThread(void * data)
                 parsing_header = false;
                 reader->loaded = true;
             }
-        } else {
+
             size_t read_len = strlen(line_s);
             line_s[read_len-1] = 0;   //remove newline from string
 
@@ -207,6 +211,7 @@ void * SamReader::LineGenerationThread(void * data)
             reader->jobs_for_workers.push(lt);
         }
         
+        line_s[0] = 0;
         if(feof(fp))
             reader->finished = true;
     }
