@@ -30,8 +30,8 @@ where \textit{command} is one of the commands listed in the following table, and
 \begin{tabular}{lp{3.5in}}
 \hline
 Command&Description\\ \hline
-count&Count reads in a file\\
-coverage&Measure the coverage of file\\
+count&Count reads in an alignment\\
+coverage&Compute coverage statistics for an alignment\\
 dedup&Mark (or remove) duplicate reads\\
 help&View detailed help for any OpenGE command\\
 mergesort&Merge and sort multiple input files\\
@@ -108,9 +108,9 @@ Example:
 \cmd{openge count b.bam c.bam d.bam}
 
 \subsection {coverage}
-The coverage command analyses how well the data in a supplied input file covers the reference genome(s) used.
+The coverage command reports the read depth as a function of reference genome location. 
 
-Optionally, detailed information on the coverage of every base of the reference genome can be printed out. This file can be very large and time consuming to generate, so it is not enabled by default. One way to reduce file size is to eliminate uncovered bases or to put data into bins- see the respective commands below.
+Optionally, detailed information on the coverage of every base of the reference genome can be reported. This file can be very large and time consuming to generate, so it is not enabled by default. 
 
 \begin{center}
 \begin{tabular}{llp{3.5in}}
@@ -126,10 +126,10 @@ Flag&Long flag&Description\\ \hline
 
 Coverage can also be used to verify that mappings have been performed correctly. To do this, reads must be named with a name that starts with the chromosome name and contains the position of the read start and end, each separated with underscores ('\_'). For example, "chr1\_2345\_2388" is valid, as is "chr99\_3350203\_3350299\_long\_name\_9993352:2334". A read is marked as correctly mapped if the mapped chromosome matches the chromosome in the name, and the position is within 5 bases of either of the positions identified in the name (without {-}{-}strict), or within five bases of the first position (with {-}{-}strict). The number of correctly mapped bases is included in the output file, if enabled (ie, if -o and -V are used).
 
-To only print out the coverage percentage for each chromosome:
+To only report the coverage statistics for each chromosome:
 \cmd{openge coverage a.bam}
 
-Or, to output the coverage information for each base, and verify the mapping correctness:
+Or, to output the coverage statistics for each base, and verify the mapping correctness:
 \cmd{openge coverage b.bam -o bases.tsv -V}
 
 \subsection {dedup}
@@ -230,7 +230,7 @@ Prints out the version number and the date and time that this version was compil
 The view command returns a portion of a file optionally restricted to:
 \begin{itemize}
 \item Reads mapped to a specified chromosome, or region of a chromosome ({-}{-}region)
-\item Reads with mapq values above a threshold ({-}{-}mapq)
+\item Reads with Mapq values above a threshold ({-}{-}mapq)
 \item Reads of a certain length or range of lengths ({-}{-}length)
 \item Limited to a certain number of results ({-}{-}count)
 \end{itemize}
