@@ -30,7 +30,8 @@ where \textit{command} is one of the commands listed in the following table, and
 \begin{tabular}{lp{3.5in}}
 \hline
 Command&Description\\ \hline
-count&Count reads in a file\\
+count&Count reads in an alignment\\
+coverage&Compute coverage statistics for an alignment\\
 dedup&Mark (or remove) duplicate reads\\
 help&View detailed help for any OpenGE command\\
 mergesort&Merge and sort multiple input files\\
@@ -49,12 +50,16 @@ Flag&Long flag&Description\\ \hline
 -i \textit{filename}&{-}{-}in \textit{filename}&Input filename. Input files can also be specified without this flag. Defaults to stein if no input is specified.\\
 -o \textit{filename}&{-}{-}out \textit{filename}&Output filename. Defaults to stdout if omitted. \\
 -v&{-}{-}verbose&Display additional information to stderr during operation (e.g. progress indicators and other informational messages). Optional.\\
+-c \textit{level}&{-}{-}compression \textit{level}&Compression level- defaults to 6. Valid levels are 0-9, and correspond to zlib's deflate compression levels. Optional.\\
 -T&{-}{-}tmpdir&Specify a directory to store temporary files. (default /tmp) Optional.\\
 -t&{-}{-}threads&Set the number of threads to be used for multithreaded operations. Optional.\\
 -d&{-}{-}nothreads&Disable multithreading. Optional.\\
+&{-}{-}nosplit&Disable splitting by chromosome (see below). Optional.\\
 -F \textit{format}&{-}{-}format \textit{format}&Select file format. Optional.\\
 \end{tabular}
 \end{center}
+
+When running some commands, OpenGE may process chromosomes in separate threads in order to increase speed. Whether or not this occurs depends on the number of cores available on your machine. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
 
 When input or output files are required, stdin or stdout may be used by simply omitting \textit{filename}. For example, the following command:
 
@@ -102,6 +107,31 @@ Example:
 \cmd{openge count a.bam}
 \cmd{openge count b.bam c.bam d.bam}
 
+\subsection {coverage}
+The coverage command reports the read depth as a function of reference genome location. 
+
+Optionally, detailed information on the coverage of every base of the reference genome can be reported. This file can be very large and time consuming to generate, so it is not enabled by default. 
+
+\begin{center}
+\begin{tabular}{llp{3.5in}}
+\hline
+Flag&Long flag&Description\\ \hline
+-o  \textit{filename}&{-}{-}output \textit{filename}&Output coverage data base-by-base to a TSV file.\\
+&{-}{-}omituncoveredbases&Omit bases from the output file that are not covered by any read\\
+-V&{-}{-}verifymapping&Verify that mapping was performed correctly (see below)\\
+-S&{-}{-}strict&Use strict verification- only use first coordinate\\
+-B \textit{size}&{-}{-}binsize \textit{size}&Bin output data into bins of \textit{size} bases\\
+\end{tabular}
+\end{center}
+
+Coverage can also be used to verify that mappings have been performed correctly. To do this, reads must be named with a name that starts with the chromosome name and contains the position of the read start and end, each separated with underscores ('\_'). For example, "chr1\_2345\_2388" is valid, as is "chr99\_3350203\_3350299\_long\_name\_9993352:2334". A read is marked as correctly mapped if the mapped chromosome matches the chromosome in the name, and the position is within 5 bases of either of the positions identified in the name (without {-}{-}strict), or within five bases of the first position (with {-}{-}strict). The number of correctly mapped bases is included in the output file, if enabled (ie, if -o and -V are used).
+
+To only report the coverage statistics for each chromosome:
+\cmd{openge coverage a.bam}
+
+Or, to output the coverage statistics for each base, and verify the mapping correctness:
+\cmd{openge coverage b.bam -o bases.tsv -V}
+
 \subsection {dedup}
 The dedup command either marks duplicate reads (compatible with Picard) or removes the duplicate reads. 
 
@@ -111,16 +141,13 @@ Duplicates are marked by setting the 'duplicate' bitflag for each read found to 
 \begin{tabular}{llp{3.5in}}
 \hline
 Flag&Long flag&Description\\ \hline
--r&{-}{-}remove&Remove duplicates instead of only marking them.\\
-&{-}{-}nosplit&Disable splitting by chromosome (see below).\\
+-R&{-}{-}removeduplicates&Remove duplicates instead of only marking them.\\
 \end{tabular}
 \end{center}
 
 For example,
 \cmd{openge dedup a.bam -o z.bam} 
 identifies duplicates in a.bam, and writes all reads to z.bam with duplicates identified.
-
-When marking duplicates, dedup may process chromosomes in separate threads in order to increase speed. Whether or not this occurs depends on the number of cores available on your machine. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
 
 \subsection {help}
 The help command shows available options for any OpenGE command. 
@@ -144,20 +171,16 @@ Parameters:
 \begin{tabular}{llp{3.5in}}
 \hline
 Flag&Long flag&Description\\ \hline
--c \textit{level}&{-}{-}compression \textit{level}&Compression level- defaults to 6. Valid levels are 0-9, and correspond to zlib's deflate compression levels. \\
 -r \textit{region}&{-}{-}region \textit{region}&Genomic region to use\\
 -q \textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapping quality for a read to be included in the mergesort.\\
 -n \textit{reads}&{-}{-}n \textit{reads}&Number of reads to use per temporary file. Defaults to 500,000.\\
 -C&{-}{-}compresstempfiles&Compress temporary files. By default, temporary files are not compressed.\\
-&{-}{-}nosplit&Disable splitting by chromosome (see below).\\
--m&{-}{-}markduplicates&Mark duplicates after sorting.\\
+-M&{-}{-}markduplicates&Mark duplicates after sorting.\\
 -R&{-}{-}removeduplicates&Mark and remove duplicates after sorting.\\
 \end{tabular}
 \end{center}
 
 The number of reads per temporary file can have a substantial effect on speed when processing large datasets. Increasing the number of reads per file produces larger (and fewer) temporary files at the expense of memory, but reduces the processing time.
-
-When marking duplicates, mergesort may process chromosomes in separate threads in order to increase speed. Whether or not this occurs depends on the number of cores available on your machine. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
 
 \subsection{stats}
 Prints out statistics about a file. No flags are required.
@@ -207,11 +230,13 @@ Prints out the version number and the date and time that this version was compil
 The view command returns a portion of a file optionally restricted to:
 \begin{itemize}
 \item Reads mapped to a specified chromosome, or region of a chromosome ({-}{-}region)
-\item Reads with mapq values above a threshold ({-}{-}mapq)
+\item Reads with Mapq values above a threshold ({-}{-}mapq)
 \item Reads of a certain length or range of lengths ({-}{-}length)
 \item Limited to a certain number of results ({-}{-}count)
 \end{itemize}
 or any combination of the above.
+
+The view command can also trim bases from the beginning or end of reads. If the amount being trimmed from the beginning and end combined exceeds the length of the read, the read will be omitted.
 
 Parameters:
 \begin{center}
@@ -222,8 +247,12 @@ Flag&Long flag&Description\\ \hline
 -r \textit{region}&{-}{-}region \textit{region}&Region string (see below for format)\\
 -q \textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapq allowed\\
 -l \textit{length}&{-}{-}length \textit{length}&Allowed range of read lengths (see below for format)\\
+-B \textit{length}&{-}{-}trimbegin \textit{length}&Trim \textit{length} bases from the beginning of all reads\\
+-E \textit{length}&{-}{-}trimend \textit{length}&Trim \textit{length} bases from the end of all reads\\
 \end{tabular}
 \end{center}
+
+Trimming with the {-}{-}trimbegin and {-}{-}trimend parameters is only supported for the FASTQ output format at this time.
 
 \subsubsection{Region string format}
 Region strings are formatted similarly to the equivalent bamtools region strings, and this section is an excerpt from the bamtools documentation.

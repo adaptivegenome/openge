@@ -214,7 +214,7 @@ bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
             break;
     }
     
-    m_out << endl;
+    m_out << "\n";
     
     return true;
 }

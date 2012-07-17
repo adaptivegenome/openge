@@ -34,8 +34,6 @@ void DedupCommand::getOptions()
     options.add_options()
     ("out,o", po::value<string>()->default_value("stdout"), "Output filename. Omit for stdout.")
     ("remove,r", "Remove duplicates")
-    ("compression,c", po::value<int>()->default_value(6), "Compression level of the output. Valid 0-9.")
-    ("nosplit","Do not split by chromosome (for speed) when processing")
     ;
 }
 
@@ -67,6 +65,7 @@ int DedupCommand::runCommand()
 
         reader.addFiles(input_filenames);
         writer.setFilename(vm["out"].as<string>());
+        writer.addProgramLine(command_line);
         writer.setCompressionLevel(compression_level);
         
         return writer.runChain();
@@ -108,6 +107,7 @@ int DedupCommand::runCommand()
         reader.addFiles(input_filenames);
         writer.setFilename(vm["out"].as<string>());
         writer.setCompressionLevel(compression_level);
+        writer.addProgramLine(command_line);
         
         int ret = writer.runChain();
         

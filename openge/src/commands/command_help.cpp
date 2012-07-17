@@ -25,7 +25,7 @@ int HelpCommand::runCommand()
 {
     if(1 != vm.count("command")) {
         cerr << "Usage: openge help command" << endl;
-        cerr << "Valid commands are: count dedup help mergesort stats version view" << endl;
+        cerr << "Valid commands are: count coverage dedup help mergesort stats version view" << endl;
         return 0;
     }
     
@@ -40,6 +40,11 @@ int HelpCommand::runCommand()
     
     command->getOptions();
     
+    cerr << "Global options:" << endl;
+    cerr << command->global_options << endl;
+    cerr << "File I/O options:" << endl;
+    cerr << command->io_options << endl;
+    cerr << command_name << "-specific options:" << endl;
     cerr << command->options << endl;
     
     return 0;

@@ -27,6 +27,7 @@
 #include <fcntl.h>           /* For O_* constants */
 #include <sys/stat.h>        /* For mode constants */
 #include <semaphore.h>
+#include <errno.h>
 
 #include <cstring>
 using namespace std;
@@ -37,8 +38,7 @@ using namespace BamTools;
 const int MAX_LINE_QUEUE_SIZE = 6000;
 
 SamReader::SamReader()
-: file(NULL)
-, loaded(false)
+: loaded(false)
 , finished(false)
 , lines_since_last_sem_unlock(0)
 { }
@@ -133,46 +133,91 @@ void * SamReader::LineGenerationThread(void * data)
 
     SamReader * reader = (SamReader *) data;
     
-    FILE * fp = fopen(reader->filename.c_str(), "r");
+    FILE * fp = NULL;
+    
+    if(reader->filename == "stdin")
+        fp = stdin;
+    else
+        fp = fopen(reader->filename.c_str(), "r");
     if(!fp) {
         cerr << "Error opening file for line parser (" << reader->filename << ")." << endl;
         exit(-1);
     }
-    
-    //open our C file handle to the same position that the ifstream was at.
-    size_t position = reader->file.tellg();
-    fseek(fp, position, SEEK_SET);
-    
+
+    stringstream header_txt("");
+    bool parsing_header = true;
+
+    reader->finished = false;
+
     char line_s[10240];
     while(!reader->finished) {
         while( reader->jobs.size() > MAX_LINE_QUEUE_SIZE)
             usleep(20000);
         
         char * read = fgets(line_s, sizeof(line_s)-1, fp);
-        if(!read) break;
-
-        size_t read_len = strlen(read);
-        read[read_len-1] = 0;   //remove newline from string
         
-        if(read_len < 10)  // if line is invalid
+        if(!read)
             break;
-        
-        SamLine * lt = new SamLine;
-        
-        //create a buffer for the worker thread to use.
-        lt->line = lt->line_static;
-        
-        if(read_len >= sizeof(lt->line_static))
-            lt->line = (char *) malloc(read_len + 1);
 
-        assert(lt->line);
-        strcpy(lt->line, line_s);
+        if(ferror(fp)) {
+            cerr << "Error reading lines from SAM file." << endl;
+            if(errno)
+                perror("Error reading line: ");
+            break;
+        }
 
-        reader->jobs.push(lt);
-        reader->jobs_for_workers.push(lt);
+        if(line_s[0] == '@') {
+            header_txt << string(line_s);
+        } else {
+            if(parsing_header) {
+                reader->header.SetHeaderText(header_txt.str());
+                
+                reader->m_refData.reserve(reader->header.Sequences.Size());
+                
+                for(SamSequenceConstIterator it = reader->header.Sequences.Begin(); it != reader->header.Sequences.End(); it++)
+                {
+                    //convert length to an int from a string.
+                    int length;
+                    stringstream length_ss(it->Length);
+                    length_ss >> length;
+                    
+                    reader->m_refData.push_back(RefData(it->Name, length));
+                }
+
+                parsing_header = false;
+                reader->loaded = true;
+            }
+
+            size_t read_len = strlen(line_s);
+            line_s[read_len-1] = 0;   //remove newline from string
+
+            if(read_len < 10) { // if line is invalid
+                cerr << "read len end" << endl;
+                break;
+            }
+            
+            SamLine * lt = new SamLine;
+            
+            //create a buffer for the worker thread to use.
+            lt->line = lt->line_static;
+            
+            if(read_len >= sizeof(lt->line_static))
+                lt->line = (char *) malloc(read_len + 1);
+
+            assert(lt->line);
+            strcpy(lt->line, line_s);
+
+            reader->jobs.push(lt);
+            reader->jobs_for_workers.push(lt);
+        }
+        
+        line_s[0] = 0;
+        if(feof(fp))
+            reader->finished = true;
     }
     
-    fclose(fp);
+    if(fp != stdin)
+        fclose(fp);
 
     reader->finished = true;
 
@@ -183,12 +228,7 @@ void * SamReader::LineGenerationThread(void * data)
 bool SamReader::Open(const string & filename)
 {
     this->filename = filename;
-    file.open(filename.c_str(), ios::in);
     
-    LoadHeaderData();
-    
-    loaded = true;
-    finished = false;
 #ifdef SAM_READER_MT
     workers_finished = false;
     num_worker_threads = BamParallelismSettings::getNumberThreads();
@@ -211,6 +251,7 @@ bool SamReader::Open(const string & filename)
         worker_threads.push_back(t);
     }
     pthread_create(&line_generation_thread, 0, LineGenerationThread, this);
+
 #endif
     return true;
 }
@@ -232,45 +273,15 @@ bool SamReader::Close()
 	if(0 != sem_unlink(sam_worker_sem_name))
         perror("Error unlinking sam_worker semaphore");
 #endif
-    file.close();
     return true;
 }
 
 SamHeader SamReader::GetHeader() const
 {
+    while (!loaded)
+        usleep(20000);
+
     return header;
-}
-
-bool SamReader::IsLoaded()
-{
-    return loaded;
-}
-
-// retrieves header text from SAM file
-void SamReader::LoadHeaderData(void)
-{
-    stringstream header_txt("");
-    
-    while(file.peek() == '@')
-    {
-        string line;
-        getline(file, line);
-        header_txt << line << endl;
-    }
-    
-    header.SetHeaderText(header_txt.str());
-    
-    m_refData.reserve(header.Sequences.Size());
-    
-    for(SamSequenceConstIterator it = header.Sequences.Begin(); it != header.Sequences.End(); it++)
-    {
-        //convert length to an int from a string.
-        int length;
-        stringstream length_ss(it->Length);
-        length_ss >> length;
-        
-        m_refData.push_back(RefData(it->Name, length));
-    }
 }
 
 bool AddHeaderAttributeArray(BamAlignment & alignment, const string & tag,const string & value);
@@ -318,7 +329,7 @@ BamAlignment * SamReader::ParseAlignment(const char * line_s)
 {
     BamAlignment * al = new BamAlignment();
     BamAlignment & alignment = *al;
-    
+
     string & qname = alignment.Name;
     uint32_t & flag = alignment.AlignmentFlag;
     //string rname;
@@ -374,8 +385,9 @@ BamAlignment * SamReader::ParseAlignment(const char * line_s)
     else if(header.Sequences.Contains(rname))
         alignment.RefID = header.Sequences.IndexOfString(rname);
     else {
-        cerr << "Rname " << rname << " missing from sequence dictionary" << endl;
+        cerr << "Rname " << rname << " missing from sequence dictionary. Aborting." << endl;
         alignment.RefID = -1;
+        exit(-1);
     }
 
     // rnext

@@ -34,6 +34,13 @@ namespace po = boost::program_options;
 
 int OpenGECommand::runWithParameters(int argc, const char ** argv)
 {
+    for(int i = 0; i < argc; i++) {
+        command_line.append(argv[i]);
+        command_line.append(" ");
+    }
+    
+    options.add(global_options);
+    options.add(io_options);
     options_positional.add("in", -1);
     getOptions();
     
@@ -102,13 +109,17 @@ int OpenGECommand::runWithParameters(int argc, const char ** argv)
 
 OpenGECommand::OpenGECommand()
 {
-    options.add_options()
+    io_options.add_options()
     ("in,i", po::value<vector<string> >(),"Input files. If not specified, defaults to stdin. Can be specified without --in or -i")
     ("format,F", po::value<string>(),"File output format")
+    ("compression,c", po::value<int>()->default_value(6), "Compression level of the output. Valid 0-9.")
+    ;
+    global_options.add_options()
     ("verbose,v" ,"Display detailed messages while processing")
     ("threads,t", po::value<unsigned int>()->default_value(ThreadPool::availableCores()), "Select the number of threads to be used in each threadpool")
     ("nothreads,d", "Disable use of thread pools for parallel processing.")
     ("tmpdir,T", po::value<string>()->default_value("/tmp"), "Directory to use for temporary files")
+    ("nosplit","Do not split by chromosome (for speed) when processing")
     ;
 }
 
@@ -117,6 +128,8 @@ OpenGECommand * CommandMarshall::commandWithName(const string name) {
     
     if(!strcmp(cname, "count"))
         return new CountCommand;
+    if(!strcmp(cname, "coverage"))
+        return new CoverageCommand;
     else if(!strcmp(cname, "dedup"))
         return new DedupCommand;
     else if(!strcmp(cname, "help"))

@@ -179,7 +179,18 @@ Filter::Filter()
 , mapq_limit(0)
 , min_length(0)
 , max_length(INT_MAX)
+, trim_begin_length(0)
+, trim_end_length(0)
 {}
+
+void Filter::trim(BamAlignment & al)
+{
+    if(trim_begin_length == 0 && trim_end_length == 0)
+        return;
+
+    al.QueryBases = al.QueryBases.substr(trim_begin_length, (al.QueryBases.size() - trim_begin_length - trim_end_length));
+    al.Qualities = al.Qualities.substr(trim_begin_length, (al.Qualities.size() - trim_begin_length - trim_end_length));
+}
 
 int Filter::runInternal()
 {
@@ -190,7 +201,9 @@ int Filter::runInternal()
         BamAlignment * al = NULL;
         while (NULL != (al = getInputAlignment()) && count < count_limit) {
             if(al->MapQuality >= mapq_limit 
-               && al->Length >= min_length && al->Length <= max_length) {
+               && al->Length >= min_length && al->Length <= max_length
+               && al->Length > (trim_begin_length + trim_end_length)) {
+                trim(*al);
                 putOutputAlignment(al);
                 count++;
             }
@@ -215,7 +228,9 @@ int Filter::runInternal()
                 if ( (al->RefID >= region.LeftRefID)  && ( (al->Position + al->Length) >= region.LeftPosition ) &&
                     (al->RefID <= region.RightRefID) && ( al->Position <= region.RightPosition) 
                     && (al->MapQuality >= mapq_limit)
-                    && al->Length >= min_length && al->Length <= max_length) {
+                    && al->Length >= min_length && al->Length <= max_length
+                    && al->Length > (trim_begin_length + trim_end_length)) {
+                    trim(*al);
                     putOutputAlignment(al);
                     count++;
                 } else {

@@ -32,11 +32,16 @@ FileReader::file_format_t FileReader::deduceFileFormat()
     file_format_t ret_format = FORMAT_UNKNOWN;
     for(int i = 0; i < filenames.size(); i++) {
         file_format_t this_file_format = FORMAT_UNKNOWN;
-        FILE * fp = fopen(filenames[i].c_str(), "rb");
-        
-        if(!fp) {
-            cerr << "Couldn't open file " << filenames[i] << endl;
-            return FORMAT_UNKNOWN;
+        FILE * fp = NULL;
+        if(filenames[i] == "stdin")
+            fp = stdin;
+        else {
+            fp = fopen(filenames[i].c_str(), "rb");
+
+            if(!fp) {
+                cerr << "Couldn't open file " << filenames[i] << endl;
+                return FORMAT_UNKNOWN;
+            }
         }
 
         unsigned char data[2];
@@ -44,8 +49,15 @@ FileReader::file_format_t FileReader::deduceFileFormat()
             cerr << "Couldn't read from file " << filenames[i] << endl;
             return FORMAT_UNKNOWN;
         }
-
-        fclose(fp);
+        
+        if(filenames[i] != "stdin")
+            fclose(fp);
+        else {
+            int ret = ungetc(data[1], fp);
+            assert(ret != EOF);
+            ret = ungetc(data[0], fp);
+            assert(ret != EOF);
+        }
         
         if(data[0] == '@')
             this_file_format = FORMAT_SAM;
@@ -113,39 +125,30 @@ int FileReader::runInternal()
 
         // before doing any reading, open the files to
         // verify they are the right format, etc.
-        for(int i = 0; i < filenames.size(); i++) {
-            SamReader reader;
+        for(int i = 0; i < filenames.size(); i++) {     
+            readers.push_back(SamReader());
+            SamReader & reader = readers.back();
             
             if(!reader.Open(filenames[i])) {
                 cerr << "Error opening SAM file: " << filenames[i] << endl;
                 return -1;
             }
 
-            if(filenames.size() > 1 && i == 0)
+            SamHeader header = reader.GetHeader();
+            if( i == 0)
                 first_header = header;
             
             // TODO: We can probably find a better way to deal with multiple SAM file headers,
             // but for now we should disallow different headers to avoid issues.
             if(i > 0 && header.ToString() != first_header.ToString())
                 cerr << "Warning! SAM input files have different headers." << endl;
-            
-            reader.Close();
         }
+        
+        this->header = first_header;
 
-        for(int i = 0; i < filenames.size(); i++) {
-            SamReader reader;
-            
-            if(!reader.Open(filenames[i])) {
-                cerr << "Error opening SAM file: " << filenames[i] << endl;
-                return -1;
-            }
-            
-            header = reader.GetHeader();
-            references = reader.GetReferenceData();
+        for(vector<SamReader>::iterator i = readers.begin(); i != readers.end(); i++) {
+            SamReader & reader = *i;
             open = true;
-            
-            if(filenames.size() > 1 && i == 0)
-                first_header = header;
 
             BamAlignment * al = NULL;
             while(true)

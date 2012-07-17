@@ -51,14 +51,37 @@ void FileWriter::setFormat(const std::string & format_name)
     setFormat(ret);
 }
 
+file_format_t FileWriter::getFileFormat() {
+    file_format_t determined_format = file_format;
+    
+    if(determined_format == FORMAT_UNKNOWN) {
+        determined_format = detectFileFormatFromFilename(filename);
+        if(determined_format == FORMAT_UNKNOWN)
+            determined_format = default_file_format;
+    }
+    
+    return determined_format;
+}
+
 int FileWriter::runInternal()
 {
     ogeNameThread("am_FileWriter");
     
-    if(file_format == FORMAT_UNKNOWN) {
-        file_format = detectFileFormatFromFilename(filename);
-        if(file_format == FORMAT_UNKNOWN)
-            file_format = default_file_format;
+    file_format = getFileFormat();
+    SamHeader header = getHeader();
+    
+    if(command_line_options.size() > 0) {
+        SamProgram pg;
+        pg.ID = string("openge");
+
+        for(int i = 2; header.Programs.Contains( pg.ID); i++) {
+            stringstream s;
+            s << "openge-" << i;
+            pg.ID = s.str();
+        }
+
+        pg.CommandLine = command_line_options;
+        header.Programs.Add(pg);
     }
 
     switch(file_format) {
@@ -66,7 +89,7 @@ int FileWriter::runInternal()
             {
                 SamWriter writer;
                 
-                if(!writer.Open(filename, getHeader().ToString(), getReferences())) {
+                if(!writer.Open(filename, header.ToString(), getReferences())) {
                     cerr << "Error opening BAM file to write." << endl;
                     return -1;
                 }
@@ -91,7 +114,7 @@ int FileWriter::runInternal()
             {
                 FastqWriter writer;
                 
-                if(!writer.Open(filename, getHeader().ToString(), getReferences())) {
+                if(!writer.Open(filename, header.ToString(), getReferences())) {
                     cerr << "Error opening FASTQ file to write." << endl;
                     return -1;
                 }
@@ -115,14 +138,15 @@ int FileWriter::runInternal()
         case FORMAT_BAM:
             {
                 BamWriter writer;
-                
-                if(!writer.Open(filename, getHeader(), getReferences())) {
+
+                writer.SetCompressionMode(BamWriter::Compressed);
+                writer.SetCompressionLevel(compression_level);
+
+                if(!writer.Open(filename, header, getReferences())) {
                     cerr << "Error opening BAM file to write." << endl;
                     return -1;
                 }
-                
-                writer.SetCompressionLevel(compression_level);
-                
+
                 BamAlignment * al;
                 
                 while(true)
