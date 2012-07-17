@@ -72,7 +72,14 @@ int FileWriter::runInternal()
     
     if(command_line_options.size() > 0) {
         SamProgram pg;
-        pg.ID = "openge";
+        pg.ID = string("openge");
+
+        for(int i = 2; header.Programs.Contains( pg.ID); i++) {
+            stringstream s;
+            s << "openge-" << i;
+            pg.ID = s.str();
+        }
+
         pg.CommandLine = command_line_options;
         header.Programs.Add(pg);
     }
