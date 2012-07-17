@@ -6,6 +6,7 @@ if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
    message(SEND_ERROR "In-source builds are not allowed.")
 endif("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
 
+enable_testing()
 add_subdirectory(bamtools)
 add_subdirectory(openge)
 add_dependencies(openge BamTools-static)
