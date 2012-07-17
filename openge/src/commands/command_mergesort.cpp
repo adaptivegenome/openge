@@ -42,7 +42,7 @@ void MergeSortCommand::getOptions()
     ("byname,b", "Sort by name. Otherwise, sorts by position.")
     ("n,n", po::value<int>()->default_value(5e5), "Alignments per temp file.")
     ("compresstempfiles,C", "Compress temp files. By default, uncompressed")
-    ("markduplicates,d", "Mark duplicates after sorting.")
+    ("markduplicates,M", "Mark duplicates after sorting.")
     ("removeduplicates,R", "Remove duplicates.")
     ;
 }
