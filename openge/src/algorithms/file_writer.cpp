@@ -139,7 +139,6 @@ int FileWriter::runInternal()
             {
                 BamWriter writer;
 
-                cerr << "compression" << compression_level << endl;
                 writer.SetCompressionMode(BamWriter::Compressed);
                 writer.SetCompressionLevel(compression_level);
 
