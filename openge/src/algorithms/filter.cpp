@@ -97,11 +97,11 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
     // -------------------------------
     // validate reference IDs & genomic positions
     
-    const RefVector references = getReferences();
+    SamHeader header = getHeader();
     
     int RefID = -1;
-    for(int i = 0; i < references.size(); i++) {
-        if(references[i].RefName == chrom)
+    for(int i = 0; i < header.Sequences.Size(); i++) {
+        if(header.Sequences[i].Name == chrom)
             RefID = i;
     }
     
@@ -112,21 +112,21 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
     }
     
     // startPos cannot be greater than or equal to reference length
-    const RefData& startReference = references.at(RefID);
-    if ( startPos >= startReference.RefLength ) {
-        cerr << "Start position (" << startPos << ") after end of the reference sequence (" << startReference.RefLength << ")" << endl;
+    const SamSequence startReference = header.Sequences[RefID];
+    int sequence_length = atoi(startReference.Length.c_str());
+    if ( startPos >= sequence_length ) {
+        cerr << "Start position (" << startPos << ") after end of the reference sequence (" << sequence_length << ")" << endl;
         return false;
     }
     
     // stopPosition cannot be larger than reference length
-    const RefData& stopReference = references.at(RefID);
-    if ( stopPos > stopReference.RefLength ) {
-        cerr << "Start position (" << stopPos << ") after end of the reference sequence (" << stopReference.RefLength << ")" << endl;
+    if ( stopPos > sequence_length ) {
+        cerr << "Start position (" << stopPos << ") after end of the reference sequence (" << sequence_length << ")" << endl;
         return false;
     }
 
     // if no stopPosition specified, set to reference end
-    if ( stopPos == -1 ) stopPos = stopReference.RefLength;
+    if ( stopPos == -1 ) stopPos = sequence_length;
     
     // -------------------------------
     // set up Region struct & return

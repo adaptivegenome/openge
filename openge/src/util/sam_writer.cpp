@@ -59,8 +59,7 @@ SamWriter::SamWriter()
 }
 
 bool SamWriter::Open(const string& filename,
-                     const string& samHeaderText,
-                     const RefVector& referenceSequences) {
+                     const SamHeader & samHeader) {
     this->filename = filename;
 
     if(filename != "stdout") {
@@ -72,10 +71,8 @@ bool SamWriter::Open(const string& filename,
             return false;
         }
     }
-    
-    *output_stream << samHeaderText;
-
-    references = referenceSequences;
+    this->header = samHeader;
+    *output_stream << header.ToString();
     
     open = true;
     
@@ -103,8 +100,8 @@ bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
     m_out << a.Name << "\t" << a.AlignmentFlag << "\t";
     
     // write reference name
-    if ( (a.RefID >= 0) && (a.RefID < (int)references.size()) ) 
-        m_out << references[a.RefID].RefName << "\t";
+    if ( (a.RefID >= 0) && (a.RefID < (int)header.Sequences.Size()) ) 
+        m_out << header.Sequences[a.RefID].Name << "\t";
     else 
         m_out << "*\t";
     
@@ -125,11 +122,11 @@ bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
     }
     
     // write mate reference name, mate position, & insert size
-    if ( a.IsPaired() && (a.MateRefID >= 0) && (a.MateRefID < (int)references.size()) ) {
+    if ( a.IsPaired() && (a.MateRefID >= 0) && (a.MateRefID < (int)header.Sequences.Size()) ) {
         if ( a.MateRefID == a.RefID )
             m_out << "=\t";
         else
-            m_out << references[a.MateRefID].RefName << "\t";
+            m_out << header.Sequences[a.MateRefID].Name << "\t";
         m_out << a.MatePosition+1 << "\t" << a.InsertSize << "\t";
     } 
     else

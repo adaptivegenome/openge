@@ -184,8 +184,16 @@ void MarkDuplicates::buildSortedReadEndLists() {
     
     BamWriter writer;
 
+    RefVector references;
+    
+    for(SamSequenceConstIterator i = header.Sequences.Begin(); i != header.Sequences.End(); i++) {
+        RefData d;
+        d.RefName = i->Name;
+        d.RefLength = atoi(i->Length.c_str());
+    }
+    
     writer.SetCompressionMode(BamWriter::Uncompressed);
-    writer.Open(getBufferFileName(), header, source->getReferences());
+    writer.Open(getBufferFileName(), header, references);
     
     while (true) {
         BamAlignment * prec = getInputAlignment();
