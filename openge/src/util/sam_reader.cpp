@@ -276,7 +276,7 @@ bool SamReader::Close()
     return true;
 }
 
-SamHeader SamReader::GetHeader() const
+const SamHeader & SamReader::GetHeader() const
 {
     while (!loaded)
         usleep(20000);

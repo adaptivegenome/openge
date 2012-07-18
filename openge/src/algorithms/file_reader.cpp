@@ -122,12 +122,14 @@ int FileReader::runInternal()
         vector<SamReader> readers;
         
         SamHeader first_header;
+        
+        for(int i = 0; i < filenames.size(); i++)   
+            readers.push_back(SamReader());
 
         // before doing any reading, open the files to
         // verify they are the right format, etc.
-        for(int i = 0; i < filenames.size(); i++) {     
-            readers.push_back(SamReader());
-            SamReader & reader = readers.back();
+        for(int i = 0; i < filenames.size(); i++) {   
+            SamReader & reader = readers[i];
             
             if(!reader.Open(filenames[i])) {
                 cerr << "Error opening SAM file: " << filenames[i] << endl;
