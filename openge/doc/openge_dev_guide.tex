@@ -62,14 +62,7 @@ Apple's XCode can be used to compile OpenGE. To use XCode, perform the same step
 \cmd{cmake -G Xcode ..}
 and a project file called OpenGE.xcodeproj will be created. Open this in Xcode.
 
-Note: there are issues when using XCode 4.3 or later with cmake- generally cmake cannot find a compiler, or has issues with the c compiler it does find. To fix this:
-\begin{itemize}
-\item Make sure you have installed the command line tools from within XCode's preferences (under Preferences-Downloads-Documentation).
-\item Create a symlink from /Developer/Applications/Xcode.app/Contents/version.plist to /Applications/Xcode.app/Contents/version.plist. This helps cmake find the installed developer tools.
-\item Run Cmake as described above.
-\item After opening the project, set the base SDK to whatever version you have installed- usually "Latest Mac OS X"
-\end{itemize}
-OpenGE should now compile.
+Note: there are issues when using XCode 4.3 or later with out of date versions of cmake- generally cmake cannot find a compiler, or has issues with the c compiler it does find. To fix this, update to CMake 2.8.8 or later.
 
 \subsection{Dependencies}
 The following software packages should be on your machine before attempting to compile OpenGE:
