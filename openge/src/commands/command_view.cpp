@@ -44,11 +44,7 @@ void ViewCommand::getOptions()
 
 int ViewCommand::runCommand()
 {
-    string filename_in = input_filenames[0];
     string filename_out = vm["out"].as<string>();
-    
-    if(input_filenames.size() > 1)
-        cerr << "More than one input filename provided - only using " << filename_in << "." << endl;
 
     FileReader reader;
     Filter filter;
