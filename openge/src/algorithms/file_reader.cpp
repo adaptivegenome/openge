@@ -94,7 +94,7 @@ int FileReader::runInternal()
         if(!reader.Open(filenames)) {
             cerr << "Error opening BAM files." << endl;
             reader.Close();
-            return -1;
+            exit(-1);
         }
         
         header = reader.GetHeader();
@@ -133,7 +133,7 @@ int FileReader::runInternal()
             
             if(!reader.Open(filenames[i])) {
                 cerr << "Error opening SAM file: " << filenames[i] << endl;
-                return -1;
+                exit(-1);
             }
 
             SamHeader header = reader.GetHeader();

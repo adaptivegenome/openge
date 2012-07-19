@@ -91,7 +91,7 @@ int FileWriter::runInternal()
                 
                 if(!writer.Open(filename, header)) {
                     cerr << "Error opening BAM file to write." << endl;
-                    return -1;
+                    exit(-1);
                 }
                 
                 BamAlignment * al;
@@ -116,7 +116,7 @@ int FileWriter::runInternal()
                 
                 if(!writer.Open(filename, header)) {
                     cerr << "Error opening FASTQ file to write." << endl;
-                    return -1;
+                    exit(-1);
                 }
                 
                 BamAlignment * al;
@@ -152,7 +152,7 @@ int FileWriter::runInternal()
 
                 if(!writer.Open(filename, header, references)) {
                     cerr << "Error opening BAM file to write." << endl;
-                    return -1;
+                    exit(-1);
                 }
 
                 BamAlignment * al;
