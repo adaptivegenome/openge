@@ -3,14 +3,16 @@ set( OPENGE_TEST_SCRIPT ${PROJECT_SOURCE_DIR}/openge/test)
 
 ## Test file formats
 # SAM
-# add_test(NAME oge_sam_pipe COMMAND bash -c "cat ${OPENGE_TEST_DATA}simple.sam | ${CMAKE_CURRENT_BINARY_DIR}/openge count")
-# add_test(NAME oge_sam_console_redirect COMMAND openge count < ${OPENGE_TEST_DATA}simple.sam)
+# TODO: test console redirection as well
 add_test(NAME oge_sam_input COMMAND openge count ${OPENGE_TEST_DATA}/simple.sam)
+add_test(NAME oge_sam_input_pipe COMMAND bash ${OPENGE_TEST_SCRIPT}/pipe_assist.sh ${OPENGE_TEST_DATA}/simple.sam "${EXECUTABLE_OUTPUT_PATH}/openge count")
 add_test(NAME oge_sam_input_multi COMMAND openge count ${OPENGE_TEST_DATA}/simple.sam ${OPENGE_TEST_DATA}/simple.sam)
-add_test(NAME oge_sam_input_diff COMMAND bash ${OPENGE_TEST_SCRIPT}/compare_sam.sh "${EXECUTABLE_OUTPUT_PATH}/openge view ${OPENGE_TEST_DATA}/simple.sam" "${OPENGE_TEST_DATA}/simple.sam" )
+add_test(NAME oge_sam_input_diff_sam COMMAND bash ${OPENGE_TEST_SCRIPT}/compare_sam.sh "${EXECUTABLE_OUTPUT_PATH}/openge view ${OPENGE_TEST_DATA}/simple.sam" "${OPENGE_TEST_DATA}/simple.sam" )
+add_test(NAME oge_sam_input_diff_bam COMMAND bash ${OPENGE_TEST_SCRIPT}/compare_sam.sh "${EXECUTABLE_OUTPUT_PATH}/openge view ${OPENGE_TEST_DATA}/simple.bam" "${OPENGE_TEST_DATA}/simple.sam" )
 
 # BAM
 add_test(NAME oge_bam_input COMMAND openge count ${OPENGE_TEST_DATA}/simple.bam)
+add_test(NAME oge_bam_input_pipe COMMAND bash ${OPENGE_TEST_SCRIPT}/pipe_assist.sh ${OPENGE_TEST_DATA}/simple.bam "${EXECUTABLE_OUTPUT_PATH}/openge count")
 add_test(NAME oge_bam_input_multi COMMAND openge count ${OPENGE_TEST_DATA}/simple.bam ${OPENGE_TEST_DATA}/simple.bam)
 
 ## Test count command
