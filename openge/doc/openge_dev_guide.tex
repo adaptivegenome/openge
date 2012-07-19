@@ -72,6 +72,17 @@ The following software packages should be on your machine before attempting to c
 \item boost::program\_options. On Mac, you can compile this from source using the commands  (see \url{http://www.boost.org/doc/libs/1_49_0/doc/html/program_options.html})
 \end{itemize}
 
+\subsection{Testing}
+OpenGE uses CTest (a built in component of CMake) for built in testing. Nothing additional is necessary to run tests; if you can compile OpenGE, you already have everything you need to run tests.
+
+To run the tests,  run
+\cmd {make test}
+after compiling OpenGE. All tests should run successfully on all platforms- if a test fails, you should file a bug report on github.
+
+Ideally, all commands and all options to all commands should have individual tests to verify that they are functioning correctly; this is what we are working towards. Currently, many of the tests simply verify that a command executes without crashing, or test the program's return value. These tests should be expanded to also verify output across several sets of input.
+
+Contributing tests is one of the simplest ways to contribute to OpenGE.
+
 \section {Contributing OpenGE}
 Contributions of code or documentation are welcome. Contact us to learn more about how you can get involved at evolvability@vt.edu or interact with us through our github page.
 
