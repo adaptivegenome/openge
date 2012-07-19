@@ -15,7 +15,7 @@
  *********************************************************************/
 
 #include "mark_duplicates.h"
-#include <api/BamMultiReader.h>
+#include <api/BamReader.h>
 #include <api/BamWriter.h>
 
 #include <algorithm>

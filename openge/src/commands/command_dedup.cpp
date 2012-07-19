@@ -23,8 +23,6 @@
 #include "../algorithms/split_by_chromosome.h"
 #include <iostream>
 
-#include <api/BamMultiReader.h>
-#include <api/BamWriter.h>
 using namespace BamTools;
 namespace po = boost::program_options;
 using namespace std;
