@@ -28,7 +28,6 @@ using namespace std;
 #include <api/algorithms/Sort.h>
 
 #include <api/SamConstants.h>
-#include <api/BamParallelismSettings.h>
 #include <api/BamReader.h>
 #include <api/BamWriter.h>
 

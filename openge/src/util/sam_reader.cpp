@@ -22,8 +22,6 @@
 #include "sam_reader.h"
 #include <errno.h>
 
-#include <api/BamParallelismSettings.h>
-
 #include <fcntl.h>           /* For O_* constants */
 #include <sys/stat.h>        /* For mode constants */
 #include <semaphore.h>
@@ -231,7 +229,7 @@ bool SamReader::Open(const string & filename)
     
 #ifdef SAM_READER_MT
     workers_finished = false;
-    num_worker_threads = BamParallelismSettings::getNumberThreads();
+    num_worker_threads = OGEParallelismSettings::getNumberThreads();
     active_workers = num_worker_threads;
     
     int32_t sem_id = 0xffffffff & (int64_t) this;
@@ -244,7 +242,7 @@ bool SamReader::Open(const string & filename)
 		assert(0);
 	}
     
-    for(int i = 0; i < BamParallelismSettings::getNumberThreads(); i++)
+    for(int i = 0; i < OGEParallelismSettings::getNumberThreads(); i++)
     {
         pthread_t t;
         pthread_create(&t, NULL, LineWorkerThread, this);
@@ -260,7 +258,7 @@ bool SamReader::Close()
 {
 #ifdef SAM_READER_MT
     workers_finished = true;
-    for(int i = 0; i < BamParallelismSettings::getNumberThreads(); i++)
+    for(int i = 0; i < OGEParallelismSettings::getNumberThreads(); i++)
         pthread_join(worker_threads[i], NULL);
 
     worker_threads.clear();

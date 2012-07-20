@@ -17,6 +17,7 @@
 
 
 #include "thread_pool.h"
+#include <api/BamParallelismSettings.h>
 
 #include <cassert>
 #include <string>
@@ -113,14 +114,7 @@ ThreadPool::~ThreadPool()
 
 int ThreadPool::availableCores()
 {
-#ifdef OPENMP
-    // the openmp function is included here as it is known to be a more reliable way to
-    // detect the number of available cores. However, it is only available when compiling
-    // with OMP turned on.
-	return omp_get_num_procs();
-#endif
-	
-	return sysconf(_SC_NPROCESSORS_ONLN);
+    return OGEParallelismSettings::availableCores();
 }
 
 //add a job to the queue to be 
@@ -216,3 +210,49 @@ void * ThreadPool::thread_start(void * thread_pool)
 }
 
 ThreadJob::~ThreadJob() {}
+
+#pragma mark OGEParallelismSettings
+
+#include <unistd.h>
+
+int OGEParallelismSettings::m_configured_threads = 0;
+bool OGEParallelismSettings::m_multithreading_enabled = false;
+
+int OGEParallelismSettings::availableCores()
+{
+    
+#ifdef OPENMP
+    // the openmp function is included here as it is known to be a more reliable way to
+    // detect the number of available cores. However, it is only available when compiling
+    // with OMP turned on.
+	return omp_get_num_procs();
+#endif
+	
+	return sysconf(_SC_NPROCESSORS_ONLN);
+}
+
+void OGEParallelismSettings::setNumberThreads(int threads)
+{
+    m_configured_threads = threads;
+    BamParallelismSettings::setNumberThreads(threads);
+}
+
+int OGEParallelismSettings::getNumberThreads()
+{
+    if(m_configured_threads == 0)
+        return availableCores();
+    else
+        return m_configured_threads;
+}
+
+void OGEParallelismSettings::disableMultithreading()
+{
+    m_multithreading_enabled = false;
+    BamParallelismSettings::disableMultithreading();
+}
+
+void OGEParallelismSettings::enableMultithreading()
+{
+    m_multithreading_enabled = true;
+    BamParallelismSettings::enableMultithreading();
+}

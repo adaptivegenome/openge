@@ -20,7 +20,6 @@
 #include <string>
 #include <iostream>
 #include <boost/exception/all.hpp>
-#include <api/BamParallelismSettings.h>
 
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -62,7 +61,7 @@ int OpenGECommand::runWithParameters(int argc, const char ** argv)
         input_filenames = vm["in"].as<vector<string> >();
     
     num_threads = vm["threads"].as<unsigned int>();
-    BamParallelismSettings::setNumberThreads(num_threads);
+    OGEParallelismSettings::setNumberThreads(num_threads);
     
     nothreads = vm.count("nothreads") != 0;
     
@@ -73,11 +72,11 @@ int OpenGECommand::runWithParameters(int argc, const char ** argv)
         if(verbose)
             cerr << "Multithreading disabled." << endl;
 
-        BamParallelismSettings::disableMultithreading();
+        OGEParallelismSettings::disableMultithreading();
     } else {
         if(verbose)
             cerr << num_threads << " cores for use in thread pool." << endl;
-        BamParallelismSettings::enableMultithreading();
+        OGEParallelismSettings::enableMultithreading();
     }
     
     timeval start_time;
