@@ -2,7 +2,7 @@ Open Genomics Engine
 
 Version 0.1.2 - 20 July 2012
 * Add 'coverage' command, allowing analysis of coverage of a genome
-* Improving SAM I/O speed, and fixed several errors in parsing and generating SAM files
+* Improve SAM I/O speed, and fix several errors in parsing and generating SAM files
 * Add ability to filter by read length, by minimum quality
 * Add FASTQ output support
 * Add ability to trim reads when generating a FASTQ file
