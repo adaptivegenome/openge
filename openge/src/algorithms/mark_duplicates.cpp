@@ -271,7 +271,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
         sort(fragSort.begin(), fragSort.end(), compareReadEnds());
     else
         ogeSortMt(fragSort.begin(), fragSort.end(), compareReadEnds());
-    cerr << "done." << endl;
+    if(verbose) cerr << "done." << endl;
     
     vector<ReadEnds *>contents = tmp.allReadEnds();
     
