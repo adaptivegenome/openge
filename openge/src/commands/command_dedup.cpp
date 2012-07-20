@@ -44,7 +44,7 @@ int DedupCommand::runCommand()
     if(no_split && verbose)
         cerr << "Disabling split-by-chromosome." << endl;
 
-    int num_chains = min(12,ThreadPool::availableCores()/2);
+    int num_chains = min(12,OGEParallelismSettings::getNumberThreads()/2);
 
     if(nothreads || no_split || num_chains <= 1)
     {

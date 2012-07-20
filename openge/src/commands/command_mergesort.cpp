@@ -63,7 +63,7 @@ int MergeSortCommand::runCommand()
     if(no_split && verbose)
         cerr << "Disabling split-by-chromosome." << endl;
     
-    int num_chains = min(12,ThreadPool::availableCores()/2);
+    int num_chains = min(12,OGEParallelismSettings::getNumberThreads ()/2);
     
     if(nothreads || no_split || !do_mark_duplicates || num_chains <= 1)
     {
