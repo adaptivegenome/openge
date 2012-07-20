@@ -1,0 +1,23 @@
+Open Genomics Engine
+
+Version 0.1.2 - 20 July 2012
+* Add 'coverage' command, allowing analysis of coverage of a genome
+* Improving SAM I/O speed, and fixed several errors in parsing and generating SAM files
+* Add ability to filter by read length, by minimum quality
+* Add FASTQ output support
+* Add ability to trim reads when generating a FASTQ file
+* Add testing support to the codebase (CTest, see developer docs)
+* Add @PG records to SAM and BAM files, containing the command line options used to generate the file
+* Other bug fixes
+
+Version 0.1.1 - 16 June 2012
+* Split by chromosome when marking duplicates
+* Multithreaded sorting when marking duplicates
+* Fixed --tmpdir parameter being ignored
+* Added SAM output support (experimental)
+* Added distribution of read lengths to statistics command
+* Removed convert command
+* Other bug fixes
+
+Version 0.1 - 2 June 2012
+* Initial release
