@@ -139,18 +139,72 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader * header) 
     const int NO_ALIGNMENT_START = -1;
     // If neither read is unmapped just set their mate info
     if (rec1.IsMapped() && rec2.IsMapped()) {
+
+        int rec1_end = rec1.Position;
+        for(vector<CigarOp>::const_iterator i = rec1.CigarData.begin(); i != rec1.CigarData.end(); i++) {
+            switch(i->Type)
+            {
+                case 'H':
+                case 'S':
+                    break;
+                case 'D':
+                    rec1_end -= i->Length;
+                    break;
+                case 'I':
+                    break;
+                default:
+                    rec1_end += i->Length;
+                    break;
+            }
+        }
+
+        int rec2_end = rec2.Position;
+        for(vector<CigarOp>::const_iterator i = rec2.CigarData.begin(); i != rec2.CigarData.end(); i++) {
+            switch(i->Type)
+            {
+                case 'H':
+                case 'S':
+                    break;
+                case 'D':
+                    rec2_end -= i->Length;
+                    break;
+                case 'I':
+                    break;
+                default:
+                    rec2_end += i->Length;
+                    break;
+            }
+        }
+        
+        int l_pos = min(rec1.Position, rec2.Position);
+        int r_pos = max(rec1_end, rec2_end);
+        
+        int insert_size = r_pos - l_pos - 1;
         
         rec1.MateRefID = rec2.MateRefID;
         rec1.MatePosition = rec2.Position;
-        rec1.SetIsReverseStrand(rec2.IsReverseStrand());
+        rec1.SetIsMateReverseStrand(rec2.IsReverseStrand());
         rec1.SetIsMapped(true);
         rec1.AddTag<int>("MQ", "i", rec2.MapQuality);
-        
+        rec1.InsertSize = rec1.Position > rec2.Position ? -insert_size : insert_size;
+
         rec2.MateRefID = rec1.RefID;
         rec2.MatePosition = rec1.Position;
         rec2.SetIsMateReverseStrand( rec1.IsReverseStrand() );
         rec2.SetIsMapped(true);
         rec2.AddTag<int>("MQ", "i", rec1.MapQuality);
+        rec2.InsertSize = rec2.Position > rec1.Position ? -insert_size : insert_size;
+        
+        // we should remove and readd the XT tag so that tag order in OGE matches tag order from GATK. This 
+        // is just needed for the debug stage.
+        uint8_t xt;
+        rec1.GetTag<uint8_t>("XT", xt);
+        rec1.RemoveTag("XT");
+        rec1.AddTag<uint8_t>("XT", "A", xt);
+        rec2.GetTag("XT", xt);
+        rec2.RemoveTag("XT");
+        rec2.AddTag<uint8_t>("XT", "A", xt);
+        
     }
     // Else if they're both unmapped set that straight
     else if (!rec1.IsMapped() && !rec2.IsMapped()) {
@@ -256,6 +310,8 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
         newRead->GetTag("OP", OP);
         cerr << "New read pos " << newRead->Position << " OP = " << OP << " " << readWasModified << endl;
     }
+    
+    cerr << "ConstrainedMateFixingManager::addRead size of waitingReads: " << waitingReads.size()<<endl;
     
     //final long curTime = timer.currentTime();
     //if ( curTime - lastProgressPrintTime > PROGRESS_PRINT_FREQUENCY ) {

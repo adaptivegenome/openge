@@ -232,7 +232,7 @@ bool ReadSorter::CreateSortedTempFile(vector<BamAlignment* > * buffer) {
 // merges sorted temp BAM files into single sorted output BAM file
 bool ReadSorter::MergeSortedRuns(void) {
     if(verbose)
-        cerr << "Combining temp files for final output..." << endl;
+        cerr << "Combining " << m_tempFilenames.size() << " temp files for final output..." << endl;
     
     // open up multi reader for all of our temp files
     BamMultiReader multiReader;

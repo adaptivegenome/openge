@@ -207,15 +207,15 @@ protected:
 private:
     static std::vector<BamTools::CigarOp> unclipCigar(const std::vector<BamTools::CigarOp> & cigar);    
     static bool isClipOperator(const BamTools::CigarOp op);
-    static std::vector<BamTools::CigarOp> reclipCigar(std::vector<BamTools::CigarOp> & cigar, BamTools::BamAlignment * read);
+    static std::vector<BamTools::CigarOp> reclipCigar(const std::vector<BamTools::CigarOp> & cigar, BamTools::BamAlignment * read);
 
 #pragma mark AlignedRead
     class AlignedRead {
     private:
         BamTools::BamAlignment * read;
-        std::string * readBases;
-        std::string * baseQuals;
-        std::vector<BamTools::CigarOp> * newCigar;
+        std::string readBases;
+        std::string baseQuals;
+        std::vector<BamTools::CigarOp> newCigar;
         int newStart;
         int mismatchScoreToReference;
         long alignerMismatchScore;
@@ -223,48 +223,70 @@ private:
         static int MAX_POS_MOVE_ALLOWED;
         static int NO_ORIGINAL_ALIGNMENT_TAGS;
         AlignedRead(BamTools::BamAlignment * read) 
-        : read(read) 
-        , readBases(NULL)
-        , baseQuals(NULL)
+        : read(read)
         , newCigar(NULL)
         , newStart(-1)
         , mismatchScoreToReference(0)
         , alignerMismatchScore(0)
         { }
         
-        BamTools::BamAlignment * getRead() {
+        AlignedRead & operator=(const AlignedRead & a) { assert(0);  return *this;}
+        
+        BamTools::BamAlignment * getRead() const {
             return read;
         }
         
-        int getReadLength() {
-            return readBases != NULL ? readBases->size() : read->Length;
+        int getReadLength() const {
+            return readBases.size() != 0 ? readBases.size() : read->Length;
+        }
+        
+        void clearCigar() { newCigar.clear(); }
+        
+        size_t getCigarLength() const {
+            const std::vector<BamTools::CigarOp> & cigar = (newCigar.size() > 0) ? newCigar : read->CigarData;
+            size_t len = 0;
+            
+            for(std::vector<BamTools::CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++) {
+                switch(i->Type)
+                {
+                    case 'H':
+                    case 'S':
+                    case 'D':
+                        break;
+                    case 'I':
+                    default:
+                        len += i->Length;
+                        break;
+                }
+            }
+            return len;
         }
         
         std::string getReadBases();
         
-        std::string getBaseQualities() ;
+        std::string getBaseQualities();
         
     private:
         // pull out the bases that aren't clipped out
         void getUnclippedBases();
         
         // pull out the bases that aren't clipped out
-        std::vector<BamTools::CigarOp> reclipCigar(std::vector<BamTools::CigarOp> & cigar);
+        std::vector<BamTools::CigarOp> reclipCigar(const std::vector<BamTools::CigarOp> & cigar);
     public:
         std::vector<BamTools::CigarOp> & getCigar();
         // tentatively sets the new Cigar, but it needs to be confirmed later
-        void setCigar(std::vector<BamTools::CigarOp> * cigar, bool fixClippedCigar = true);
+        void setCigar(const std::vector<BamTools::CigarOp> & cigar, bool fixClippedCigar = true);
         
     public:
         void setAlignmentStart(int start);
-        int getAlignmentStart();
-        int getOriginalAlignmentStart();        
+        int getAlignmentStart() const;
+        int getOriginalAlignmentStart() const;        
         bool constizeUpdate();
 
         void setMismatchScoreToReference(int score);
-        int getMismatchScoreToReference();        
+        int getMismatchScoreToReference() const;        
         void setAlignerMismatchScore(long score);
-        long getAlignerMismatchScore();
+        long getAlignerMismatchScore() const;
     };
     
 #pragma mark Consensus
@@ -292,14 +314,13 @@ private:
     class ReadBin {
     private:
         std::vector<BamTools::BamAlignment *> reads;
-        std::string * reference;
+        std::string reference;
         GenomeLoc * loc;
         GenomeLocParser * loc_parser;
         BamTools::SamSequenceDictionary sequences;
     public:
         ReadBin() 
-        : reference(NULL)
-        , loc(NULL)
+        : loc(NULL)
         , loc_parser(NULL)
         { }
         
@@ -314,7 +335,7 @@ private:
         
         std::vector<BamTools::BamAlignment *> getReads() { return reads; }
         
-        std::string * getReference(FastaReader & referenceReader);
+        std::string getReference(FastaReader & referenceReader);
         GenomeLoc getLocation() { return *loc; }
         
         int size() { return reads.size(); }

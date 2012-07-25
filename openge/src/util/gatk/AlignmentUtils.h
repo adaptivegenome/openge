@@ -70,7 +70,7 @@ private:
     static std::vector<BamTools::CigarOp> moveCigarLeft(const std::vector<BamTools::CigarOp> & cigar, int indexOfIndel);
     static bool cigarHasZeroSizeElement(const std::vector<BamTools::CigarOp> & c);
     static std::vector<BamTools::CigarOp> cleanUpCigar(const std::vector<BamTools::CigarOp> & c);
-    static std::string * createIndelString(const std::vector<BamTools::CigarOp> & cigar, const int indexOfIndel, const std::string refSeq, const std::string readSeq, int refIndex, int readIndex);
+    static std::string createIndelString(const std::vector<BamTools::CigarOp> & cigar, const int indexOfIndel, const std::string refSeq, const std::string readSeq, int refIndex, int readIndex);
 };
 
 #endif

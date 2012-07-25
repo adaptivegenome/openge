@@ -83,6 +83,7 @@ import java.util.*;
 
 using namespace BamTools;
 
+#include <cassert>
 #include <list>
 #include <map>
 #include <set>
@@ -165,15 +166,15 @@ int LocalRealignment::AlignedRead::MAX_POS_MOVE_ALLOWED;
 int LocalRealignment::AlignedRead::NO_ORIGINAL_ALIGNMENT_TAGS;
 
 string  LocalRealignment::AlignedRead::getReadBases() {
-    if ( readBases == NULL )
+    if ( readBases.size() == 0 )
         getUnclippedBases();
-    return *readBases;
+    return readBases;
 }
 
 string  LocalRealignment::AlignedRead::getBaseQualities() {
-    if ( baseQuals == NULL )
+    if ( baseQuals.size() == 0 )
         getUnclippedBases();
-    return *baseQuals;
+    return baseQuals;
 }
 
 string cigarToString(vector<CigarOp> cigar)
@@ -187,8 +188,8 @@ string cigarToString(vector<CigarOp> cigar)
 
 // pull out the bases that aren't clipped out
 void LocalRealignment::AlignedRead::getUnclippedBases() {
-    readBases = new string('?', getReadLength());
-    baseQuals = new string('?', getReadLength());
+    readBases = string('?', getReadLength());
+    baseQuals = string('?', getReadLength());
     const string actualReadBases = read->QueryBases;// LCB should be AlignedBases?
     const string actualBaseQuals = read->Qualities;
     int fromIndex = 0, toIndex = 0;
@@ -201,8 +202,8 @@ void LocalRealignment::AlignedRead::getUnclippedBases() {
                 break;
             case 'M':
             case 'I':
-                readBases->replace( toIndex, elementLength, string(actualReadBases, fromIndex, elementLength));
-                baseQuals->replace( toIndex, elementLength, string(actualBaseQuals, fromIndex, elementLength));
+                readBases.replace( toIndex, elementLength, string(actualReadBases, fromIndex, elementLength));
+                baseQuals.replace( toIndex, elementLength, string(actualBaseQuals, fromIndex, elementLength));
                 //arraycopy: src, srcpos, dst, dstpos, len
                 //System.arraycopy(actualReadBases, fromIndex, readBases, toIndex, elementLength);
                 //System.arraycopy(actualBaseQuals, fromIndex, baseQuals, toIndex, elementLength);
@@ -215,48 +216,45 @@ void LocalRealignment::AlignedRead::getUnclippedBases() {
     
     // if we got clipped, trim the array
     if ( fromIndex != toIndex ) {
-        readBases->erase(toIndex);
-        baseQuals->erase(toIndex);
+        readBases.erase(toIndex);
+        baseQuals.erase(toIndex);
     }
 }
 
 // pull out the bases that aren't clipped out
-vector<CigarOp> LocalRealignment::AlignedRead::reclipCigar(vector<CigarOp> & cigar) {
+vector<CigarOp> LocalRealignment::AlignedRead::reclipCigar(const vector<CigarOp> & cigar) {
     return LocalRealignment::reclipCigar(cigar, read);
 }
 
 vector<CigarOp> & LocalRealignment::AlignedRead::getCigar() {
-    return (newCigar != NULL ? *newCigar : read->CigarData);
+    return (newCigar.size() > 0 ? newCigar : read->CigarData);
 }
 
 // tentatively sets the new Cigar, but it needs to be confirmed later
-void LocalRealignment::AlignedRead::setCigar(vector<CigarOp> * cigar, bool fixClippedCigar) {
-    if ( cigar == NULL ) {
-        delete newCigar;
-        newCigar = NULL;
-        return;
-    }
+void LocalRealignment::AlignedRead::setCigar(const vector<CigarOp> & cigar_in, bool fixClippedCigar) {
+
+    bool reclip = false;
+    if ( fixClippedCigar && getReadBases().length() < read->Length )
+        reclip = true;
     
-    if ( fixClippedCigar && getReadBases().length() < read->Length ) {
-        cigar = new vector<CigarOp>(reclipCigar(*cigar));
-    }
-    
+    const vector<CigarOp> cigar = reclip ? reclipCigar(cigar) : cigar_in;
+
     // no change?
-    if ( read->CigarData == *cigar ) {
-        newCigar = NULL;
+    if ( read->CigarData == cigar ) {
+        clearCigar();
         return;
     }
 
     // no indel?
     bool has_i_or_d = false;
-    for (vector<CigarOp>::iterator i = cigar->begin(); i != cigar->end(); i++)
+    for (vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++)
         if(i->Type == 'I' || i->Type == 'D')
             has_i_or_d = true;
 
     if ( !has_i_or_d) {
         cerr << "Modifying a read with no associated indel; although this is possible, it is highly unlikely.  Perhaps this region should be double-checked: " << read->Name << " near read->getReferenceName():" << read->Position << endl; // FIXME LCB, can't easily access the reference name with current code organization. We should do something about this.
-            newCigar = NULL;
-            return;
+        clearCigar();
+        return;
     }
     
     newCigar = cigar;
@@ -267,11 +265,11 @@ void LocalRealignment::AlignedRead::setAlignmentStart(int start) {
     newStart = start;
 }
 
-int LocalRealignment::AlignedRead::getAlignmentStart() {
+int LocalRealignment::AlignedRead::getAlignmentStart() const{
     return (newStart != -1 ? newStart : read->Position);
 }
 
-int LocalRealignment::AlignedRead::getOriginalAlignmentStart() {
+int LocalRealignment::AlignedRead::getOriginalAlignmentStart() const {
     return read->Position;
 }
 
@@ -279,7 +277,7 @@ int LocalRealignment::AlignedRead::getOriginalAlignmentStart() {
 // returns true if this record actually changes, false otherwise
 bool LocalRealignment::AlignedRead::constizeUpdate() {
     // if we haven't made any changes, don't do anything
-    if ( newCigar == NULL )
+    if ( newCigar.size() == 0 )
         return false;
     if ( newStart == -1 )
         newStart = read->Position;
@@ -297,8 +295,8 @@ bool LocalRealignment::AlignedRead::constizeUpdate() {
         if ( newStart != read->Position )
             read->AddTag(ORIGINAL_POSITION_TAG, "i", read->Position);
     }
-    
-    read->CigarData = *newCigar;
+
+    read->CigarData = newCigar;
     read->Position = newStart;
     
     return true;
@@ -308,7 +306,7 @@ void LocalRealignment::AlignedRead::setMismatchScoreToReference(int score) {
     mismatchScoreToReference = score;
 }
 
-int LocalRealignment::AlignedRead::getMismatchScoreToReference() {
+int LocalRealignment::AlignedRead::getMismatchScoreToReference() const {
     return mismatchScoreToReference;
 }
 
@@ -316,7 +314,7 @@ void LocalRealignment::AlignedRead::setAlignerMismatchScore(long score) {
     alignerMismatchScore = score;
 }
 
-long LocalRealignment::AlignedRead::getAlignerMismatchScore() {
+long LocalRealignment::AlignedRead::getAlignerMismatchScore() const {
     return alignerMismatchScore;
 }
 
@@ -326,27 +324,32 @@ long LocalRealignment::AlignedRead::getAlignerMismatchScore() {
 // This can happen if e.g. there's a large known indel with no overlapping reads.
 void LocalRealignment::ReadBin::add(BamAlignment * read) {
     
-    GenomeLoc * locForRead = new GenomeLoc(loc_parser->createGenomeLoc(*read));
+    GenomeLoc locForRead = loc_parser->createGenomeLoc(*read);
     if ( loc == NULL )
-        loc = locForRead;
-    else if ( locForRead->getStop() > loc->getStop() )
-        loc = new GenomeLoc(loc_parser->createGenomeLoc(loc->getContig(), loc->getStart(), locForRead->getStop()));
+        loc = new GenomeLoc(locForRead);
+    else if ( locForRead.getStop() > loc->getStop() )
+        loc = new GenomeLoc(loc_parser->createGenomeLoc(loc->getContig(), loc->getStart(), locForRead.getStop()));
+    
+    cerr << "Locfr: " << locForRead.getStart()+1 << ":" << locForRead.getStop()+1 << endl;
+    cerr << "Loc: " << loc->getStart()+1 << ":" << loc->getStop()+1 << endl;
     
     reads.push_back(read);
 }
 
-string * LocalRealignment::ReadBin::getReference(FastaReader & referenceReader) {
+string LocalRealignment::ReadBin::getReference(FastaReader & referenceReader) {
     // set up the reference if we haven't done so yet
-    if ( reference == NULL ) {
+    if ( reference.size() == 0 ) {
         // first, pad the reference to handle deletions in narrow windows (e.g. those with only 1 read)
         int padLeft = max(loc->getStart()-REFERENCE_PADDING, 0);    //LCB 1->0
         int padRight = min(loc->getStop()+REFERENCE_PADDING, atoi(referenceReader.getSequenceDictionary()[loc->getContig()].Length.c_str()));
+        cerr << "LocStart " << loc->getStart()+1 << " stop " << loc->getStop()+1 << endl;
         loc = new GenomeLoc(loc_parser->createGenomeLoc(loc->getContig(), padLeft, padRight));
-        reference = new string(referenceReader.readSequence(loc->getContig(), loc->getStart(), loc->getStop() - loc->getStart() - 1));
-        cerr << "RefStart " << loc->getStart() << endl;
+        reference = referenceReader.readSequence(loc->getContig(), loc->getStart(), loc->getStop() - loc->getStart() + 1);
+        cerr << "RefStart " << loc->getStart()+1 << " stop " << loc->getStop()+1 << endl;
+        cerr << "Ref length: " << reference.size() << endl;
 
         //transform to upper case. STL sometimes makes things harder than they should be.
-        std::transform(reference->begin(), reference->end(), reference->begin(), (int (*)(int))std::toupper); 
+        std::transform(reference.begin(), reference.end(), reference.begin(), (int (*)(int))std::toupper); 
     }
     
     return reference;
@@ -354,7 +357,7 @@ string * LocalRealignment::ReadBin::getReference(FastaReader & referenceReader) 
 
 void LocalRealignment::ReadBin::clear() {
     reads.clear();
-    reference = NULL;
+    reference.clear();
     loc = NULL;
 }
 
@@ -492,7 +495,7 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
         sawReadInCurrentInterval = true;
         
         if ( doNotTryToClean(read) ) {
-            cerr << "MAP D1" << endl;
+            //cerr << "MAP D1" << endl;
             readsNotToClean.push_back(read);
         } else {
             //cerr << "MAP D2" << endl;
@@ -654,7 +657,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
     if ( reads.size() == 0 )
         return;
     
-    string * reference = readsToClean.getReference(*referenceReader);
+    string reference = readsToClean.getReference(*referenceReader);
     int leftmostIndex = readsToClean.getLocation().getStart();
     
     vector<BamAlignment *> refReads;                 // reads that perfectly match ref
@@ -663,78 +666,83 @@ void LocalRealignment::clean(ReadBin readsToClean) {
     set<Consensus *> altConsenses;               // list of alt consenses
     
     // if there are any known indels for this region, get them and create alternate consenses
-    generateAlternateConsensesFromKnownIndels(altConsenses, leftmostIndex, *reference);
+    generateAlternateConsensesFromKnownIndels(altConsenses, leftmostIndex, reference);
     
     cerr << altConsenses.size() << "ACs from indels" << endl;
     
     // decide which reads potentially need to be cleaned;
     // if there are reads with a single indel in them, add that indel to the list of alternate consenses
-    long totalRawMismatchSum = determineReadsThatNeedCleaning(reads, refReads, altReads, altAlignmentsToTest, altConsenses, leftmostIndex, *reference);
+    long totalRawMismatchSum = determineReadsThatNeedCleaning(reads, refReads, altReads, altAlignmentsToTest, altConsenses, leftmostIndex, reference);
     
     // use 'Smith-Waterman' to create alternate consenses from reads that mismatch the reference, using totalRawMismatchSum as the random seed
     //LCB if ( consensusModel == ConsensusDeterminationModel.USE_SW )
     //  generateAlternateConsensesFromReads(altAlignmentsToTest, altConsenses, *reference, leftmostIndex);
     
-    if ( true ) cerr << "------\nChecking consenses...(" << altConsenses.size() << ")\n--------\n";
+    if ( true ) cerr << "------\nChecking consenses...(" << altConsenses.size() << ")\n--------\n" << endl;
     
     Consensus * bestConsensus = NULL;
 
     //assert(altConsenses.size() > 0);
     
     for (set<Consensus *>::iterator iter = altConsenses.begin(); iter != altConsenses.end(); iter++) {
-        Consensus * consensus = *iter;
-
+        Consensus &consensus = **iter;
+        cerr << "Trying new consensus: " << cigarToString( consensus.cigar) << " " << consensus.str << endl;
+        
+        consensus.cigar.size();
         if ( true ) {
-            cerr << "Checking consensus with alignment at " << consensus->positionOnReference << " cigar " << cigarToString(consensus->cigar) << endl;
-            cerr << consensus->str << endl;
+            cerr << "Checking consensus with alignment at " << consensus.positionOnReference << " cigar " << cigarToString(consensus.cigar) << endl;
+            cerr << consensus.str << endl;
             int z = 0;
-            for ( ; z < consensus->positionOnReference; z++ ) 
+            for ( ; z < consensus.positionOnReference; z++ ) 
                 cerr << ".";
-            for ( z=0 ; z < consensus->cigar[0].Length ; z++ ) 
+            for ( z=0 ; z < consensus.cigar[0].Length ; z++ ) 
                 cerr << ".";
-            if ( consensus->cigar[1].Type == 'I' ) 
-                for ( z= 0; z < consensus->cigar[1].Length; z++ )  
+            if ( consensus.cigar[1].Type == 'I' ) 
+                for ( z= 0; z < consensus.cigar[1].Length; z++ )  
                     cerr << "I";
             cerr << endl;
         }
         
+        cerr << "Consensus: "<< consensus.str << endl;
+        
         for ( int j = 0; j < altReads.size(); j++ ) {
             AlignedRead toTest = altReads[j];
-            pair<int, int> altAlignment = findBestOffset(consensus->str, toTest, leftmostIndex);
+            pair<int, int> altAlignment = findBestOffset(consensus.str, toTest, leftmostIndex);
             
             // the mismatch score is the min of its alignment vs. the reference and vs. the alternate
             int myScore = altAlignment.second;
             
-            cerr << "orig myscore" << myScore << endl;
+            cerr << "Orig myscore " << myScore << " aligner " << toTest.getAlignerMismatchScore() << " ref " << toTest.getMismatchScoreToReference() << endl;
             
-            if ( myScore > toTest.getAlignerMismatchScore() || myScore >= toTest.getMismatchScoreToReference() )
+            if ( myScore > toTest.getAlignerMismatchScore() || myScore >= toTest.getMismatchScoreToReference() ) {
                 myScore = toTest.getMismatchScoreToReference();
+            }
             // keep track of reads that align better to the alternate consensus.
             // By pushing alignments with equal scores to the alternate, it means we'll over-call (het -> hom non ref) but are less likely to under-call (het -> ref, het non ref -> het)
             else
-                consensus->readIndexes.push_back( pair<int, int>(j, altAlignment.first));
+                consensus.readIndexes.push_back( pair<int, int>(j, altAlignment.first));
             
-            cerr << cigarToString(consensus->cigar) << " vs. " << toTest.getRead()->Name << "-" << toTest.getRead()->QueryBases << " => " << myScore << " vs. " << toTest.getMismatchScoreToReference() << endl;
+            cerr << cigarToString(consensus.cigar) << " vs. " << toTest.getRead()->Name << "-" << toTest.getRead()->QueryBases << " => " << myScore << " vs. " << toTest.getMismatchScoreToReference() << endl;
             if ( !toTest.getRead()->IsDuplicate() )
-                consensus->mismatchSum += myScore;
+                consensus.mismatchSum += myScore;
             
             // optimization: once the mismatch sum is higher than the best consensus, quit since this one can't win
             //  THIS MUST BE DISABLED IF WE DECIDE TO ALLOW MORE THAN ONE ALTERNATE CONSENSUS!
-            if ( bestConsensus != NULL && consensus->mismatchSum > bestConsensus->mismatchSum )
+            if ( bestConsensus != NULL && consensus.mismatchSum > bestConsensus->mismatchSum )
                 break;
         }
         
-        cerr << "Mismatch sum of new consensus: " << consensus->mismatchSum << endl;
-        if ( bestConsensus == NULL || bestConsensus->mismatchSum > consensus->mismatchSum) {
+        cerr << "Mismatch sum of new consensus: " << consensus.mismatchSum << endl;
+        if ( bestConsensus == NULL || bestConsensus->mismatchSum > consensus.mismatchSum) {
             // we do not need this alt consensus, release memory right away!!
             if ( bestConsensus != NULL ) {
                 bestConsensus->readIndexes.clear();
             }
-            bestConsensus = consensus;
+            bestConsensus = &consensus;
             cerr << "New consensus " << cigarToString(bestConsensus->cigar) <<  " is now best consensus" << endl;
         } else {
             // we do not need this alt consensus, release memory right away!!
-            consensus->readIndexes.clear();
+            consensus.readIndexes.clear();
         }
     }
     
@@ -745,8 +753,8 @@ void LocalRealignment::clean(ReadBin readsToClean) {
     // then clean!
     const double improvement = (bestConsensus == NULL ? -1 : ((double)(totalRawMismatchSum - bestConsensus->mismatchSum))/10.0);
     if ( improvement >= LOD_THRESHOLD ) {
-        
-        bestConsensus->cigar = AlignmentUtils::leftAlignIndel(bestConsensus->cigar, *reference, bestConsensus->str, bestConsensus->positionOnReference, bestConsensus->positionOnReference);
+        assert(bestConsensus != NULL);
+        bestConsensus->cigar = AlignmentUtils::leftAlignIndel(bestConsensus->cigar, reference, bestConsensus->str, bestConsensus->positionOnReference, bestConsensus->positionOnReference);
         
         // start cleaning the appropriate reads
         for ( vector<pair<int, int> >::iterator indexPair = bestConsensus->readIndexes.begin(); indexPair !=  bestConsensus->readIndexes.end(); indexPair++) {
@@ -754,14 +762,16 @@ void LocalRealignment::clean(ReadBin readsToClean) {
             if ( !updateRead(bestConsensus->cigar, bestConsensus->positionOnReference, indexPair->second, aRead, leftmostIndex) )
                 return;
         }
-        if ( consensusModel != KNOWNS_ONLY && !alternateReducesEntropy(altReads, *reference, leftmostIndex) ) {
+        if ( consensusModel != KNOWNS_ONLY && !alternateReducesEntropy(altReads, reference, leftmostIndex) ) {
             if ( write_out_stats ) {
                 statsOutput << currentInterval->toString();
                 statsOutput << "\tFAIL (bad indel)\t"; // if improvement > LOD_THRESHOLD *BUT* entropy is not reduced (SNPs still exist)
                 statsOutput << improvement << endl;
             }
         } else {
-            cerr << "CLEAN: " << cigarToString(bestConsensus->cigar) << " " << bestConsensus->str << " " + bestConsensus->cigar.size() << endl;
+            assert (bestConsensus->cigar.size() < 100);
+            cerr << "CLEAN: " << cigarToString(bestConsensus->cigar) << " " << string(bestConsensus->str) << " " << bestConsensus->cigar.size() << endl;
+
             if ( indelOutput != NULL && bestConsensus->cigar.size() > 1 ) {
                 // NOTE: indels are printed out in the format specified for the low-coverage pilot1
                 //  indel calls (tab-delimited): chr position size type sequence
@@ -790,7 +800,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
             
             // finish cleaning the appropriate reads
             for ( vector<pair<int, int> >::iterator indexPair = bestConsensus->readIndexes.begin(); indexPair !=  bestConsensus->readIndexes.end(); indexPair++ ) {
-                AlignedRead aRead = altReads[indexPair->first];
+                AlignedRead & aRead = altReads[indexPair->first];
                 if ( aRead.constizeUpdate() ) {
                     // We need to update the mapping quality score of the cleaned reads;
                     // however we don't have enough info to use the proper MAQ scoring system.
@@ -802,20 +812,20 @@ void LocalRealignment::clean(ReadBin readsToClean) {
                     
                     // before we fix the attribute tags we first need to make sure we have enough of the reference sequence
                     int neededBasesToLeft = leftmostIndex - read->Position;
-                    int neededBasesToRight = read->Position + read->Length - leftmostIndex - reference->size() + 1;
+                    int neededBasesToRight = read->Position + read->Length - leftmostIndex - reference.size() + 1;
                     int neededBases = max(neededBasesToLeft, neededBasesToRight);
                     if ( neededBases > 0 ) {
                         int padLeft = max(leftmostIndex-neededBases, 1);
-                        int padRight = min(leftmostIndex+reference->size()+neededBases, (unsigned long)atol(referenceReader->getSequenceDictionary()[currentInterval->getContig()].Length.c_str()));
-                        reference = new string(referenceReader->getSubsequenceAt(currentInterval->getContig(), padLeft, padRight));
+                        int padRight = min(leftmostIndex+reference.size()+neededBases, (unsigned long)atol(referenceReader->getSequenceDictionary()[currentInterval->getContig()].Length.c_str()));
+                        reference = referenceReader->getSubsequenceAt(currentInterval->getContig(), padLeft, padRight);
                         leftmostIndex = padLeft;
                     }
                     
                     // now, fix the attribute tags
                     if ( read->HasTag("NM") )
-                        read->EditTag("NM", "i", SequenceUtil::calculateSamNmTag(read, *reference, leftmostIndex-1));
+                        read->EditTag("NM", "i", SequenceUtil::calculateSamNmTag(read, reference, leftmostIndex-1));
                     if ( read->HasTag("UQ") )
-                        read->EditTag("UQ", "i", SequenceUtil::sumQualitiesOfMismatches(read, *reference, leftmostIndex-1));
+                        read->EditTag("UQ", "i", SequenceUtil::sumQualitiesOfMismatches(read, reference, leftmostIndex-1));
 
                     // TODO -- this is only temporary until Tim adds code to recalculate this value
                     if ( read->HasTag("MD") )
@@ -876,7 +886,7 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
         //int numBlocks = AlignmentUtils::getNumAlignmentBlocks(read);
         if ( numBlocks == 2 ) {
             vector<CigarOp> newCigar = AlignmentUtils::leftAlignIndel(unclipCigar(read->CigarData), reference, read->QueryBases, read->Position-leftmostIndex, 0);
-            aRead.setCigar(new vector<CigarOp>(newCigar), false);
+            aRead.setCigar(newCigar, false);
         }
         
         const int startOnRef = read->Position-leftmostIndex;
@@ -1086,6 +1096,8 @@ pair<int, int> LocalRealignment::findBestOffset(const string & ref, AlignedRead 
     int bestScore = mismatchQualitySumIgnoreCigar(read, ref, originalAlignment, INT_MAX);
     int bestIndex = originalAlignment;
     
+    cerr << "fbo " << bestScore << endl;
+    
     // optimization: we can't get better than 0, so we can quit now
     if ( bestScore == 0 )
         return pair<int, int>(bestIndex, 0);
@@ -1102,7 +1114,11 @@ pair<int, int> LocalRealignment::findBestOffset(const string & ref, AlignedRead 
             return pair<int, int>(bestIndex, 0);
     }
     
-    const int maxPossibleStart = ref.size() - read.getReadLength();
+    cerr << bestScore << endl;
+    
+    const size_t length = read.getCigarLength();
+    const int maxPossibleStart = ref.size() - length;
+    cerr << "MPS " << maxPossibleStart << " rs " << ref.size() << " " << length << endl;//" " << read.getRead()->Position - read.getRead()->GetEndPosition(true) << " " << read.getReadLength()<< " " << cigarToString(read.getRead()->CigarData) << endl;
     for ( int i = originalAlignment + 1; i <= maxPossibleStart; i++ ) {
         int score = mismatchQualitySumIgnoreCigar(read, ref, i, bestScore);
         if ( score < bestScore ) {
@@ -1113,6 +1129,8 @@ pair<int, int> LocalRealignment::findBestOffset(const string & ref, AlignedRead 
         if ( bestScore == 0 )
             return pair<int, int>(bestIndex, 0);
     }
+
+    cerr << bestScore << endl;
     
     return pair<int, int>(bestIndex, bestScore);
 }
@@ -1133,7 +1151,7 @@ bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int al
     if ( altCigar.size() == 1 ) {
         aRead.setAlignmentStart(leftmostIndex + myPosOnAlt);
         readCigar.push_back( CigarOp('M', aRead.getReadLength()));
-        aRead.setCigar(new vector<CigarOp>(readCigar));
+        aRead.setCigar(readCigar);
         return true;
     }
     
@@ -1152,7 +1170,7 @@ bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int al
     }
     else {
         if ( altCE1.Type != 'M'  ) {
-            cerr << "First element of the alt consensus cigar must be M or I. Actual: " + cigarToString(altCigar) << ".  Skipping this site..." << endl;
+            cerr << "First element of the alt consensus cigar must be M or I. Actual: " << cigarToString(altCigar) << ".  Skipping this site..." << endl;
             return false;
         }
         if ( altCE2.Type == 'I'  || altCE2.Type == 'D' ) {
@@ -1177,7 +1195,7 @@ bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int al
         if ( myPosOnAlt + aRead.getReadLength() <= endOfFirstBlock) {
             //readCigar.add(new CigarElement(aRead.getReadLength(), CigarOperator.M));
             //aRead.setCigar(readCigar);
-            aRead.setCigar(NULL); // reset to original alignment
+            aRead.clearCigar(); // reset to original alignment
             return true;
         }
         readCigar.push_back( CigarOp('M', endOfFirstBlock - myPosOnAlt));
@@ -1193,7 +1211,7 @@ bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int al
             if ( !sawAlignmentStart )
                 partialInsertionLength = aRead.getReadLength();
             readCigar.push_back( CigarOp('I', partialInsertionLength));
-            aRead.setCigar(new vector<CigarOp>(readCigar));
+            aRead.setCigar(readCigar);
             return true;
         }
         
@@ -1218,7 +1236,7 @@ bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int al
         //aRead.setAlignmentStart(leftmostIndex + myPosOnAlt + indelOffsetOnRef - indelOffsetOnRead);
         //readCigar.add(new CigarElement(aRead.getReadLength(), CigarOperator.M));
         //aRead.setCigar(readCigar);
-        aRead.setCigar(NULL); // reset to original alignment
+        aRead.clearCigar(); // reset to original alignment
         return true;
     }
     
@@ -1229,20 +1247,25 @@ bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int al
     }
     if ( readRemaining > 0 )
         readCigar.push_back(CigarOp('M', readRemaining));
-    aRead.setCigar(new vector<CigarOp>(readCigar));
+    aRead.setCigar(readCigar);
     
     return true;
 }
 
 bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead> & reads, const string & reference, const int leftmostIndex) {
-    int originalMismatchBases[reference.size()];
-    int cleanedMismatchBases[reference.size()];
-    int totalOriginalBases[reference.size()];
-    int totalCleanedBases[reference.size()];
+    const size_t array_size = reference.size();
+    int originalMismatchBases[array_size];
+    int cleanedMismatchBases[array_size];
+    int totalOriginalBases[array_size];
+    int totalCleanedBases[array_size];
     
     // set to 1 to prevent dividing by zero
-    for ( int i=0; i < reference.size(); i++ )
-        originalMismatchBases[i] = totalOriginalBases[i] = cleanedMismatchBases[i] = totalCleanedBases[i] = 0;
+    for ( int i=0; i < array_size; i++ ) {
+        originalMismatchBases[i] = 0;
+        totalOriginalBases[i] = 0;
+        cleanedMismatchBases[i] = 0;
+        totalCleanedBases[i] = 0;
+    }
     
     for (int i=0; i < reads.size(); i++) {
         AlignedRead read = reads[i];
@@ -1303,7 +1326,7 @@ bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead> & reads, cons
     
     int originalMismatchColumns = 0, cleanedMismatchColumns = 0;
     stringstream sb;
-    for ( int i=0; i < reference.size(); i++ ) {
+    for ( int i=0; i < array_size; i++ ) {
         if ( cleanedMismatchBases[i] == originalMismatchBases[i] )
             continue;
         bool didMismatch = false, stillMismatches = false;
@@ -1354,7 +1377,7 @@ bool LocalRealignment::isClipOperator(const CigarOp op) {
     return op.Type == 'S' || op.Type == 'H' || op.Type == 'P';
 }
 
-vector<CigarOp> LocalRealignment::reclipCigar(vector<CigarOp> & cigar, BamAlignment * read) {
+vector<CigarOp> LocalRealignment::reclipCigar(const vector<CigarOp> & cigar, BamAlignment * read) {
     vector<CigarOp> elements;
     
     int i = 0;

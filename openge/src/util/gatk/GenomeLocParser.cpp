@@ -267,7 +267,7 @@ public bool isValidGenomeLoc(string contig, int start, int stop ) {
 
 private bool vglHelper(bool exceptOnError, string msg) {
     if ( exceptOnError )
-        throw new UserException.MalformedGenomeLoc("Parameters to GenomeLocParser are incorrect:" + msg);
+        throw new UserException.MalformedGenomeLoc(string("Parameters to GenomeLocParser are incorrect:") + msg);
     else
         return false;
 }
@@ -400,9 +400,20 @@ GenomeLoc GenomeLocParser::createGenomeLoc(const BamAlignment & read) const {
         return GenomeLoc::UNMAPPED;
     else {
         // Use max to ensure that end >= start (Picard assigns the end to reads that are entirely within an insertion as start-1)
-        int end = read.IsMapped() ? max(read.Position + read.Length, read.Position):read.Position ;
-        //cerr << "CGL READ: " << getContig(read.RefID) << " Pos: " << read.Position << ":" << end << " len:" << read.Length << " mapped: " << (int) read.IsMapped() << "read " << read.QueryBases[0] << endl;
-        return createGenomeLoc(getContig(read.RefID), read.Position, end);
+        int length = read.QueryBases.size();
+        for( vector <CigarOp>::const_iterator i = read.CigarData.begin(); i != read.CigarData.end(); i++) {
+            if(i->Type == 'D')
+                length += i->Length;
+            if(i->Type == 'I')
+                length -= i->Length;
+            if(i->Type == 'S' || i->Type == 'H')
+                length -= i->Length;
+        }
+
+        int end = read.IsMapped() ? max(read.Position + length, read.Position):read.Position ;
+        //cerr << "CGL READ: " << getContig(read.RefID) << " Pos: " << read.Position << ":" << end << " len:" << length << " mapped: " << (int) read.IsMapped() << "read " << read.QueryBases[0] << endl;
+
+        return createGenomeLoc(getContig(read.RefID), read.Position, max(end-1, read.Position));
     }
 }
 #if 0

@@ -204,7 +204,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
             if (rec.IsPaired() && rec.IsMateMapped()) {
                 string read_group;
                 rec.GetTag("RG", read_group);
-                string key = read_group + ":" + rec.Name;
+                string key = read_group + string(":") + rec.Name;
                 ReadEnds * pairedEnds = tmp.remove(rec.RefID, key);
                 
                 // See if we've already seen the first end or not
