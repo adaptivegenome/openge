@@ -46,8 +46,33 @@
 class BaseUtils
 {
 public:
-    static bool isRegularBase(char base);
-    static int simpleBaseToBaseIndex(char base);
+    static bool isRegularBase(char base){
+        return simpleBaseToBaseIndex(base) != -1;
+    }
+
+    static int simpleBaseToBaseIndex(char base) {
+        switch (base) {
+            case '*':               // the wildcard character counts as an A
+            case 'A':
+            case 'a':
+                return 0;
+                
+            case 'C':
+            case 'c':
+                return 1;
+                
+            case 'G':
+            case 'g':
+                return 2;
+                
+            case 'T':
+            case 't':
+                return 3;
+                
+            default:
+                return -1;
+        }
+    }
 };
 
 #endif

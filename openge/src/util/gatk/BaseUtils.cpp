@@ -217,6 +217,7 @@ class BaseUtils {
      * @param base [AaCcGgTt]
      * @return 0, 1, 2, 3, or -1 if the base can't be understood
      */
+    /*
     int BaseUtils::simpleBaseToBaseIndex(char base) {
         switch (base) {
             case '*':               // the wildcard character counts as an A
@@ -240,6 +241,7 @@ class BaseUtils {
                 return -1;
         }
     }
+     */
 #if 0
     
     /**
@@ -289,9 +291,11 @@ class BaseUtils {
     
     @Deprecated
 #endif
+    /*
     bool BaseUtils::isRegularBase(char base) {
         return simpleBaseToBaseIndex(base) != -1;
     }
+     */
 #if 0
     
     static public boolean isRegularBase(byte base) {
