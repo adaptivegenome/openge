@@ -188,10 +188,12 @@ string cigarToString(vector<CigarOp> cigar)
 
 // pull out the bases that aren't clipped out
 void LocalRealignment::AlignedRead::getUnclippedBases() {
-    readBases = string('?', getReadLength());
-    baseQuals = string('?', getReadLength());
-    const string actualReadBases = read->QueryBases;// LCB should be AlignedBases?
-    const string actualBaseQuals = read->Qualities;
+    readBases.clear();
+    readBases.reserve(getReadLength());
+    baseQuals.clear();
+    baseQuals.reserve(getReadLength());
+    const string & actualReadBases = read->QueryBases;// LCB should be AlignedBases?
+    const string & actualBaseQuals = read->Qualities;
     int fromIndex = 0, toIndex = 0;
     
     for ( vector<CigarOp>::iterator ce = read->CigarData.begin(); ce != read->CigarData.end(); ce++ ) {
@@ -202,22 +204,13 @@ void LocalRealignment::AlignedRead::getUnclippedBases() {
                 break;
             case 'M':
             case 'I':
-                readBases.replace( toIndex, elementLength, string(actualReadBases, fromIndex, elementLength));
-                baseQuals.replace( toIndex, elementLength, string(actualBaseQuals, fromIndex, elementLength));
-                //arraycopy: src, srcpos, dst, dstpos, len
-                //System.arraycopy(actualReadBases, fromIndex, readBases, toIndex, elementLength);
-                //System.arraycopy(actualBaseQuals, fromIndex, baseQuals, toIndex, elementLength);
+                readBases.append(actualReadBases,fromIndex, elementLength);
+                baseQuals.append(actualBaseQuals, fromIndex, elementLength);
                 fromIndex += elementLength;
                 toIndex += elementLength;
             default:
                 break;
         }
-    }
-    
-    // if we got clipped, trim the array
-    if ( fromIndex != toIndex ) {
-        readBases.erase(toIndex);
-        baseQuals.erase(toIndex);
     }
 }
 
