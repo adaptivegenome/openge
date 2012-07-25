@@ -48,7 +48,7 @@ jobs_current(0)
 	jobs_in_process = 0;
     int32_t sem_id = 0xffffffff & (int64_t) this;
     
-    sprintf(sem_name, "bam_tp_%x",sem_id);
+    sprintf(sem_name, "oge_tp_%x",sem_id);
     sem_unlink(sem_name);
     job_semaphore = sem_open(sem_name, O_CREAT | O_EXCL,0700,0);
     
@@ -57,7 +57,7 @@ jobs_current(0)
 		assert(0);
 	}
 
-    sprintf(sem_submission_name, "bam_tpjs_%x",sem_id);
+    sprintf(sem_submission_name, "oge_tpjs_%x",sem_id);
     sem_unlink(sem_submission_name);
     job_submission_semaphore = sem_open(sem_submission_name, O_CREAT | O_EXCL,0700,THREADPOOL_MAX_JOBS_IN_QUEUE);
     
@@ -127,7 +127,7 @@ int ThreadPool::availableCores()
 bool ThreadPool::addJob(ThreadJob * job)
 {
     if(0 != sem_wait(job_submission_semaphore))
-        perror("Error waiting for job submission semaphore");
+        perror("Error waiting for job submission semaphore (OGE addjob)");
     
     jobs_mutex.lock();
 
@@ -149,7 +149,7 @@ bool ThreadPool::addJob(ThreadJob * job)
 ThreadJob * ThreadPool::startJob()
 {
     if(0 != sem_wait(job_semaphore))
-        perror("Error waiting for job submission semaphore");
+        perror("Error waiting for job submission semaphore (OGE start job)");
     
 	if(threads_exit)
 	{

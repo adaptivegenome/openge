@@ -114,7 +114,7 @@ BamThreadPool::~BamThreadPool()
 bool BamThreadPool::addJob(BamThreadJob * job)
 {
   if(0 != sem_wait(job_submission_semaphore))
-    perror("Error waiting for job submission semaphore");
+    perror("Error waiting for job submission semaphore (add job)");
   
 	if(0 != pthread_mutex_lock(&jobs_mutex))
   {
@@ -141,30 +141,37 @@ bool BamThreadPool::addJob(BamThreadJob * job)
 // @return A pointer to the task to start, or NULL if the thread should exit.
 BamThreadJob * BamThreadPool::startJob()
 {
-  if(0 != sem_wait(job_semaphore))
-    perror("Error waiting for job submission semaphore");
-  
-	if(threads_exit)
-	{
-    if(0 != sem_post(job_semaphore))
-      perror("Error posting job semaphore");
-		return NULL;
-	}
-	
-	if(0 != pthread_mutex_lock(&jobs_mutex))
-  {
-    perror("Error locking jobs mutex");
-    assert(0);
-  }
-    assert(jobs.size() > 0);
-	BamThreadJob * job = jobs.front();
-	jobs.pop();
-	jobs_in_process++;
-	if(0 != pthread_mutex_unlock(&jobs_mutex))
-  {
-    perror("Error unlocking jobs mutex");
-    assert(0);
-  }
+    BamThreadJob * job  = NULL;
+    do {
+        if(0 != sem_wait(job_semaphore))
+            perror("Error waiting for job submission semaphore (start job)");
+
+        if(threads_exit)
+        {
+            if(0 != sem_post(job_semaphore))
+                perror("Error posting job semaphore");
+            return NULL;
+        }
+
+        if(0 != pthread_mutex_lock(&jobs_mutex))
+        {
+            perror("Error locking jobs mutex");
+            assert(0);
+        }
+
+        if(jobs.size() > 0) {
+            //assert(jobs.size() > 0);
+            job = jobs.front();
+            jobs.pop();
+            jobs_in_process++;
+        }
+
+        if(0 != pthread_mutex_unlock(&jobs_mutex))
+        {
+            perror("Error unlocking jobs mutex");
+            assert(0);
+        }
+    } while(!job);
 	
 	return job;
 }
