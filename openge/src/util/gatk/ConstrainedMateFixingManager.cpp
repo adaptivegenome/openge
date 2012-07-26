@@ -115,6 +115,27 @@ using namespace std;
 
 using namespace BamTools;
 
+int getEndPosition(const BamAlignment & read) {
+    int read_end = read.Position;
+    for(vector<CigarOp>::const_iterator i = read.CigarData.begin(); i != read.CigarData.end(); i++) {
+        switch(i->Type)
+        {
+            case 'H':
+            case 'S':
+                break;
+            case 'D':
+                read_end += i->Length;
+                break;
+            case 'I':
+                break;
+            default:
+                read_end += i->Length;
+                break;
+        }
+    }
+    
+    return read_end;
+}
 
 //////////////
 //These functions (computeInsertSize and setMateInfo) are from SamPairUtil.java
@@ -126,12 +147,12 @@ int computeInsertSize(const BamAlignment & firstEnd, const BamAlignment & second
     if (!firstEnd.RefID == secondEnd.RefID) {
         return 0;
     }
-    
-    const int firstEnd5PrimePosition = firstEnd.IsReverseStrand()? firstEnd.Position + firstEnd.Length: firstEnd.Position;
-    const int secondEnd5PrimePosition = secondEnd.IsReverseStrand()? secondEnd.Position + secondEnd.Length: secondEnd.Position;
-    
+
+    const int firstEnd5PrimePosition = firstEnd.IsReverseStrand()? getEndPosition(firstEnd): firstEnd.Position;
+    const int secondEnd5PrimePosition = secondEnd.IsReverseStrand()? getEndPosition(secondEnd): secondEnd.Position;
+
     const int adjustment = (secondEnd5PrimePosition >= firstEnd5PrimePosition) ? +1 : -1;
-    return secondEnd5PrimePosition - firstEnd5PrimePosition + adjustment;
+    return secondEnd5PrimePosition - firstEnd5PrimePosition + adjustment-2;
 }
 
 void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader * header) {
@@ -139,61 +160,17 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader * header) 
     const int NO_ALIGNMENT_START = -1;
     // If neither read is unmapped just set their mate info
     if (rec1.IsMapped() && rec2.IsMapped()) {
-
-        int rec1_end = rec1.Position;
-        for(vector<CigarOp>::const_iterator i = rec1.CigarData.begin(); i != rec1.CigarData.end(); i++) {
-            switch(i->Type)
-            {
-                case 'H':
-                case 'S':
-                    break;
-                case 'D':
-                    rec1_end -= i->Length;
-                    break;
-                case 'I':
-                    break;
-                default:
-                    rec1_end += i->Length;
-                    break;
-            }
-        }
-
-        int rec2_end = rec2.Position;
-        for(vector<CigarOp>::const_iterator i = rec2.CigarData.begin(); i != rec2.CigarData.end(); i++) {
-            switch(i->Type)
-            {
-                case 'H':
-                case 'S':
-                    break;
-                case 'D':
-                    rec2_end -= i->Length;
-                    break;
-                case 'I':
-                    break;
-                default:
-                    rec2_end += i->Length;
-                    break;
-            }
-        }
-        
-        int l_pos = min(rec1.Position, rec2.Position);
-        int r_pos = max(rec1_end, rec2_end);
-        
-        int insert_size = r_pos - l_pos - 1;
-        
         rec1.MateRefID = rec2.MateRefID;
         rec1.MatePosition = rec2.Position;
         rec1.SetIsMateReverseStrand(rec2.IsReverseStrand());
         rec1.SetIsMapped(true);
         rec1.AddTag<int>("MQ", "i", rec2.MapQuality);
-        rec1.InsertSize = rec1.Position > rec2.Position ? -insert_size : insert_size;
 
         rec2.MateRefID = rec1.RefID;
         rec2.MatePosition = rec1.Position;
         rec2.SetIsMateReverseStrand( rec1.IsReverseStrand() );
         rec2.SetIsMapped(true);
         rec2.AddTag<int>("MQ", "i", rec1.MapQuality);
-        rec2.InsertSize = rec2.Position > rec1.Position ? -insert_size : insert_size;
         
         // we should remove and readd the XT tag so that tag order in OGE matches tag order from GATK. This 
         // is just needed for the debug stage.
@@ -205,6 +182,9 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader * header) 
         rec2.RemoveTag("XT");
         rec2.AddTag<uint8_t>("XT", "A", xt);
         
+        const int insertSize = computeInsertSize(rec1, rec2);
+        rec1.InsertSize = insertSize;
+        rec2.InsertSize = -insertSize;
     }
     // Else if they're both unmapped set that straight
     else if (!rec1.IsMapped() && !rec2.IsMapped()) {
@@ -245,10 +225,6 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader * header) 
         unmapped.SetIsMateMapped(true);
         unmapped.InsertSize = 0;
     }
-    
-    const int insertSize = computeInsertSize(rec1, rec2);
-    rec1.Length = insertSize;
-    rec2.Length = -insertSize;
 }
 
 BamAlignment * ConstrainedMateFixingManager::remove(set<BamAlignment *> & treeSet) {
