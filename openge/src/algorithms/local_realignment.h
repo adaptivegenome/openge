@@ -230,7 +230,7 @@ private:
         , alignerMismatchScore(0)
         { }
         
-        AlignedRead & operator=(const AlignedRead & a) { assert(0);  return *this;}
+        //AlignedRead & operator=(const AlignedRead & a) { assert(0);  return *this;}
         
         BamTools::BamAlignment * getRead() const {
             return read;
@@ -240,7 +240,6 @@ private:
             return readBases.size() != 0 ? readBases.size() : read->Length;
         }
         
-        void clearCigar() { newCigar.clear(); }
         
         size_t getCigarLength() const {
             const std::vector<BamTools::CigarOp> & cigar = (newCigar.size() > 0) ? newCigar : read->CigarData;
@@ -414,14 +413,14 @@ public:
 private:
     void populateKnownIndels(ReadMetaDataTracker metaDataTracker) ;
     
-    static int mismatchQualitySumIgnoreCigar(AlignedRead aRead, const std::string & refSeq, int refIndex, int quitAboveThisValue);
+    static int mismatchQualitySumIgnoreCigar(AlignedRead & aRead, const std::string & refSeq, int refIndex, int quitAboveThisValue);
     
     void clean(ReadBin readsToClean) ;
     void generateAlternateConsensesFromKnownIndels(std::set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const std::string reference);
     long determineReadsThatNeedCleaning( std::vector<BamTools::BamAlignment *> & reads,
                                         std::vector<BamTools::BamAlignment *> & refReadsToPopulate,
-                                        std::vector<AlignedRead> & altReadsToPopulate,
-                                        std::vector<AlignedRead> & altAlignmentsToTest,
+                                        std::vector<AlignedRead *> & altReadsToPopulate,
+                                        std::vector<AlignedRead *> & altAlignmentsToTest,
                                         std::set<Consensus *> & altConsenses,
                                         int leftmostIndex,
                                         std::string & reference) ;
@@ -435,9 +434,8 @@ private:
     Consensus * createAlternateConsensus(const int indexOnRef, const std::vector<BamTools::CigarOp> & c, const std::string reference, const std::string readStr);
     Consensus * createAlternateConsensus(const int indexOnRef, const std::string & reference, const std::string & indelStr, VariantContext indel);
     std::pair<int, int> findBestOffset(const std::string & ref, AlignedRead read, const int leftmostIndex) ;
-    std::string cigarToString(const std::vector<BamTools::CigarOp> & cigar);
     bool updateRead(const std::vector<BamTools::CigarOp> & altCigar, const int altPosOnRef, const int myPosOnAlt, AlignedRead & aRead, const int leftmostIndex);
-    bool alternateReducesEntropy(std::vector<AlignedRead> & reads, const std::string & reference, const int leftmostIndex) ;
+    bool alternateReducesEntropy(std::vector<AlignedRead *> & reads, const std::string & reference, const int leftmostIndex) ;
 
 protected:
 public:

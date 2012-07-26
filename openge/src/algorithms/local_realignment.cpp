@@ -227,10 +227,14 @@ vector<CigarOp> & LocalRealignment::AlignedRead::getCigar() {
 void LocalRealignment::AlignedRead::setCigar(const vector<CigarOp> & cigar_in, bool fixClippedCigar) {
 
     bool reclip = false;
-    if ( fixClippedCigar && getReadBases().length() < read->Length )
+    if ( fixClippedCigar && getReadBases().length() < read->Length ) {
+        cerr << "RECLIP TRUE " << getReadBases().length() << " " << read->Length << endl;
         reclip = true;
+    }
     
-    const vector<CigarOp> cigar = reclip ? reclipCigar(cigar) : cigar_in;
+    cerr << "cigar in: " << cigarToString(cigar_in) << endl;
+    const vector<CigarOp> cigar = reclip ? reclipCigar(cigar_in) : cigar_in;
+    cerr << "cigar reclipped " << cigarToString(cigar) << endl;
 
     // no change?
     if ( read->CigarData == cigar ) {
@@ -249,7 +253,7 @@ void LocalRealignment::AlignedRead::setCigar(const vector<CigarOp> & cigar_in, b
         clearCigar();
         return;
     }
-    
+    cerr << "Set CIGAR " << cigarToString(cigar) << endl;
     newCigar = cigar;
 }
 
@@ -269,9 +273,12 @@ int LocalRealignment::AlignedRead::getOriginalAlignmentStart() const {
 // constizes the changes made.
 // returns true if this record actually changes, false otherwise
 bool LocalRealignment::AlignedRead::constizeUpdate() {
+    cerr << "constize AR " << this << endl; 
     // if we haven't made any changes, don't do anything
-    if ( newCigar.size() == 0 )
+    if ( newCigar.size() == 0 ) {
+        cerr << "NO new cigar" << endl;
         return false;
+    }
     if ( newStart == -1 )
         newStart = read->Position;
     else if ( abs(newStart - read->Position) > MAX_POS_MOVE_ALLOWED ) {
@@ -281,14 +288,13 @@ bool LocalRealignment::AlignedRead::constizeUpdate() {
     
     // annotate the record with the original cigar (and optionally the alignment start)
     if ( !NO_ORIGINAL_ALIGNMENT_TAGS ) {
-        stringstream cigar_ss("");
-        for(vector<CigarOp>::iterator i = read->CigarData.begin(); i != read->CigarData.end(); i++)
-            cigar_ss << i->Length << i->Type;
-        read->AddTag(ORIGINAL_CIGAR_TAG, "Z", cigar_ss.str());
+        read->AddTag(ORIGINAL_CIGAR_TAG, "Z", cigarToString(read->CigarData));
         if ( newStart != read->Position )
-            read->AddTag(ORIGINAL_POSITION_TAG, "i", read->Position);
+            read->AddTag(ORIGINAL_POSITION_TAG, "i", read->Position+1);
     }
 
+    cerr << "Const-ize at pos: " << read->Position << " oldcigar " << cigarToString( read->CigarData) << " newcigar " << cigarToString(newCigar) << endl;
+    
     read->CigarData = newCigar;
     read->Position = newStart;
     
@@ -618,7 +624,7 @@ void LocalRealignment::populateKnownIndels(ReadMetaDataTracker metaDataTracker) 
     }
 }
 
-int LocalRealignment::mismatchQualitySumIgnoreCigar(AlignedRead aRead, const string & refSeq, int refIndex, int quitAboveThisValue) {
+int LocalRealignment::mismatchQualitySumIgnoreCigar(AlignedRead & aRead, const string & refSeq, int refIndex, int quitAboveThisValue) {
     const string & readSeq = aRead.getReadBases();
     const string & quals = aRead.getBaseQualities();
     int sum = 0;
@@ -654,8 +660,8 @@ void LocalRealignment::clean(ReadBin readsToClean) {
     int leftmostIndex = readsToClean.getLocation().getStart();
     
     vector<BamAlignment *> refReads;                 // reads that perfectly match ref
-    vector<AlignedRead> altReads;               // reads that don't perfectly match
-    vector<AlignedRead> altAlignmentsToTest;  // should we try to make an alt consensus from the read?
+    vector<AlignedRead *> altReads;               // reads that don't perfectly match
+    vector<AlignedRead *> altAlignmentsToTest;  // should we try to make an alt consensus from the read?
     set<Consensus *> altConsenses;               // list of alt consenses
     
     // if there are any known indels for this region, get them and create alternate consenses
@@ -699,7 +705,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
         cerr << "Consensus: "<< consensus.str << endl;
         
         for ( int j = 0; j < altReads.size(); j++ ) {
-            AlignedRead toTest = altReads[j];
+            AlignedRead & toTest = *altReads[j];
             pair<int, int> altAlignment = findBestOffset(consensus.str, toTest, leftmostIndex);
             
             // the mismatch score is the min of its alignment vs. the reference and vs. the alternate
@@ -751,7 +757,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
         
         // start cleaning the appropriate reads
         for ( vector<pair<int, int> >::iterator indexPair = bestConsensus->readIndexes.begin(); indexPair !=  bestConsensus->readIndexes.end(); indexPair++) {
-            AlignedRead aRead = altReads[indexPair->first];
+            AlignedRead & aRead = *altReads[indexPair->first];
             if ( !updateRead(bestConsensus->cigar, bestConsensus->positionOnReference, indexPair->second, aRead, leftmostIndex) )
                 return;
         }
@@ -792,9 +798,11 @@ void LocalRealignment::clean(ReadBin readsToClean) {
             }
             
             // finish cleaning the appropriate reads
+            cerr << "Cleaning: bc ct " << bestConsensus->readIndexes.size() << endl;
             for ( vector<pair<int, int> >::iterator indexPair = bestConsensus->readIndexes.begin(); indexPair !=  bestConsensus->readIndexes.end(); indexPair++ ) {
-                AlignedRead & aRead = altReads[indexPair->first];
+                AlignedRead & aRead = *altReads[indexPair->first];
                 if ( aRead.constizeUpdate() ) {
+                    cerr << "Constize finish cleaning" << endl;
                     // We need to update the mapping quality score of the cleaned reads;
                     // however we don't have enough info to use the proper MAQ scoring system.
                     // For now, we will just arbitrarily add 10 to the mapping quality. [EB, 6/7/2010].
@@ -852,8 +860,8 @@ void LocalRealignment::generateAlternateConsensesFromKnownIndels(set<Consensus *
 
 long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & reads,
                                             vector<BamAlignment *> & refReadsToPopulate,
-                                            vector<AlignedRead> & altReadsToPopulate,
-                                            vector<AlignedRead> & altAlignmentsToTest,
+                                            vector<AlignedRead *> & altReadsToPopulate,
+                                            vector<AlignedRead *> & altAlignmentsToTest,
                                             set<Consensus *> & altConsenses,
                                             int leftmostIndex,
                                             string & reference) {
@@ -869,7 +877,7 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
             continue;
         }
         
-        AlignedRead aRead(read);
+        AlignedRead * aRead = new AlignedRead(read);
         
         // first, move existing indels (for 1 indel reads only) to leftmost position within identical sequence
         int numBlocks = 0;
@@ -877,13 +885,15 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
             if(i->Type == 'M' || i->Type == '=' || i->Type == 'X')
                 numBlocks++;
         //int numBlocks = AlignmentUtils::getNumAlignmentBlocks(read);
+        cerr << "num blocks" << numBlocks << endl;
         if ( numBlocks == 2 ) {
             vector<CigarOp> newCigar = AlignmentUtils::leftAlignIndel(unclipCigar(read->CigarData), reference, read->QueryBases, read->Position-leftmostIndex, 0);
-            aRead.setCigar(newCigar, false);
+            cerr << "LAI in/unclip/out(" << read->Position + 1<< "): " << cigarToString(read->CigarData) << " " << cigarToString(unclipCigar(read->CigarData)) << " " << cigarToString(newCigar) << endl;
+            aRead->setCigar(newCigar, false);
         }
         
         const int startOnRef = read->Position-leftmostIndex;
-        const int rawMismatchScore = mismatchQualitySumIgnoreCigar(aRead, reference, startOnRef, INT_MAX);
+        const int rawMismatchScore = mismatchQualitySumIgnoreCigar(*aRead, reference, startOnRef, INT_MAX);
         
         // if this doesn't match perfectly to the reference, let's try to clean it
         if ( rawMismatchScore > 0 ) {
@@ -891,12 +901,12 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
             
             if ( !read->IsDuplicate() )
                 totalRawMismatchSum += rawMismatchScore;
-            aRead.setMismatchScoreToReference(rawMismatchScore);
-            aRead.setAlignerMismatchScore(AlignmentUtils::mismatchingQualities(aRead.getRead(), reference, startOnRef));
+            aRead->setMismatchScoreToReference(rawMismatchScore);
+            aRead->setAlignerMismatchScore(AlignmentUtils::mismatchingQualities(aRead->getRead(), reference, startOnRef));
             
             // if it has an indel, let's see if that's the best consensus
             if ( consensusModel != KNOWNS_ONLY && numBlocks == 2 )  {
-                Consensus * c = createAlternateConsensus(startOnRef, aRead.getCigar(), reference, aRead.getReadBases());
+                Consensus * c = createAlternateConsensus(startOnRef, aRead->getCigar(), reference, aRead->getReadBases());
                 if ( c != NULL ) {
                     cerr << "  \\|/New consensus " << cigarToString(c->cigar) << endl;
                     altConsenses.insert(c);
@@ -1127,7 +1137,7 @@ pair<int, int> LocalRealignment::findBestOffset(const string & ref, AlignedRead 
     
     return pair<int, int>(bestIndex, bestScore);
 }
-
+/*
 string LocalRealignment::cigarToString(const vector<CigarOp> & cigar)
 {
     stringstream ss;
@@ -1136,6 +1146,7 @@ string LocalRealignment::cigarToString(const vector<CigarOp> & cigar)
     
     return ss.str();
 }
+ */
 
 bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int altPosOnRef, const int myPosOnAlt, AlignedRead & aRead, const int leftmostIndex) {
     vector<CigarOp> readCigar;
@@ -1245,7 +1256,7 @@ bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int al
     return true;
 }
 
-bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead> & reads, const string & reference, const int leftmostIndex) {
+bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead *> & reads, const string & reference, const int leftmostIndex) {
     const size_t array_size = reference.size();
     int originalMismatchBases[array_size];
     int cleanedMismatchBases[array_size];
@@ -1261,7 +1272,7 @@ bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead> & reads, cons
     }
     
     for (int i=0; i < reads.size(); i++) {
-        AlignedRead read = reads[i];
+        AlignedRead &read = *reads[i];
         
         int count_m_eq_x = 0;
         for(vector<CigarOp>::iterator i = read.getRead()->CigarData.begin(); i != read.getRead()->CigarData.end(); i++)
@@ -1335,7 +1346,7 @@ bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead> & reads, cons
         }
         if ( snpsOutput != NULL ) {
             if ( didMismatch ) {
-                const string & ref_name = getHeader().Sequences[reads[0].getRead()->RefID].Name;
+                const string & ref_name = getHeader().Sequences[reads[0]->getRead()->RefID].Name;
                 sb << ref_name << ":" << (leftmostIndex + i);
                 if ( stillMismatches )
                     sb << " SAME_SNP\n" << endl;
@@ -1406,9 +1417,9 @@ LocalRealignment::LocalRealignment()
 , generateMD5s(false)
 , CHECKEARLY(false)
 , KEEP_ALL_PG_RECORDS(false)
-, write_out_indels(false)
-, write_out_stats(false)
-, write_out_snps(false)
+, write_out_indels(true)
+, write_out_stats(true)
+, write_out_snps(true)
 , referenceReader(NULL)
 , loc_parser(NULL)
 , currentInterval(NULL)
