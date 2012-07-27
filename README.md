@@ -6,7 +6,7 @@ See <http://www.opengenomicsengine.org> for more details about this project.
 
 ### Getting started
 
-See the command documentation (openge_commands.pdf) included in the doc/ directory for more information.
+The latest compiled binaries and the command documentation can be found on the project downloads page (<https://github.com/adaptivegenome/openge/downloads>).
 
 OpenGE is also supported through the SEQanswers forum:
 http://seqanswers.com/forums/forumdisplay.php?f=43
