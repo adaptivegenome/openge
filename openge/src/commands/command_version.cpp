@@ -26,6 +26,7 @@ int VersionCommand::runCommand()
     cerr << "Open Genomics Engine 0.2 (devel)" << endl;
     cerr << "Built on " __DATE__ " at " __TIME__ << endl;
     cerr << "(c) 2012 Virginia Bioinformatics Institute" << endl;
+    cerr << "Compiled with boost version : "BOOST_LIB_VERSION << endl;
     
     return 0;
 }
