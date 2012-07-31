@@ -147,8 +147,8 @@ private:
      * @return true if the read shouldn't be moved given the constraints of this SAMFileWriter
      */
 public:
-    bool iSizeTooBigToMove(BamTools::BamAlignment * read);
-    static bool iSizeTooBigToMove(BamTools::BamAlignment * read, int maxInsertSizeForMovingReadPairs);
+    bool iSizeTooBigToMove(const BamTools::BamAlignment & read);
+    static bool iSizeTooBigToMove(const BamTools::BamAlignment & read, int maxInsertSizeForMovingReadPairs);
     
 private:
     void purgeUnmodifiedMates();

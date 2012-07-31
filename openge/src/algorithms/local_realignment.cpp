@@ -493,7 +493,7 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
     else if ( readLoc.overlapsP(*currentInterval) ) {
         sawReadInCurrentInterval = true;
         
-        if ( doNotTryToClean(read) ) {
+        if ( doNotTryToClean(*read) ) {
             //cerr << "MAP D1" << endl;
             readsNotToClean.push_back(read);
         } else {
@@ -524,21 +524,21 @@ void LocalRealignment::abortCleanForCurrentInterval() {
     sawReadInCurrentInterval = false;
 }
 
-bool LocalRealignment::doNotTryToClean( BamAlignment * read) {
+bool LocalRealignment::doNotTryToClean( const BamAlignment & read) {
     const int NO_ALIGNMENT_START = -1;
     
     bool is454 = false;
-    if(read->HasTag("RG")) {
+    if(read.HasTag("RG")) {
         string rg_val;
-        read->GetTag("RG", rg_val);
+        read.GetTag("RG", rg_val);
         is454 = NULL != strstr( rg_val.c_str(), "454");
     }
     
-    return !read->IsMapped() ||
-    !read->IsPrimaryAlignment() ||
-    read->IsFailedQC() ||
-    read->MapQuality == 0 ||
-    read->Position == NO_ALIGNMENT_START ||
+    return !read.IsMapped() ||
+    !read.IsPrimaryAlignment() ||
+    read.IsFailedQC() ||
+    read.MapQuality == 0 ||
+    read.Position == NO_ALIGNMENT_START ||
     ConstrainedMateFixingManager::iSizeTooBigToMove(read, MAX_ISIZE_FOR_MOVEMENT) ||
     is454;
 

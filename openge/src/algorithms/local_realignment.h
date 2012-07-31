@@ -275,7 +275,8 @@ private:
         std::vector<BamTools::CigarOp> & getCigar();
         // tentatively sets the new Cigar, but it needs to be confirmed later
         void setCigar(const std::vector<BamTools::CigarOp> & cigar, bool fixClippedCigar = true);
-        
+        void clearCigar() { newCigar.clear(); }
+
     public:
         void setAlignmentStart(int start);
         int getAlignmentStart() const;
@@ -402,7 +403,7 @@ public:
 
 private:
     void abortCleanForCurrentInterval();
-    bool doNotTryToClean( BamTools::BamAlignment * read);
+    bool doNotTryToClean(const BamTools::BamAlignment & read);
     void cleanAndCallMap(BamTools::BamAlignment * read, ReadMetaDataTracker metaDataTracker, GenomeLoc * readLoc);
     
 public:

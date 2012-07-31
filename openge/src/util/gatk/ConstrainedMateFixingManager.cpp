@@ -403,13 +403,13 @@ void ConstrainedMateFixingManager::writeRead(BamAlignment * read) {
  * @param read  the read
  * @return true if the read shouldn't be moved given the constraints of this SAMFileWriter
  */
-bool ConstrainedMateFixingManager::iSizeTooBigToMove(BamAlignment * read) {
+bool ConstrainedMateFixingManager::iSizeTooBigToMove(const BamAlignment & read) {
     return iSizeTooBigToMove(read, maxInsertSizeForMovingReadPairs);               // we won't try to move such a read
 }
 
-bool ConstrainedMateFixingManager::iSizeTooBigToMove(BamAlignment * read, int maxInsertSizeForMovingReadPairs) {
-    return ( read->IsPaired() && read->IsMapped() && read->RefID != read->MateRefID ) // maps to different chromosomes
-    || abs(read->Length) > maxInsertSizeForMovingReadPairs;     // we won't try to move such a read
+bool ConstrainedMateFixingManager::iSizeTooBigToMove(const BamAlignment & read, int maxInsertSizeForMovingReadPairs) {
+    return ( read.IsPaired() && read.IsMapped() && read.RefID != read.MateRefID ) // maps to different chromosomes
+    || abs(read.Length) > maxInsertSizeForMovingReadPairs;     // we won't try to move such a read
 }
 
 void ConstrainedMateFixingManager::purgeUnmodifiedMates() {
@@ -426,7 +426,7 @@ void ConstrainedMateFixingManager::purgeUnmodifiedMates() {
 bool ConstrainedMateFixingManager::pairedReadIsMovable(BamAlignment * read) {
     return read->IsPaired()                                          // we're a paired read
     && (read->IsMapped() || read->IsMateMapped())  // at least one read is mapped
-    && !iSizeTooBigToMove(read);                                     // insert size isn't too big
+    && !iSizeTooBigToMove(*read);                                     // insert size isn't too big
     
 }
 
