@@ -123,7 +123,7 @@ AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const BamTools::B
         }
         
     }
-    cerr << mc.mismatchQualities << " ref: " << refSeq << " read: " << readSeq << endl;
+    //cerr << mc.mismatchQualities << " ref: " << refSeq << " read: " << readSeq << endl;
     return mc;
 }
 #if 0

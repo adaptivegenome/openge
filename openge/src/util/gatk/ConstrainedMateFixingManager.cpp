@@ -152,6 +152,7 @@ int computeInsertSize(const BamAlignment & firstEnd, const BamAlignment & second
     const int secondEnd5PrimePosition = secondEnd.IsReverseStrand()? getEndPosition(secondEnd): secondEnd.Position;
 
     const int adjustment = (secondEnd5PrimePosition >= firstEnd5PrimePosition) ? +1 : -1;
+    //cerr << "IS: " << firstEnd.Position + 1 << " " << (firstEnd5PrimePosition + 1) << " " << (secondEnd5PrimePosition + 1) << " adj " << adjustment << " is " << (secondEnd5PrimePosition - firstEnd5PrimePosition + adjustment) << endl;
     return secondEnd5PrimePosition - firstEnd5PrimePosition + adjustment;
 }
 
@@ -289,7 +290,7 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
         cerr << "New read pos " << newRead->Position << " OP = " << OP << " " << readWasModified << endl;
     }
     
-    cerr << "ConstrainedMateFixingManager::addRead size of waitingReads: " << waitingReads.size()<<endl;
+    //cerr << "ConstrainedMateFixingManager::addRead size of waitingReads: " << waitingReads.size()<<endl;
     
     //final long curTime = timer.currentTime();
     //if ( curTime - lastProgressPrintTime > PROGRESS_PRINT_FREQUENCY ) {
