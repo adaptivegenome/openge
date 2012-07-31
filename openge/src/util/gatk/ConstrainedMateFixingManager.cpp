@@ -115,26 +115,24 @@ using namespace std;
 
 using namespace BamTools;
 
-int getEndPosition(const BamAlignment & read) {
-    int read_end = read.Position;
-    for(vector<CigarOp>::const_iterator i = read.CigarData.begin(); i != read.CigarData.end(); i++) {
-        switch(i->Type)
-        {
-            case 'H':
-            case 'S':
-                break;
+size_t getReferenceLength(const BamAlignment & read) {
+    size_t length = 0;
+    for (vector<CigarOp>::const_iterator i = read.CigarData.begin(); i != read.CigarData.end(); i++) {
+        switch (i->Type) {
+            case 'M':
             case 'D':
-                read_end += i->Length;
-                break;
-            case 'I':
-                break;
-            default:
-                read_end += i->Length;
+            case 'N':
+            case '=':
+            case 'X':
+                length += i->Length;
                 break;
         }
     }
-    
-    return read_end;
+    return length;
+}
+
+int getEndPosition(const BamAlignment & read) {
+    return read.Position + getReferenceLength(read) - 1;
 }
 
 //////////////
@@ -148,11 +146,13 @@ int computeInsertSize(const BamAlignment & firstEnd, const BamAlignment & second
         return 0;
     }
 
+    //std::bitset<8> x(firstEnd.AlignmentFlag ^ secondEnd.AlignmentFlag );
+
     const int firstEnd5PrimePosition = firstEnd.IsReverseStrand()? getEndPosition(firstEnd): firstEnd.Position;
     const int secondEnd5PrimePosition = secondEnd.IsReverseStrand()? getEndPosition(secondEnd): secondEnd.Position;
 
     const int adjustment = (secondEnd5PrimePosition >= firstEnd5PrimePosition) ? +1 : -1;
-    return secondEnd5PrimePosition - firstEnd5PrimePosition + adjustment-2;
+    return secondEnd5PrimePosition - firstEnd5PrimePosition + adjustment;
 }
 
 void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader * header) {
@@ -181,10 +181,6 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader * header) 
         rec2.GetTag("XT", xt);
         rec2.RemoveTag("XT");
         rec2.AddTag<uint8_t>("XT", "A", xt);
-        
-        const int insertSize = computeInsertSize(rec1, rec2);
-        rec1.InsertSize = insertSize;
-        rec2.InsertSize = -insertSize;
     }
     // Else if they're both unmapped set that straight
     else if (!rec1.IsMapped() && !rec2.IsMapped()) {
@@ -225,6 +221,12 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader * header) 
         unmapped.SetIsMateMapped(true);
         unmapped.InsertSize = 0;
     }
+    
+    int insertSize = computeInsertSize(rec1, rec2);
+    if(insertSize > 0) insertSize--;
+    if(insertSize < 0) insertSize++;
+    rec1.InsertSize = insertSize;
+    rec2.InsertSize = -insertSize;
 }
 
 BamAlignment * ConstrainedMateFixingManager::remove(set<BamAlignment *> & treeSet) {
