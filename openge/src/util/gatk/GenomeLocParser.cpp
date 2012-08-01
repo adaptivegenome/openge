@@ -314,7 +314,7 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
     
     int start = strtol(colon_loc + 1, NULL, 10) - 1;
     
-    if(errno) {
+    if(start == 0 && errno == EINVAL) {
         cerr << "Could not find start in interval file: " << str << endl;
         perror("Reason:");
         exit(-1);
@@ -324,7 +324,7 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
     if(hyphen_loc) {    // chr1:1-4 case
         stop = strtol(hyphen_loc + 1, NULL, 10) - 1;
         
-        if(errno) {
+        if(stop == 0 && errno == EINVAL) {
             cerr << "Could not find stop in interval file: " << str << endl;
             perror("Reason:");
             exit(-1);
