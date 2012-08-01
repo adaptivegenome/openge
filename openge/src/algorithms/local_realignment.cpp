@@ -381,7 +381,8 @@ void LocalRealignment::initialize() {
             intervalsFile.push_back(new GenomeLoc(g));
             line_counter++;
         }
-        cerr << "Parsed " << line_counter << " intervals from the specified file." << endl;
+        if(verbose)
+            cerr << "Parsed " << line_counter << " intervals from " << intervals_filename << "." << endl;
     }
 
     interval_it = intervalsFile.begin();
@@ -661,7 +662,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
     //LCB if ( consensusModel == ConsensusDeterminationModel.USE_SW )
     //  generateAlternateConsensesFromReads(altAlignmentsToTest, altConsenses, *reference, leftmostIndex);
     
-    if ( true ) cerr << "------\nChecking consenses...(" << altConsenses.size() << ")\n--------\n" << endl;
+    if ( verbose ) cerr << "------\nChecking consenses...(" << altConsenses.size() << ")\n--------\n" << endl;
     
     Consensus * bestConsensus = NULL;
 
@@ -669,7 +670,8 @@ void LocalRealignment::clean(ReadBin readsToClean) {
     
     for (set<Consensus *>::iterator iter = altConsenses.begin(); iter != altConsenses.end(); iter++) {
         Consensus &consensus = **iter;
-        cerr << "Trying new consensus: " << cigarToString( consensus.cigar) /*<< " " << consensus.str*/ << endl;
+        if(verbose)
+            cerr << "Trying new consensus: " << cigarToString( consensus.cigar) /*<< " " << consensus.str*/ << endl;
         
         consensus.cigar.size();
         if ( false ) {
@@ -715,14 +717,16 @@ void LocalRealignment::clean(ReadBin readsToClean) {
                 break;
         }
         
-        cerr << "Mismatch sum of new consensus: " << consensus.mismatchSum << endl;
+        if(verbose)
+            cerr << "Mismatch sum of new consensus: " << consensus.mismatchSum << endl;
         if ( bestConsensus == NULL || bestConsensus->mismatchSum > consensus.mismatchSum) {
             // we do not need this alt consensus, release memory right away!!
             if ( bestConsensus != NULL ) {
                 bestConsensus->readIndexes.clear();
             }
             bestConsensus = &consensus;
-            cerr << "New consensus " << cigarToString(bestConsensus->cigar) <<  " is now best consensus" << endl;
+            if(verbose)
+                cerr << "New consensus " << cigarToString(bestConsensus->cigar) <<  " is now best consensus" << endl;
         } else {
             // we do not need this alt consensus, release memory right away!!
             consensus.readIndexes.clear();
@@ -877,7 +881,8 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
         
         // if this doesn't match perfectly to the reference, let's try to clean it
         if ( rawMismatchScore > 0 ) {
-            cerr << "Adding " << read->Name << " with raw mismatch score " << rawMismatchScore << " to non-ref reads" << endl;
+            if(verbose)
+                cerr << "Adding " << read->Name << " with raw mismatch score " << rawMismatchScore << " to non-ref reads" << endl;
             
             if ( !read->IsDuplicate() )
                 totalRawMismatchSum += rawMismatchScore;
@@ -898,7 +903,8 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
         }
         // otherwise, we can emit it as is
         else {
-            cerr << "Adding " << read->Name << " with raw mismatch score " << rawMismatchScore << " to ref reads" << endl;
+            if(verbose)
+                cerr << "Adding " << read->Name << " with raw mismatch score " << rawMismatchScore << " to ref reads" << endl;
             refReadsToPopulate.push_back(read);
         }
     }
@@ -1329,7 +1335,8 @@ bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead *> & reads, co
         }
     }
     
-    cerr << "Original mismatch columns = " << originalMismatchColumns << "; cleaned mismatch columns = " << cleanedMismatchColumns << endl;
+    if(verbose)
+        cerr << "Original mismatch columns = " << originalMismatchColumns << "; cleaned mismatch columns = " << cleanedMismatchColumns << endl;
     
     const bool reduces = (originalMismatchColumns == 0 || cleanedMismatchColumns < originalMismatchColumns);
     if ( reduces && snpsOutput != NULL ) {

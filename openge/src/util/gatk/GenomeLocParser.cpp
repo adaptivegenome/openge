@@ -90,10 +90,12 @@ public GenomeLocParser(ReferenceSequenceFile refFile) {
 #endif
 GenomeLocParser::GenomeLocParser( SamSequenceDictionary seqDict) {
     contigInfo = new SamSequenceDictionary(seqDict);
+    /*
     cerr << "Prepared reference sequence contig dictionary" << endl;
     for (SamSequenceConstIterator contig = contigInfo->Begin(); contig != contigInfo->End(); contig++) {
         fprintf(stderr, "\t%25s (%8d bp)\n", contig->Name.c_str(), atoi(contig->Length.c_str()));
     }
+     */
 }
 
 /**
