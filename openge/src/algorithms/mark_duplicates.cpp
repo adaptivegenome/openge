@@ -15,7 +15,7 @@
  *********************************************************************/
 
 #include "mark_duplicates.h"
-#include <api/BamMultiReader.h>
+#include <api/BamReader.h>
 #include <api/BamWriter.h>
 
 #include <algorithm>
@@ -184,8 +184,16 @@ void MarkDuplicates::buildSortedReadEndLists() {
     
     BamWriter writer;
 
+    RefVector references;
+    
+    for(SamSequenceConstIterator i = header.Sequences.Begin(); i != header.Sequences.End(); i++) {
+        RefData d;
+        d.RefName = i->Name;
+        d.RefLength = atoi(i->Length.c_str());
+    }
+    
     writer.SetCompressionMode(BamWriter::Uncompressed);
-    writer.Open(getBufferFileName(), header, source->getReferences());
+    writer.Open(getBufferFileName(), header, references);
     
     while (true) {
         BamAlignment * prec = getInputAlignment();
@@ -263,7 +271,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
         sort(fragSort.begin(), fragSort.end(), compareReadEnds());
     else
         ogeSortMt(fragSort.begin(), fragSort.end(), compareReadEnds());
-    cerr << "done." << endl;
+    if(verbose) cerr << "done." << endl;
     
     vector<ReadEnds *>contents = tmp.allReadEnds();
     

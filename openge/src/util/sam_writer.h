@@ -30,15 +30,13 @@ class SamWriter : public FileWriterClass
 public:
     SamWriter();
     bool Open(const std::string& filename,
-              const std::string& samHeaderText,
-              const BamTools::RefVector& referenceSequences);
+              const BamTools::SamHeader & samHeader);
     bool Close();
     bool SaveAlignment( BamTools::BamAlignment & al);
 protected:
     std::ofstream file;
     std::ostream * output_stream;
     BamTools::SamHeader header;
-    BamTools::RefVector references;
     std::string filename;
 
     bool open;

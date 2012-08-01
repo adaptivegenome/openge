@@ -30,7 +30,7 @@ class FastqWriter : public FileWriterClass
 {
 public:
     FastqWriter();
-    bool Open(const std::string& filename, const std::string& samHeaderText, const BamTools::RefVector& referenceSequences);
+    bool Open(const std::string& filename, const BamTools::SamHeader & samHeader);
     bool Close();
     bool SaveAlignment( BamTools::BamAlignment & al);
 protected:

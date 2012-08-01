@@ -21,6 +21,7 @@
  *********************************************************************/
 
 #include "file_writer.h"
+#include "openge_constants.h"
 
 #include "../util/sam_writer.h"
 #include "../util/fastq_writer.h"
@@ -73,6 +74,7 @@ int FileWriter::runInternal()
     if(command_line_options.size() > 0) {
         SamProgram pg;
         pg.ID = string("openge");
+	pg.Version = string(OPENGE_VERSION_STRING);
 
         for(int i = 2; header.Programs.Contains( pg.ID); i++) {
             stringstream s;
@@ -89,9 +91,9 @@ int FileWriter::runInternal()
             {
                 SamWriter writer;
                 
-                if(!writer.Open(filename, header.ToString(), getReferences())) {
+                if(!writer.Open(filename, header)) {
                     cerr << "Error opening BAM file to write." << endl;
-                    return -1;
+                    exit(-1);
                 }
                 
                 BamAlignment * al;
@@ -114,9 +116,9 @@ int FileWriter::runInternal()
             {
                 FastqWriter writer;
                 
-                if(!writer.Open(filename, header.ToString(), getReferences())) {
+                if(!writer.Open(filename, header)) {
                     cerr << "Error opening FASTQ file to write." << endl;
-                    return -1;
+                    exit(-1);
                 }
                 
                 BamAlignment * al;
@@ -141,10 +143,18 @@ int FileWriter::runInternal()
 
                 writer.SetCompressionMode(BamWriter::Compressed);
                 writer.SetCompressionLevel(compression_level);
+                
+                RefVector references;
+                
+                for(SamSequenceConstIterator i = header.Sequences.Begin(); i != header.Sequences.End(); i++) {
+                    RefData d;
+                    d.RefName = i->Name;
+                    d.RefLength = atoi(i->Length.c_str());
+                }
 
-                if(!writer.Open(filename, header, getReferences())) {
+                if(!writer.Open(filename, header, references)) {
                     cerr << "Error opening BAM file to write." << endl;
-                    return -1;
+                    exit(-1);
                 }
 
                 BamAlignment * al;

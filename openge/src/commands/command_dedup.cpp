@@ -23,8 +23,6 @@
 #include "../algorithms/split_by_chromosome.h"
 #include <iostream>
 
-#include <api/BamMultiReader.h>
-#include <api/BamWriter.h>
 using namespace BamTools;
 namespace po = boost::program_options;
 using namespace std;
@@ -46,7 +44,7 @@ int DedupCommand::runCommand()
     if(no_split && verbose)
         cerr << "Disabling split-by-chromosome." << endl;
 
-    int num_chains = min(12,ThreadPool::availableCores()/2);
+    int num_chains = min(12,OGEParallelismSettings::getNumberThreads()/2);
 
     if(nothreads || no_split || num_chains <= 1)
     {

@@ -30,9 +30,9 @@ bool BamPipe::Open(const IBamIODevice::OpenMode mode) {
 
     // open stdin/stdout depending on requested openmode
     if ( mode == IBamIODevice::ReadOnly )
-        m_stream = freopen(0, "rb", stdin);
+        m_stream = stdin;
     else if ( mode == IBamIODevice::WriteOnly )
-        m_stream = freopen(0, "wb", stdout);
+        m_stream = stdout;
     else {
         const string errorType = string( (mode == IBamIODevice::ReadWrite) ? "unsupported"
                                                                            : "unknown" );

@@ -51,7 +51,7 @@ public:
     BamTools::BamAlignment * GetNextAlignment();
     
     // returns the current file's header data
-    BamTools::SamHeader GetHeader(void) const;
+    const BamTools::SamHeader & GetHeader(void) const;
     // get reference data
     const BamTools::RefVector & GetReferenceData(void);
     //read a single line of a SAM file

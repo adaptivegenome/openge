@@ -24,6 +24,7 @@
 
 #include "algorithm_module.h"
 #include "../commands/commands.h"
+#include <api/BamReader.h>
 
 #include <vector>
 #include <string>
@@ -84,6 +85,17 @@ private:
     sorting_t sort_order;
     bool compress_temp_files;
     size_t alignments_per_tempfile;
+    
+    class SortedMergeElement{
+    public:
+        BamTools::BamAlignment * read;
+        BamTools::BamReader * source;
+        bool operator<(const SortedMergeElement & t) const;
+        SortedMergeElement(BamTools::BamAlignment * read, BamTools::BamReader * source)
+        : read(read)
+        , source(source)
+        {}
+    };
 
 public:
     class TempFileWriteJob : public ThreadJob

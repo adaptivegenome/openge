@@ -588,7 +588,12 @@ void BgzfStream::Close(void) {
         pthread_mutex_destroy(m_lastWriteLock);
     delete m_lastWriteLock;
     m_lastWriteLock = NULL;
-    
+
+    if(m_thread_pool) {
+        m_thread_pool->waitForJobCompletion();
+        delete m_thread_pool;
+    }
+ 
     if(m_cache) delete m_cache;
 
     // close device

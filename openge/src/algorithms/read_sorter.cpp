@@ -28,7 +28,6 @@ using namespace std;
 #include <api/algorithms/Sort.h>
 
 #include <api/SamConstants.h>
-#include <api/BamParallelismSettings.h>
 #include <api/BamReader.h>
 #include <api/BamWriter.h>
 
@@ -43,12 +42,21 @@ using namespace BamTools::Algorithms;
 #include <string>
 #include <vector>
 #include <queue>
+#include <set>
 #include <iostream>
 using namespace std;
 
 const unsigned int SORT_DEFAULT_MAX_BUFFER_COUNT  = 500000;  // max numberOfAlignments for buffer
 const unsigned int SORT_DEFAULT_MAX_BUFFER_MEMORY = 1024;    // Mb
 const unsigned int MERGESORT_MIN_SORT_SIZE = 30000;    //don't parallelize sort jobs smaller than this many alignments
+
+using namespace BamTools::Algorithms;
+
+bool ReadSorter::SortedMergeElement::operator<(const SortedMergeElement & t) const
+{
+    Sort::ByPosition cmp = Sort::ByPosition();
+    return cmp(this->read, t.read);
+}
 
 //actual run creates threads for other 'run'commands
 bool ReadSorter::Run(void)
@@ -232,29 +240,56 @@ bool ReadSorter::CreateSortedTempFile(vector<BamAlignment* > * buffer) {
 // merges sorted temp BAM files into single sorted output BAM file
 bool ReadSorter::MergeSortedRuns(void) {
     if(verbose)
-        cerr << "Combining " << m_tempFilenames.size() << " temp files for final output..." << endl;
-    
-    // open up multi reader for all of our temp files
-    BamMultiReader multiReader;
-    if ( !multiReader.Open(m_tempFilenames) ) {
-        cerr << "mergesort ERROR: could not open BamMultiReader for merging temp files... Aborting."
-        << endl;
-        return false;
+        cerr << "Combining temp files for final output..." << endl;
+
+    vector<BamReader *> readers;
+    for(vector<string>::const_iterator i = m_tempFilenames.begin(); i != m_tempFilenames.end(); i++) {
+        readers.push_back(new BamReader());
+        
+        if(!readers.back()->Open(*i)) {
+            cerr << "Error opening reader for tempfile " << *i << endl;
+            exit(-1);
+        }
+        
+        readers.back()->GetHeader();
     }
 
-    // while data available in temp files
-    BamAlignment * al;
-    size_t count = 0;
-    while (NULL != (al = multiReader.GetNextAlignmentCore()) ) {
-        putOutputAlignment(al);
-        if(count++ % 100000 == 0 && verbose)
-            cerr << "\rCombined " << count/1000 << "K reads (" << 100 * count / read_count << "%)." << flush;
+    multiset<SortedMergeElement> reads;
+    
+    // first, get one read from each queue
+    // make sure and deal with the case where one chain will never have any reads. TODO LCB
+    
+    for(int ctr = 0; ctr < readers.size(); ctr++)
+    {
+        BamAlignment * read = readers[ctr]->GetNextAlignmentCore();
+        
+        if(!read) {
+            continue;
+        }
+        
+        reads.insert(SortedMergeElement(read, readers[ctr]));
+    }
+    
+    //now handle the steady state situation. When sources are done, We
+    // won't have a read any more in the reads pqueue.
+    while(!reads.empty()) {
+        SortedMergeElement el = *reads.begin();
+        reads.erase(reads.begin());
+        
+        putOutputAlignment(el.read);
+        
+        el.read = el.source->GetNextAlignmentCore();
+        if(!el.read) {
+            continue;
+        }
+        
+        reads.insert(el);
+        if(write_count % 100000 == 0 && verbose)
+            cerr << "\rCombined " << write_count/1000 << "K reads (" << 100 * write_count / read_count << "%)." << flush;
     }
     if(verbose && read_count)
-        cerr << "\rCombined " << count/1000 << "K reads (" << 100 * count / read_count << "%)." << endl;
-    
-    // close files
-    multiReader.Close();
+        cerr << "\rCombined " << write_count/1000 << "K reads (" << 100 * write_count / read_count << "%)." << endl;
+
     if(verbose)
         cerr << "Clearing " << m_tempFilenames.size() << " temp files...";
     
@@ -264,6 +299,8 @@ bool ReadSorter::MergeSortedRuns(void) {
     for ( ; tempIter != tempEnd; ++tempIter ) {
         const string& tempFilename = (*tempIter);
         remove(tempFilename.c_str());
+        delete readers.back();
+        readers.pop_back();
     }
 
     if(isVerbose())
@@ -275,7 +312,7 @@ bool ReadSorter::MergeSortedRuns(void) {
 
 bool ReadSorter::RunSort(void) {
     // this does a single pass, chunking up the input file into smaller sorted temp files,
-    // then write out using BamMultiReader to handle merging
+    // then merging in the results from multiple readers.
     
     if ( GenerateSortedRuns() )
         return MergeSortedRuns();
