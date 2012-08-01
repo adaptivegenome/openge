@@ -19,9 +19,11 @@
 #include <unistd.h>
 #include <string>
 #include <sstream>
+#include <fstream>
 #include <cassert>
 #include <cstring>
 #include <fcntl.h>
+#include <errno.h>
 
 #include "fasta_reader.h"
 #include <sys/mman.h>
@@ -52,6 +54,15 @@ SamSequenceDictionary FastaReader::getSequenceDictionary()
     return d;
 }
 
+bool hasSuffix (std::string const &fullString, std::string const &ending)
+{
+    if (fullString.length() >= ending.length()) {
+        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+    } else {
+        return false;
+    }
+}
+
 bool FastaReader::Open(const string filename)
 {
     //first determine file length
@@ -75,14 +86,34 @@ bool FastaReader::Open(const string filename)
         return false;
     }
     
-    // For now, don't support index files- always generate our own index, then load it.
-    // Unfortunately this is slow, but we can revisit this later.
-    cerr << "Generating FASTA index (using existing index is not implemented yet)...";
-    string index = generateFastaIndex();
-    cerr << "Index looks like this: " << endl << index << endl;
+    string index_filename;
+    if(hasSuffix(filename, "fa"))
+        index_filename = filename + "i"; // .fa to .fai
+    else if(hasSuffix(filename, "fasta"))
+        index_filename = filename.substr(0, filename.size() - 3) + "i"; // .fasta to .fai
+    else
+        index_filename = filename + ".fai"; //append .fai
+
+    bool index_exists = true;
+    FILE *file;
+    if ((file = fopen(index_filename.c_str(), "r")) == NULL) {
+        if (errno == ENOENT) {
+            index_exists = false;
+        } else {
+            // Check for other errors too, like EACCES and EISDIR
+        }
+    } else {
+        fclose(file);
+    }
+    
+    if(!index_exists) { //create index
+        ofstream ix_file(index_filename.c_str(),ios_base::out);
+        ix_file << generateFastaIndex();
+        cerr << "Generated FASTA index at " << index_filename << endl;
+    } else
+        readFastaIndex(index_filename);
 
     is_open = true;
-    cerr << "done." << endl;
     return true;
 }
 
@@ -218,11 +249,37 @@ string FastaReader::generateFastaIndex()
     }
     
     //now, generate index data.
+    return writeFastaIndex();
+}
+
+string FastaReader::writeFastaIndex()
+{
     stringstream ss("");
     for(vector<fasta_sequence_t>::const_iterator i = ordered_sequences.begin(); i != ordered_sequences.end(); i++)
         ss << i->name << "\t" << i->length << "\t" << (size_t)(i->sequence_start - file_data) << "\t" << i->line_data_length << "\t" << i->line_length << endl;
     
     return ss.str();
+}
+
+bool FastaReader::readFastaIndex(string filename)
+{
+    ifstream file(filename.c_str());
+
+    while(true) {
+        string line;
+        getline(file, line);
+        if(file.fail())
+            return true;
+        
+        stringstream ss(line);
+        fasta_sequence_t seq = {0};
+        
+        int64_t start_offset;
+        ss >> seq.name >> seq.length >> start_offset >> seq.line_data_length >> seq.line_length;
+        seq.sequence_start = &file_data[start_offset];
+        sequences[seq.name] = seq;
+        ordered_sequences.push_back(seq);
+    }
 }
 
 void FastaReader::Close()
