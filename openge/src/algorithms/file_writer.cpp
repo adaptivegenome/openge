@@ -150,6 +150,7 @@ int FileWriter::runInternal()
                     RefData d;
                     d.RefName = i->Name;
                     d.RefLength = atoi(i->Length.c_str());
+                    references.push_back(d);
                 }
 
                 if(!writer.Open(filename, header, references)) {
