@@ -6,6 +6,7 @@ set(OPENGE_COMMANDS_SOURCES
   ${COMMANDS_DIR}/command_coverage.cpp
   ${COMMANDS_DIR}/command_dedup.cpp
   ${COMMANDS_DIR}/command_help.cpp
+  ${COMMANDS_DIR}/command_history.cpp
   ${COMMANDS_DIR}/command_localrealign.cpp
   ${COMMANDS_DIR}/command_mergesort.cpp
   ${COMMANDS_DIR}/command_stats.cpp

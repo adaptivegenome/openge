@@ -111,6 +111,13 @@ protected:
     void getOptions();
 };
 
+class HistoryCommand: public OpenGECommand
+{
+protected:
+    virtual int runCommand();
+    void getOptions();
+};
+
 class LocalRealignCommand: public OpenGECommand
 {
 protected:

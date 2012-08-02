@@ -34,6 +34,7 @@ count&Count reads in an alignment\\
 coverage&Compute coverage statistics for an alignment\\
 dedup&Mark (or remove) duplicate reads\\
 help&View detailed help for any OpenGE command\\
+history&Print commands used to generate a file\\
 mergesort&Merge and sort multiple input files\\
 localrealign&Realign misaligned reads due to indels\\
 stats&Generate statistics for one or more files\\
@@ -163,6 +164,10 @@ For example:
 
 Available commands can be seen in the table at the top of this section.
 
+\subsection {history}
+The history command prints out a list of commands from @PG records in a SAM or BAM file. This can be useful to see how a file was constructed.
+
+There are no command line arguments for this command.
 
 \subsection {mergesort}
 This command generates a single file from one or more input files. The supplied input files are merged and then sorted by read position or region.

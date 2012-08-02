@@ -33,6 +33,7 @@ namespace po = boost::program_options;
 
 int OpenGECommand::runWithParameters(int argc, const char ** argv)
 {
+    command_line.append("openge ");
     for(int i = 0; i < argc; i++) {
         command_line.append(argv[i]);
         command_line.append(" ");
@@ -133,6 +134,8 @@ OpenGECommand * CommandMarshall::commandWithName(const string name) {
         return new DedupCommand;
     else if(!strcmp(cname, "help"))
         return new HelpCommand;
+    else if(!strcmp(cname, "history"))
+        return new HistoryCommand;
     else if(!strcmp(cname, "localrealign"))
         return new LocalRealignCommand;
     else if(!strcmp(cname, "mergesort"))
