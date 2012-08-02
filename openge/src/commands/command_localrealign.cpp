@@ -56,13 +56,17 @@ int LocalRealignCommand::runCommand()
     if(vm.count("reference") != 1) {
         cerr << "One FASTA reference file is required." << endl;
         return -1;
-    } else {
-        local_realignment.setReferenceFilename(vm["reference"].as<string>());
-        local_realignment.setIntervalsFilename(vm["intervals"].as<string>());
     }
+    if(vm.count("intervals") != 1) {
+        cerr << "One intervals file is required." << endl;
+        return -1;
+    }
+
+    local_realignment.setReferenceFilename(vm["reference"].as<string>());
+    local_realignment.setIntervalsFilename(vm["intervals"].as<string>());
     
-    if(input_filenames.size() != 1) {
-        cerr << "One input file is required. You supplied " << input_filenames.size() << endl;
+    if(input_filenames.size() < 1) {
+        cerr << "At least input file is required. You supplied " << input_filenames.size() << endl;
         return -1;
     }
 
