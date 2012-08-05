@@ -124,6 +124,30 @@ protected:
     std::queue<T> q;
 };
 
+template<class T>
+class SynchronizedBlockingQueue : public SynchronizedQueue<T>{
+public:
+    T pop() {
+        bool success = false;
+        T ret;
+        while(!success) {
+            this->lock.lock();
+            if(this->q.size()) {
+                ret = this->q.front();
+                this->q.pop();
+                success = true;
+            }
+            this->lock.unlock();
+            if(!success)
+                usleep(20000);
+        }
+
+        return ret;
+    }
+protected:
+        
+};
+
 // The shared thread pool should only be used for non-blocking tasks!
 
 class ThreadPool
