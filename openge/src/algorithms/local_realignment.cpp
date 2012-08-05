@@ -188,7 +188,7 @@ void LocalRealignment::AlignedRead::getUnclippedBases() {
     readBases.reserve(getReadLength());
     baseQuals.clear();
     baseQuals.reserve(getReadLength());
-    const string & actualReadBases = read->QueryBases;// LCB should be AlignedBases?
+    const string & actualReadBases = read->QueryBases;
     const string & actualBaseQuals = read->Qualities;
     int fromIndex = 0, toIndex = 0;
     

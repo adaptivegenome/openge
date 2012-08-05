@@ -50,6 +50,8 @@
 
 #include "api/algorithms/Sort.h"
 
+#include "../thread_pool.h"
+
 #include <list>
 #include <map>
 #include <set>
@@ -83,6 +85,13 @@ private:
      * How many reads should we store in memory before flushing the queue?
      */
     int MAX_RECORDS_IN_MEMORY;
+    
+    typedef struct {
+        BamTools::BamAlignment * read;
+        bool readWasModified;
+    } cmfm_read_t;
+    SynchronizedBlockingQueue<cmfm_read_t> addReadQueue;
+    pthread_t add_read_thread;
 
     GenomeLoc * lastLocFlushed;
     
@@ -107,16 +116,7 @@ private:
     //std::less<BamTools::BamAlignment *> cmp;
     BamTools::Algorithms::Sort::AlignmentPtrSortBase cmp;
     std::set<BamTools::BamAlignment *> waitingReads;
-    
-private:
-    BamTools::BamAlignment * remove(std::set<BamTools::BamAlignment *> & treeSet);
-    
-    
-    //private SimpleTimer timer = new SimpleTimer("ConstrainedWriter");
-    //private long PROGRESS_PRINT_FREQUENCY = 10 * 1000;             // in milliseconds
-    //private long lastProgressPrintTime = -1;                       // When was the last time we printed progress log?
-    
-    
+
     /**
      *
      * @param writer                                 actual writer
@@ -127,9 +127,7 @@ private:
      */
 public:
     ConstrainedMateFixingManager( LocalRealignment * writer, const int maxInsertSizeForMovingReadPairs, const int maxMoveAllowed, const int maxRecordsInMemory,GenomeLocParser * loc_parser);
-    
-    int getNReadsInQueue();
-    
+
     bool canMoveReads(const GenomeLoc & earliestPosition);
     
 private:
@@ -137,9 +135,11 @@ private:
     
 public:
     void addReads(const std::vector<BamTools::BamAlignment *> & newReads, const std::set<BamTools::BamAlignment *> & modifiedReads);
-    void addRead(BamTools::BamAlignment * newRead, bool readWasModified, bool canFlush = true);
-    
+    void addRead(BamTools::BamAlignment * newRead, bool readWasModified);
 private:
+    static void * addread_threadproc(void * data);
+    void addReadInternal(BamTools::BamAlignment * newRead, bool readWasModified);
+    BamTools::BamAlignment * remove(std::set<BamTools::BamAlignment *> & treeSet);
     void writeRead(BamTools::BamAlignment * read);
     
     /**

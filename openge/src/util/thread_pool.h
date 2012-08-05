@@ -132,7 +132,7 @@ public:
         T ret;
         while(!success) {
             this->lock.lock();
-            if(this->q.size()) {
+            if(!this->q.empty()) {
                 ret = this->q.front();
                 this->q.pop();
                 success = true;

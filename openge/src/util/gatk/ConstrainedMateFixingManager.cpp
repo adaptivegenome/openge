@@ -263,9 +263,14 @@ ConstrainedMateFixingManager::ConstrainedMateFixingManager( LocalRealignment * w
 , loc_parser(loc_parser)
 , cmp(Algorithms::Sort::ByPosition())
 , waitingReads(cmp)
-{ }
-
-int ConstrainedMateFixingManager::getNReadsInQueue() { return waitingReads.size(); }
+{
+    int ret = pthread_create(&add_read_thread, NULL, addread_threadproc, this);
+    
+    if(0 != ret) {
+        perror("Error creating ConstrainedMateFixingManager thread. Aborting.");
+        exit(-1);
+    }
+}
 
 bool ConstrainedMateFixingManager::canMoveReads(const GenomeLoc & earliestPosition) {
     if ( DEBUG ) cerr << "Refusing to realign? " << earliestPosition.toString() << " vs. " << lastLocFlushed << endl;
@@ -278,12 +283,38 @@ bool ConstrainedMateFixingManager::canMoveReads(const GenomeLoc & earliestPositi
 bool ConstrainedMateFixingManager::noReadCanMoveBefore(int pos, BamAlignment * addedRead) {
     return pos + 2 * MAX_POS_MOVE_ALLOWED < addedRead->Position;
 }
-void ConstrainedMateFixingManager::addReads(const vector<BamAlignment *> & newReads, const set<BamAlignment *> & modifiedReads) {
-    for (vector<BamAlignment *>::const_iterator newRead =  newReads.begin(); newRead != newReads.end(); newRead++ )
-        addRead(*newRead, modifiedReads.count(*newRead) > 0, false);
+
+void * ConstrainedMateFixingManager::addread_threadproc(void * data)
+{
+    ConstrainedMateFixingManager * manager = (ConstrainedMateFixingManager *)data;
+    
+    ogeNameThread("CMFMaddRead");
+    
+    while(true) {
+        cmfm_read_t r = manager->addReadQueue.pop();
+        
+        if(r.read == NULL)
+            break;
+        
+        manager->addReadInternal(r.read, r.readWasModified);
+    }
+    
+    return 0;
 }
 
-void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasModified, bool canFlush) {
+void ConstrainedMateFixingManager::addReads(const vector<BamAlignment *> & newReads, const set<BamAlignment *> & modifiedReads) {
+    for (vector<BamAlignment *>::const_iterator newRead =  newReads.begin(); newRead != newReads.end(); newRead++ )
+        addRead(*newRead, modifiedReads.count(*newRead) > 0);
+}
+
+void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasModified) {
+    cmfm_read_t r;
+    r.read = newRead;
+    r.readWasModified = readWasModified;
+    addReadQueue.push(r);
+}
+
+void ConstrainedMateFixingManager::addReadInternal(BamAlignment * newRead, bool readWasModified) {
     if ( DEBUG ) {
         string OP;
         newRead->GetTag("OP", OP);
@@ -291,8 +322,8 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
     }
 
     // if the new read is on a different contig or we have too many reads, then we need to flush the queue and clear the map
-    bool tooManyReads = getNReadsInQueue() >= MAX_RECORDS_IN_MEMORY;
-    if ( (canFlush && tooManyReads) || (getNReadsInQueue() > 0 && (*waitingReads.begin())->RefID != newRead->RefID) ) {
+    bool tooManyReads = (waitingReads.size() >= MAX_RECORDS_IN_MEMORY);
+    if ( ( tooManyReads) || (waitingReads.size() > 0 && (*waitingReads.begin())->RefID != newRead->RefID) ) {
         if ( true || DEBUG ) {
             stringstream ss("");
             if(tooManyReads)
@@ -302,7 +333,7 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
             cerr << "Flushing queue on " << ss.str() << " at " << newRead->Position << endl;
         }
         
-        while ( getNReadsInQueue() > 1 ) {
+        while ( waitingReads.size() > 1 ) {
             // emit to disk
             writeRead(remove(waitingReads));
         }
@@ -426,6 +457,16 @@ bool ConstrainedMateFixingManager::pairedReadIsMovable(BamAlignment * read) {
 }
 
 void ConstrainedMateFixingManager::close() {
+    
+    //close the thread:
+    cmfm_read_t r = {0};
+    addReadQueue.push(r);
+    
+    int ret = pthread_join(add_read_thread, NULL);
+    if(0 != ret) {
+        perror("Error closing ConstrainedMateFixingManager thread.");
+        exit(-1);
+    }
     // write out all of the remaining reads
     while ( ! waitingReads.empty() ) { // there's something in the queue
         writeRead(remove(waitingReads));
