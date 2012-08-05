@@ -278,8 +278,8 @@ bool ConstrainedMateFixingManager::canMoveReads(const GenomeLoc & earliestPositi
 bool ConstrainedMateFixingManager::noReadCanMoveBefore(int pos, BamAlignment * addedRead) {
     return pos + 2 * MAX_POS_MOVE_ALLOWED < addedRead->Position;
 }
-void ConstrainedMateFixingManager::addReads(vector<BamAlignment *> newReads, set<BamAlignment *> modifiedReads) {
-    for (vector<BamAlignment *>::iterator newRead =  newReads.begin(); newRead != newReads.end(); newRead++ )
+void ConstrainedMateFixingManager::addReads(const vector<BamAlignment *> & newReads, const set<BamAlignment *> & modifiedReads) {
+    for (vector<BamAlignment *>::const_iterator newRead =  newReads.begin(); newRead != newReads.end(); newRead++ )
         addRead(*newRead, modifiedReads.count(*newRead) > 0, false);
 }
 
@@ -289,15 +289,7 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
         newRead->GetTag("OP", OP);
         cerr << "New read pos " << newRead->Position << " OP = " << OP << " " << readWasModified << endl;
     }
-    
-    //cerr << "ConstrainedMateFixingManager::addRead size of waitingReads: " << waitingReads.size()<<endl;
-    
-    //final long curTime = timer.currentTime();
-    //if ( curTime - lastProgressPrintTime > PROGRESS_PRINT_FREQUENCY ) {
-    //    lastProgressPrintTime = curTime;
-    //    System.out.println("WaitingReads.size = " + waitingReads.size() + ", forMateMatching.size = " + forMateMatching.size());
-    //}
-    
+
     // if the new read is on a different contig or we have too many reads, then we need to flush the queue and clear the map
     bool tooManyReads = getNReadsInQueue() >= MAX_RECORDS_IN_MEMORY;
     if ( (canFlush && tooManyReads) || (getNReadsInQueue() > 0 && (*waitingReads.begin())->RefID != newRead->RefID) ) {

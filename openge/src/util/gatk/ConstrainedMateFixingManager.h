@@ -136,7 +136,7 @@ private:
     bool noReadCanMoveBefore(int pos, BamTools::BamAlignment * addedRead);
     
 public:
-    void addReads(std::vector<BamTools::BamAlignment *> newReads, std::set<BamTools::BamAlignment *> modifiedReads);
+    void addReads(const std::vector<BamTools::BamAlignment *> & newReads, const std::set<BamTools::BamAlignment *> & modifiedReads);
     void addRead(BamTools::BamAlignment * newRead, bool readWasModified, bool canFlush = true);
     
 private:
