@@ -367,11 +367,6 @@ private:
     // fraction of mismatches that need to no longer mismatch for a column to be considered cleaned
     static const double MISMATCH_COLUMN_CLEANED_FRACTION;
     
-    static const double SW_MATCH;      // 1.0;
-    static const double SW_MISMATCH;  //-1.0/3.0;
-    static const double SW_GAP;       //-1.0-1.0/3.0;
-    static const double SW_GAP_EXTEND; //-1.0/.0;
-    
     // reference base padding size
     // TODO -- make this a command-line argument if the need arises
     static const int REFERENCE_PADDING;
@@ -380,21 +375,11 @@ private:
     bool outputIndels, output_stats, output_snps;
     std::ofstream indelOutput, statsOutput, snpsOutput;
     
-    //###protected Map<SAMReaderID, ConstrainedMateFixingManager> nwayWriters = NULL;
-    
-    
-    // debug info for lazy SW evaluation:
-    long exactMatchesFound; // how many reads exactly matched a consensus we already had
-    long SWalignmentRuns; // how many times (=for how many reads) we ran SW alignment
-    long SWalignmentSuccess; // how many SW alignments were "successful" (i.e. found a workable indel and resulted in non-null consensus)
-    
 public:
     void initialize();
     void writeRead(BamTools::BamAlignment * read) { putOutputAlignment(read); }
 
 private:
-    void setupWriter( BamTools::SamHeader header);
-    BamTools::SamProgram createProgramRecord();
     void emit(BamTools::BamAlignment * read);
     void emitReadLists();
     
@@ -429,9 +414,6 @@ private:
                                              std::set<Consensus *> & altConsensesToPopulate,
                                              const std::string & reference,
                                              const int leftmostIndex);
-    void createAndAddAlternateConsensus(const std::string & read, std::set<Consensus *> & altConsensesToPopulate, const std::string & reference);
-    void createAndAddAlternateConsensus1(AlignedRead & read, std::set<Consensus *> & altConsensesToPopulate,
-                                         const std::string & reference, const int leftmostIndex);
     Consensus * createAlternateConsensus(const int indexOnRef, const std::vector<BamTools::CigarOp> & c, const std::string reference, const std::string readStr);
     Consensus * createAlternateConsensus(const int indexOnRef, const std::string & reference, const std::string & indelStr, VariantContext indel);
     std::pair<int, int> findBestOffset(const std::string & ref, AlignedRead read, const int leftmostIndex) ;

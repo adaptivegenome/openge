@@ -153,10 +153,6 @@ static const string PROGRAM_RECORD_NAME("OpenGE LocalRealignment");
 
 const int LocalRealignment::MAX_QUAL = 99;
 const double LocalRealignment::MISMATCH_COLUMN_CLEANED_FRACTION = 0.75;
-const double LocalRealignment::SW_MATCH = 30.0;
-const double LocalRealignment::SW_MISMATCH = -10.0;
-const double LocalRealignment::SW_GAP = -10.0;
-const double LocalRealignment::SW_GAP_EXTEND = -2.0;
 const int LocalRealignment::REFERENCE_PADDING = 30;
     
 #pragma mark IndelRealinger::AlignedRead
@@ -395,7 +391,6 @@ void LocalRealignment::initialize() {
     AlignedRead::MAX_POS_MOVE_ALLOWED = MAX_POS_MOVE_ALLOWED;
 
     // set up the output writer
-    setupWriter(getHeader());
     manager = new ConstrainedMateFixingManager(this, MAX_ISIZE_FOR_MOVEMENT, MAX_POS_MOVE_ALLOWED, MAX_RECORDS_IN_MEMORY, loc_parser);
     
     if ( write_out_indels ) 
@@ -404,30 +399,6 @@ void LocalRealignment::initialize() {
         statsOutput.open(OUT_STATS.c_str());
     if ( write_out_snps )
         snpsOutput.open(OUT_SNPS.c_str());
-}
-
-void LocalRealignment::setupWriter( SamHeader header) {
-
-    SamProgram programRecord = createProgramRecord();
-    
-    SamProgramChain newRecords;
-    //newRecords.reserve(header.Programs.Size()+1);
-    for ( SamProgramIterator record = header.Programs.Begin(); record != header.Programs.End(); record++) {
-        if ( NULL == strstr(record->ID.c_str(), PROGRAM_RECORD_NAME.c_str()) || KEEP_ALL_PG_RECORDS )  //TODO LCB is there a clearer way to check for a prefix?
-            newRecords.Add(*record);
-    }
-    newRecords.Add(programRecord);
-    header.Programs = newRecords;
-
-    //writer.setPresorted(true); LCB TODO port this line
-}
-
-
-SamProgram LocalRealignment::createProgramRecord() {
-    SamProgram programRecord(PROGRAM_RECORD_NAME);
-    programRecord.Version = "OPENGE_DEVEL_VERSION";
-    programRecord.CommandLine = "OPENGE_TODO_LCB_COMMAND_LINE_STRING";
-    return programRecord;
 }
 
 void LocalRealignment::emit(BamAlignment * read) {
@@ -452,7 +423,6 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
     const int NO_ALIGNMENT_REFERENCE_INDEX = -1;
     if ( currentInterval == NULL ) {
         emit(read);
-        cerr << "MAP A" << endl;
         return 0;
     }
     
@@ -461,17 +431,14 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
     //   at this point without trying to create a GenomeLoc.
     if ( read->RefID == NO_ALIGNMENT_REFERENCE_INDEX ) {
         cleanAndCallMap(read, metaDataTracker, NULL);
-        cerr << "MAP B" << endl;
         return 0;
     }
-    //cerr << "MAP CG" << endl;
     GenomeLoc readLoc = loc_parser->createGenomeLoc(*read);
     // hack to get around unmapped reads having screwy locations
     if ( readLoc.getStop() == 0 )
         readLoc = loc_parser->createGenomeLoc(readLoc.getContig(), readLoc.getStart(), readLoc.getStart());
     
     if ( readLoc.isBefore(*currentInterval) ) {
-        //cerr << "MAP C" << endl;
         if ( !sawReadInCurrentInterval )
             emit(read);
         else
@@ -481,10 +448,8 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
         sawReadInCurrentInterval = true;
         
         if ( doNotTryToClean(*read) ) {
-            //cerr << "MAP D1" << endl;
             readsNotToClean.push_back(read);
         } else {
-            //cerr << "MAP D2" << endl;
             readsToClean.add(read);
             
             // add the rods to the list of known variants
@@ -492,13 +457,11 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
         }
         
         if ( readsToClean.size() + readsNotToClean.size() >= MAX_READS ) {
-            cerr << "MAP D3" << endl;
             fprintf(stderr, "Not attempting realignment in interval %s because there are too many reads.", currentInterval->toString().c_str());
             abortCleanForCurrentInterval();
         }
     }
     else {  // the read is past the current interval
-        //cerr << "MAP E" << endl;
         cleanAndCallMap(read, metaDataTracker, &readLoc);
     }
     
@@ -585,13 +548,6 @@ void LocalRealignment::onTraversalDone(int result) {
     
     for(vector<GenomeLoc *>::const_iterator interval_it = intervalsFile.begin(); interval_it != intervalsFile.end(); interval_it++)
         delete *interval_it;
-    
-    if ( CHECKEARLY ) {
-        fprintf(stderr, "SW alignments runs: %ld\n", SWalignmentRuns);
-        fprintf(stderr, "SW alignments successfull: %ld (%ld%% of SW runs)", SWalignmentSuccess, SWalignmentSuccess/SWalignmentRuns);
-        fprintf(stderr, "SW alignments skipped (perfect match): %ld", exactMatchesFound);
-        fprintf(stderr, "Total reads SW worked for: %ld (%ld%% of all reads requiring SW)", (SWalignmentSuccess + exactMatchesFound), (SWalignmentSuccess+exactMatchesFound)/(SWalignmentRuns+exactMatchesFound));
-    }
 }
 
 void LocalRealignment::populateKnownIndels(ReadMetaDataTracker metaDataTracker) {
@@ -919,10 +875,6 @@ void LocalRealignment::generateAlternateConsensesFromReads( vector<AlignedRead> 
     
     // if we are under the limit, use all reads to generate alternate consenses
     if ( altAlignmentsToTest.size() <= MAX_READS_FOR_CONSENSUSES ) {
-        for ( vector<AlignedRead>::iterator aRead = altAlignmentsToTest.begin(); aRead != altAlignmentsToTest.end(); aRead++) {
-            if ( CHECKEARLY ) createAndAddAlternateConsensus1(*aRead, altConsensesToPopulate, reference,leftmostIndex);
-            else createAndAddAlternateConsensus(aRead->getReadBases(), altConsensesToPopulate, reference);
-        }
     }
     // otherwise, choose reads for alternate consenses randomly
     else {
@@ -932,44 +884,8 @@ void LocalRealignment::generateAlternateConsensesFromReads( vector<AlignedRead> 
             vector<AlignedRead>::iterator to_remove = altAlignmentsToTest.begin() + index;
             AlignedRead aRead = *to_remove;
             altAlignmentsToTest.erase(to_remove);
-            if ( CHECKEARLY ) createAndAddAlternateConsensus1(aRead, altConsensesToPopulate, reference,leftmostIndex);
-            else createAndAddAlternateConsensus(aRead.getReadBases(), altConsensesToPopulate, reference);
         }
     }
-}
-
-void LocalRealignment::createAndAddAlternateConsensus(const string & read, set<Consensus *> & altConsensesToPopulate, const string & reference) {
-    
-    // do a pairwise alignment against the reference
-    /*
-    SWPairwiseAlignment swConsensus = new SWPairwiseAlignment(reference, read, SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND);
-    Consensus * c = createAlternateConsensus(swConsensus.getAlignmentStart2wrt1(), swConsensus.getCigar(), reference, read);
-    if ( c != NULL )
-        altConsensesToPopulate.insert(c);
-     
-     */
-}
-
-void LocalRealignment::createAndAddAlternateConsensus1(AlignedRead & read, set<Consensus *> & altConsensesToPopulate,
-                                             const string & reference, const int leftmostIndex) {
-    
-    for ( set<Consensus *>::iterator known_it = altConsensesToPopulate.begin(); known_it != altConsensesToPopulate.end(); known_it++) {
-        Consensus * known = *known_it;
-        pair<int, int> altAlignment = findBestOffset(known->str, read, leftmostIndex);
-        // the mismatch score is the min of its alignment vs. the reference and vs. the alternate
-        int myScore = altAlignment.second;
-        if ( myScore == 0 ) {exactMatchesFound++; return; }// read matches perfectly to a known alt consensus - no need to run SW, we already know the answer
-    }
-    // do a pairwise alignment against the reference
-    //LCB commenting out SW
-    /*
-    SWalignmentRuns++;
-    SWPairwiseAlignment swConsensus = new SWPairwiseAlignment(reference, read.getReadBases(), SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND);
-    Consensus * c = createAlternateConsensus(swConsensus.getAlignmentStart2wrt1(), swConsensus.getCigar(), reference, read.getReadBases());
-    if ( c != NULL ) {
-        altConsensesToPopulate.insert(c);
-        SWalignmentSuccess++;
-    }*/
 }
 
 // create a Consensus from cigar/read strings which originate somewhere on the reference
@@ -1407,9 +1323,6 @@ LocalRealignment::LocalRealignment()
 , outputIndels(true)
 , output_stats(true)
 , output_snps(true)
-, exactMatchesFound(0)
-, SWalignmentRuns(0)
-, SWalignmentSuccess(0)
 {}
 
 int LocalRealignment::runInternal()
