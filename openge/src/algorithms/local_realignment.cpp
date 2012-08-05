@@ -381,11 +381,6 @@ void LocalRealignment::initialize() {
             cerr << "Parsed " << line_counter << " intervals from " << intervals_filename << "." << endl;
     }
 
-    interval_it = intervalsFile.begin();
-    
-    currentInterval = interval_it != intervalsFile.end() ? *interval_it : NULL;
-
-    readsToClean.initialize(loc_parser, getHeader());
     
     AlignedRead::NO_ORIGINAL_ALIGNMENT_TAGS = NO_ORIGINAL_ALIGNMENT_TAGS;
     AlignedRead::MAX_POS_MOVE_ALLOWED = MAX_POS_MOVE_ALLOWED;
@@ -419,7 +414,7 @@ void LocalRealignment::emitReadLists() {
     readsActuallyCleaned.clear();
 }
 
-int LocalRealignment::map_func( BamAlignment * read, const ReadMetaDataTracker & metaDataTracker) {
+int LocalRealignment::map_func( BamAlignment * read, const ReadMetaDataTracker & metaDataTracker, GenomeLoc * & currentInterval) {
     const int NO_ALIGNMENT_REFERENCE_INDEX = -1;
     if ( currentInterval == NULL ) {
         emit(read);
@@ -430,7 +425,15 @@ int LocalRealignment::map_func( BamAlignment * read, const ReadMetaDataTracker &
     //   unmapped reads while the currentInterval still isn't null.  We need to trigger the cleaning
     //   at this point without trying to create a GenomeLoc.
     if ( read->RefID == NO_ALIGNMENT_REFERENCE_INDEX ) {
-        cleanAndCallMap(read, metaDataTracker, NULL);
+        cleanAndCallMap(NULL, *currentInterval);
+        
+        do {
+            currentInterval = (++interval_it != intervalsFile.end()) ? *interval_it : NULL;
+            
+        } while ( currentInterval != NULL );
+        
+        sawReadInCurrentInterval = false;
+        map_func(read, metaDataTracker, currentInterval);
         return 0;
     }
     GenomeLoc readLoc = loc_parser->createGenomeLoc(*read);
@@ -464,7 +467,13 @@ int LocalRealignment::map_func( BamAlignment * read, const ReadMetaDataTracker &
         }
     }
     else {  // the read is past the current interval
-        cleanAndCallMap(read, metaDataTracker, &readLoc);
+        cleanAndCallMap(&readLoc, *currentInterval);
+        do {
+            currentInterval = (++interval_it != intervalsFile.end()) ? *interval_it : NULL;
+            
+        } while ( currentInterval != NULL && currentInterval->isBefore(readLoc) );
+        sawReadInCurrentInterval = false;
+        map_func(read, metaDataTracker, currentInterval);
     }
     
     return 0;
@@ -491,24 +500,16 @@ bool LocalRealignment::doNotTryToClean( const BamAlignment & read) {
     // TODO -- it would be nice if we could use indels from 454 reads as alternate consenses
 }
 
-void LocalRealignment::cleanAndCallMap( BamAlignment * read, const ReadMetaDataTracker & metaDataTracker, GenomeLoc * readLoc) {
+void LocalRealignment::cleanAndCallMap( GenomeLoc * readLoc, const GenomeLoc & currentInterval) {
     if ( readsToClean.size() > 0 ) {
         GenomeLoc earliestPossibleMove = loc_parser->createGenomeLoc(*(readsToClean.getReads()[0]));
         if ( manager->canMoveReads(earliestPossibleMove) )
-            clean(readsToClean);
+            clean(readsToClean, currentInterval);
     }
     knownIndelsToTry.clear();
     indelRodsSeen.clear();
     
     emitReadLists();
-    do {
-        currentInterval = (++interval_it != intervalsFile.end()) ? *interval_it : NULL;
-        
-    } while ( currentInterval != NULL && (readLoc == NULL || currentInterval->isBefore(*readLoc)) );
-    sawReadInCurrentInterval = false;
-    
-    // call back into map now that the state has been updated
-    map_func(read, metaDataTracker);
 }
 
 int LocalRealignment::reduceInit() {
@@ -524,7 +525,7 @@ void LocalRealignment::onTraversalDone(int result) {
         BamAlignment * read = readsToClean.getReads()[0];
         GenomeLoc earliestPossibleMove = loc_parser->createGenomeLoc(*read);
         if ( manager->canMoveReads(earliestPossibleMove) )
-            clean(readsToClean);
+            clean(readsToClean, GenomeLoc("FinalClean", 0, 0, 0));
         emitReadLists();
     } else if ( readsNotToClean.size() > 0 ) {
         emitReadLists();                            
@@ -589,7 +590,7 @@ int LocalRealignment::mismatchQualitySumIgnoreCigar(AlignedRead & aRead, const s
     return sum;
 }
 
-void LocalRealignment::clean(ReadBin readsToClean) {
+void LocalRealignment::clean(ReadBin readsToClean, const GenomeLoc & currentInterval) {
     
     vector<BamAlignment *> reads = readsToClean.getReads();
     if ( reads.size() == 0 )
@@ -610,16 +611,10 @@ void LocalRealignment::clean(ReadBin readsToClean) {
     // if there are reads with a single indel in them, add that indel to the list of alternate consenses
     long totalRawMismatchSum = determineReadsThatNeedCleaning(reads, refReads, altReads, altAlignmentsToTest, altConsenses, leftmostIndex, reference);
     
-    // use 'Smith-Waterman' to create alternate consenses from reads that mismatch the reference, using totalRawMismatchSum as the random seed
-    //LCB if ( consensusModel == ConsensusDeterminationModel.USE_SW )
-    //  generateAlternateConsensesFromReads(altAlignmentsToTest, altConsenses, *reference, leftmostIndex);
-    
     if ( verbose ) cerr << "------\nChecking consenses...(" << altConsenses.size() << ")\n--------\n" << endl;
     
     Consensus * bestConsensus = NULL;
 
-    //assert(altConsenses.size() > 0);
-    
     for (set<Consensus *>::iterator iter = altConsenses.begin(); iter != altConsenses.end(); iter++) {
         Consensus &consensus = **iter;
         if(verbose)
@@ -641,7 +636,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
         }
         
         //cerr << "Consensus: "<< consensus.str << endl;
-        
+
         for ( int j = 0; j < altReads.size(); j++ ) {
             AlignedRead & toTest = *altReads[j];
             pair<int, int> altAlignment = findBestOffset(consensus.str, toTest, leftmostIndex);
@@ -703,7 +698,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
         }
         if ( consensusModel != KNOWNS_ONLY && !alternateReducesEntropy(altReads, reference, leftmostIndex) ) {
             if ( write_out_stats ) {
-                statsOutput << currentInterval->toString();
+                statsOutput << currentInterval.toString();
                 statsOutput << "\tFAIL (bad indel)\t"; // if improvement > LOD_THRESHOLD *BUT* entropy is not reduced (SNPs still exist)
                 statsOutput << improvement << endl;
             }
@@ -732,7 +727,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
                 indelOutput << str;
             }
             if ( write_out_stats ) {
-                statsOutput << currentInterval->toString() << "\tCLEAN"; // if improvement > LOD_THRESHOLD *AND* entropy is reduced
+                statsOutput << currentInterval.toString() << "\tCLEAN"; // if improvement > LOD_THRESHOLD *AND* entropy is reduced
                 if ( bestConsensus->cigar.size() > 1 )
                     statsOutput << " (found indel)\t" << improvement << endl;
             }
@@ -755,8 +750,8 @@ void LocalRealignment::clean(ReadBin readsToClean) {
                     int neededBases = max(neededBasesToLeft, neededBasesToRight);
                     if ( neededBases > 0 ) {
                         int padLeft = max(leftmostIndex-neededBases, 1);
-                        int padRight = min(leftmostIndex+reference.size()+neededBases, (unsigned long)atol(referenceReader->getSequenceDictionary()[currentInterval->getContig()].Length.c_str()));
-                        reference = referenceReader->getSubsequenceAt(currentInterval->getContig(), padLeft, padRight);
+                        int padRight = min(leftmostIndex+reference.size()+neededBases, (unsigned long)atol(referenceReader->getSequenceDictionary()[currentInterval.getContig()].Length.c_str()));
+                        reference = referenceReader->getSubsequenceAt(currentInterval.getContig(), padLeft, padRight);
                         leftmostIndex = padLeft;
                     }
                     
@@ -779,7 +774,7 @@ void LocalRealignment::clean(ReadBin readsToClean) {
         // END IF ( improvement >= LOD_THRESHOLD )
         
     } else if ( write_out_stats ) {
-        statsOutput << currentInterval->toString() << "\tFAIL\t" << improvement << endl;
+        statsOutput << currentInterval.toString() << "\tFAIL\t" << improvement << endl;
     }
 }
 
@@ -1311,16 +1306,19 @@ LocalRealignment::LocalRealignment()
 , write_out_snps(true)
 , referenceReader(NULL)
 , loc_parser(NULL)
-, currentInterval(NULL)
 , sawReadInCurrentInterval(false)
-, outputIndels(true)
-, output_stats(true)
-, output_snps(true)
+, outputIndels(false)
+, output_stats(false)
+, output_snps(false)
 {}
 
 int LocalRealignment::runInternal()
 {
     initialize();
+
+    GenomeLoc * currentInterval = intervalsFile.empty() ? NULL : intervalsFile.front();
+    
+    readsToClean.initialize(loc_parser, getHeader());
     
     while(true)
     {
@@ -1329,8 +1327,8 @@ int LocalRealignment::runInternal()
         if(!al)
             break;
         
-        ReadMetaDataTracker rmdt(loc_parser, al, std::map<int, RODMetaDataContainer>() );
-        map_func(al, rmdt);
+        const ReadMetaDataTracker rmdt(loc_parser, al, std::map<int, RODMetaDataContainer>() );
+        map_func(al, rmdt, currentInterval);
     };
     
     onTraversalDone(0);

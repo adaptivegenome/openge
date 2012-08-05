@@ -340,7 +340,6 @@ private:
     std::vector<GenomeLoc *>::iterator interval_it;
     
     // the current interval in the list
-    GenomeLoc * currentInterval;
     bool sawReadInCurrentInterval;
     
     // the reads and known indels that fall into the current interval
@@ -372,11 +371,11 @@ private:
     void emitReadLists();
     
 public:
-    int map_func(BamTools::BamAlignment * read, const ReadMetaDataTracker & metaDataTracker);
+    int map_func(BamTools::BamAlignment * read, const ReadMetaDataTracker & metaDataTracker, GenomeLoc * & currentInterval);
 
 private:
     bool doNotTryToClean(const BamTools::BamAlignment & read);
-    void cleanAndCallMap(BamTools::BamAlignment * read, const ReadMetaDataTracker & metaDataTracker, GenomeLoc * readLoc);
+    void cleanAndCallMap(GenomeLoc * readLoc, const GenomeLoc & currentInterval);
     
 public:
     int reduceInit();
@@ -388,7 +387,7 @@ private:
     
     static int mismatchQualitySumIgnoreCigar(AlignedRead & aRead, const std::string & refSeq, int refIndex, int quitAboveThisValue);
     
-    void clean(ReadBin readsToClean) ;
+    void clean(ReadBin readsToClean, const GenomeLoc & currentInterval) ;
     void generateAlternateConsensesFromKnownIndels(std::set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const std::string reference);
     long determineReadsThatNeedCleaning( std::vector<BamTools::BamAlignment *> & reads,
                                         std::vector<BamTools::BamAlignment *> & refReadsToPopulate,
