@@ -175,19 +175,7 @@ protected:
     //@Argument(fullName="noOriginalAlignmentTags", shortName="noTags", required=false, doc="Don't output the original cigar or alignment start tags for each realigned read in the output bam")
     bool NO_ORIGINAL_ALIGNMENT_TAGS;
     
-    //@Hidden
-    //@Argument(fullName="generate_nWayOut_md5s",doc="Generate md5sums for BAMs")
-    bool generateMD5s;
-    
     // DEBUGGING OPTIONS FOLLOW
-    
-    //@Hidden
-    //@Argument(fullName="check_early",shortName="check_early",required=false,doc="Do early check of reads against existing consensuses")
-    bool CHECKEARLY;
-    
-    //@Hidden
-    //@Argument(fullName="keepPGTags", shortName="keepPG", required=false, doc="Keep older PG tags left in the bam header by previous runs of this tool (by default, all these "+ "historical tags will be replaced by the latest tag generated in the current run).")
-    bool KEEP_ALL_PG_RECORDS;
     
     //@Hidden
     //@Output(fullName="indelsFileForDebugging", shortName="indels", required=false, doc="Output file (text) for the indels found; FOR DEBUGGING PURPOSES ONLY")
@@ -384,12 +372,11 @@ private:
     void emitReadLists();
     
 public:
-    int map_func(BamTools::BamAlignment * read, ReadMetaDataTracker metaDataTracker);
+    int map_func(BamTools::BamAlignment * read, const ReadMetaDataTracker & metaDataTracker);
 
 private:
-    void abortCleanForCurrentInterval();
     bool doNotTryToClean(const BamTools::BamAlignment & read);
-    void cleanAndCallMap(BamTools::BamAlignment * read, ReadMetaDataTracker metaDataTracker, GenomeLoc * readLoc);
+    void cleanAndCallMap(BamTools::BamAlignment * read, const ReadMetaDataTracker & metaDataTracker, GenomeLoc * readLoc);
     
 public:
     int reduceInit();
@@ -397,7 +384,7 @@ public:
     void onTraversalDone(int result);
 
 private:
-    void populateKnownIndels(ReadMetaDataTracker metaDataTracker) ;
+    void populateKnownIndels(const ReadMetaDataTracker & metaDataTracker) ;
     
     static int mismatchQualitySumIgnoreCigar(AlignedRead & aRead, const std::string & refSeq, int refIndex, int quitAboveThisValue);
     

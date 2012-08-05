@@ -104,12 +104,12 @@ public:
     }
     
     /** Return the features reference sequence name, e.g chromosome or contig */
-    std::string getChr() {
+    std::string getChr() const{
         return chr;
     }
     
     /** Return the start position in 1-based coordinates (first base is 1) */
-    int getStart() {
+    int getStart() const {
         return start;
     }
     
@@ -117,7 +117,7 @@ public:
      * Return the end position following 1-based fully closed conventions.  The length of a feature is
      * end - start + 1;
      */
-    int getEnd() {
+    int getEnd() const {
         return end;
     }
     

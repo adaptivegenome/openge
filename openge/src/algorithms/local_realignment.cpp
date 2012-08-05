@@ -419,7 +419,7 @@ void LocalRealignment::emitReadLists() {
     readsActuallyCleaned.clear();
 }
 
-int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDataTracker) {
+int LocalRealignment::map_func( BamAlignment * read, const ReadMetaDataTracker & metaDataTracker) {
     const int NO_ALIGNMENT_REFERENCE_INDEX = -1;
     if ( currentInterval == NULL ) {
         emit(read);
@@ -458,7 +458,9 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
         
         if ( readsToClean.size() + readsNotToClean.size() >= MAX_READS ) {
             fprintf(stderr, "Not attempting realignment in interval %s because there are too many reads.", currentInterval->toString().c_str());
-            abortCleanForCurrentInterval();
+            emitReadLists();
+            currentInterval = (++interval_it != intervalsFile.end()) ? *interval_it : NULL;
+            sawReadInCurrentInterval = false;
         }
     }
     else {  // the read is past the current interval
@@ -466,12 +468,6 @@ int LocalRealignment::map_func( BamAlignment * read, ReadMetaDataTracker metaDat
     }
     
     return 0;
-}
-
-void LocalRealignment::abortCleanForCurrentInterval() {
-    emitReadLists();
-    currentInterval = (++interval_it != intervalsFile.end()) ? *interval_it : NULL;
-    sawReadInCurrentInterval = false;
 }
 
 bool LocalRealignment::doNotTryToClean( const BamAlignment & read) {
@@ -495,7 +491,7 @@ bool LocalRealignment::doNotTryToClean( const BamAlignment & read) {
     // TODO -- it would be nice if we could use indels from 454 reads as alternate consenses
 }
 
-void LocalRealignment::cleanAndCallMap( BamAlignment * read, ReadMetaDataTracker metaDataTracker, GenomeLoc * readLoc) {
+void LocalRealignment::cleanAndCallMap( BamAlignment * read, const ReadMetaDataTracker & metaDataTracker, GenomeLoc * readLoc) {
     if ( readsToClean.size() > 0 ) {
         GenomeLoc earliestPossibleMove = loc_parser->createGenomeLoc(*(readsToClean.getReads()[0]));
         if ( manager->canMoveReads(earliestPossibleMove) )
@@ -550,7 +546,7 @@ void LocalRealignment::onTraversalDone(int result) {
         delete *interval_it;
 }
 
-void LocalRealignment::populateKnownIndels(ReadMetaDataTracker metaDataTracker) {
+void LocalRealignment::populateKnownIndels(const ReadMetaDataTracker & metaDataTracker) {
     map<int, set<GATKFeature> > contigOffsetMapping = metaDataTracker.getContigOffsetMapping();
 
     for ( map<int, set<GATKFeature> >::iterator rods_it  = contigOffsetMapping.begin(); rods_it != contigOffsetMapping.end(); rods_it++) {
@@ -1310,9 +1306,6 @@ LocalRealignment::LocalRealignment()
 , MAX_READS_FOR_CONSENSUSES(120)
 , MAX_READS(20000)
 , NO_ORIGINAL_ALIGNMENT_TAGS(false)
-, generateMD5s(false)
-, CHECKEARLY(false)
-, KEEP_ALL_PG_RECORDS(false)
 , write_out_indels(true)
 , write_out_stats(true)
 , write_out_snps(true)
