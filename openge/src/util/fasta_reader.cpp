@@ -117,23 +117,23 @@ bool FastaReader::Open(const string filename)
     return true;
 }
 
-string FastaReader::getSubsequenceAt(string name, size_t start, size_t stop)
+string FastaReader::getSubsequenceAt(string name, size_t start, size_t stop) const
 {
     return readSequence(name, start, stop - start);
 }
 
-string FastaReader::readSequence(string name, size_t start, size_t length)
+string FastaReader::readSequence(string name, size_t start, size_t length) const
 {
     string read;
     
-    map<string, fasta_sequence_t>::iterator i = sequences.find(name);
+    map<string, fasta_sequence_t>::const_iterator i = sequences.find(name);
     
     if(i == sequences.end()) {
         cerr << "Sequence " << name << " not found in FASTA. Aborting." << endl;
         exit(-1);
     }
     
-    fasta_sequence_t & seq = i->second;
+    const fasta_sequence_t & seq = i->second;
     
     if(start + length >= seq.length) {
         cerr << "Requested FASTA read is beyond end of sequence. Aborting." << endl;
@@ -184,7 +184,6 @@ string FastaReader::readSequence(string name, size_t start, size_t length)
 }
 
 // Generates an index from the file. Can be used to create indexes. Maybe we should
-// create and save indexes automatically? TODO LCB
 string FastaReader::generateFastaIndex()
 {
     char * p = file_data;
@@ -252,7 +251,7 @@ string FastaReader::generateFastaIndex()
     return writeFastaIndex();
 }
 
-string FastaReader::writeFastaIndex()
+string FastaReader::writeFastaIndex() const
 {
     stringstream ss("");
     for(vector<fasta_sequence_t>::const_iterator i = ordered_sequences.begin(); i != ordered_sequences.end(); i++)
