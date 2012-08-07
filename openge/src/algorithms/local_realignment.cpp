@@ -491,6 +491,8 @@ public:
 
     virtual void runJob()
     {
+        
+        ogeNameThread("LRCleanJob");
         IntervalData * interval_data = c->id;
         if ( interval_data->readsToClean.size() > 0 ) {
             GenomeLoc earliestPossibleMove = c->lr.loc_parser->createGenomeLoc(*(interval_data->readsToClean.getReads()[0]));
@@ -1447,6 +1449,7 @@ LocalRealignment::LocalRealignment()
 
 int LocalRealignment::runInternal()
 {
+    ogeNameThread("LRmain");
     sequence_dictionary = getHeader().Sequences;
     initialize();
 
