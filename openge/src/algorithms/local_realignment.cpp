@@ -396,28 +396,28 @@ void LocalRealignment::initialize() {
         snpsOutput.open(OUT_SNPS.c_str());
 }
 
-void LocalRealignment::emit(BamAlignment * read) {
+void LocalRealignment::emit(IntervalData & interval_data, BamAlignment * read) {
     
     // check to see whether the read was modified by looking at the temporary tag
-    bool wasModified = readsActuallyCleaned.count(read) > 0;
+    bool wasModified = interval_data.readsActuallyCleaned.count(read) > 0;
     manager->addRead(read, wasModified);
 }
 
-void LocalRealignment::emitReadLists() {
+void LocalRealignment::emitReadLists(IntervalData & interval_data) {
     // pre-merge lists to sort them in preparation for constrained SAMFileWriter
-    vector<BamAlignment *> to_insert = readsToClean.getReads();
-    readsNotToClean.insert(readsNotToClean.end(), to_insert.begin(), to_insert.end());
-    std::stable_sort( readsNotToClean.begin(), readsNotToClean.end(), Algorithms::Sort::ByPosition() );
-    manager->addReads(readsNotToClean, readsActuallyCleaned);
-    readsToClean.clear();
-    readsNotToClean.clear();
-    readsActuallyCleaned.clear();
+    vector<BamAlignment *> to_insert = interval_data.readsToClean.getReads();
+    interval_data.readsNotToClean.insert(interval_data.readsNotToClean.end(), to_insert.begin(), to_insert.end());
+    std::stable_sort( interval_data.readsNotToClean.begin(), interval_data.readsNotToClean.end(), Algorithms::Sort::ByPosition() );
+    manager->addReads(interval_data.readsNotToClean, interval_data.readsActuallyCleaned);
+    interval_data.readsToClean.clear();
+    interval_data.readsNotToClean.clear();
+    interval_data.readsActuallyCleaned.clear();
 }
 
-int LocalRealignment::map_func( BamAlignment * read, const ReadMetaDataTracker & metaDataTracker, GenomeLoc * & currentInterval) {
+int LocalRealignment::map_func(IntervalData & interval_data, BamAlignment * read, const ReadMetaDataTracker & metaDataTracker) {
     const int NO_ALIGNMENT_REFERENCE_INDEX = -1;
-    if ( currentInterval == NULL ) {
-        emit(read);
+    if ( !interval_data.current_interval_valid ) {
+        emit(interval_data, read);
         return 0;
     }
     
@@ -425,15 +425,23 @@ int LocalRealignment::map_func( BamAlignment * read, const ReadMetaDataTracker &
     //   unmapped reads while the currentInterval still isn't null.  We need to trigger the cleaning
     //   at this point without trying to create a GenomeLoc.
     if ( read->RefID == NO_ALIGNMENT_REFERENCE_INDEX ) {
-        cleanAndCallMap(NULL, *currentInterval);
+        if ( interval_data.readsToClean.size() > 0 ) {
+            GenomeLoc earliestPossibleMove = loc_parser->createGenomeLoc(*(interval_data.readsToClean.getReads()[0]));
+            if ( manager->canMoveReads(earliestPossibleMove) )
+                clean(interval_data);
+        }
+        interval_data.knownIndelsToTry.clear();
+        interval_data.indelRodsSeen.clear();
+        
+        emitReadLists(interval_data);
         
         do {
-            currentInterval = (++interval_it != intervalsFile.end()) ? *interval_it : NULL;
-            
-        } while ( currentInterval != NULL );
+            ++interval_it;
+        } while ( interval_it != intervalsFile.end() );
+        interval_data.current_interval_valid = false;
         
         sawReadInCurrentInterval = false;
-        map_func(read, metaDataTracker, currentInterval);
+        map_func(interval_data, read, metaDataTracker);
         return 0;
     }
     GenomeLoc readLoc = loc_parser->createGenomeLoc(*read);
@@ -441,39 +449,60 @@ int LocalRealignment::map_func( BamAlignment * read, const ReadMetaDataTracker &
     if ( readLoc.getStop() == 0 )
         readLoc = loc_parser->createGenomeLoc(readLoc.getContig(), readLoc.getStart(), readLoc.getStart());
     
-    if ( readLoc.isBefore(*currentInterval) ) {
+    if ( readLoc.isBefore(interval_data.current_interval) ) {
         if ( !sawReadInCurrentInterval )
-            emit(read);
+            emit(interval_data, read);
         else
-            readsNotToClean.push_back(read);
+            interval_data.readsNotToClean.push_back(read);
     }
-    else if ( readLoc.overlapsP(*currentInterval) ) {
+    else if ( readLoc.overlapsP(interval_data.current_interval) ) {
         sawReadInCurrentInterval = true;
         
         if ( doNotTryToClean(*read) ) {
-            readsNotToClean.push_back(read);
+            interval_data.readsNotToClean.push_back(read);
         } else {
-            readsToClean.add(read);
+            interval_data.readsToClean.add(read);
             
             // add the rods to the list of known variants
-            populateKnownIndels(metaDataTracker);
+            populateKnownIndels(interval_data, metaDataTracker);
         }
         
-        if ( readsToClean.size() + readsNotToClean.size() >= MAX_READS ) {
-            fprintf(stderr, "Not attempting realignment in interval %s because there are too many reads.", currentInterval->toString().c_str());
-            emitReadLists();
-            currentInterval = (++interval_it != intervalsFile.end()) ? *interval_it : NULL;
+        if ( interval_data.readsToClean.size() + interval_data.readsNotToClean.size() >= MAX_READS ) {
+            fprintf(stderr, "Not attempting realignment in interval %s because there are too many reads.", interval_data.current_interval.toString().c_str());
+            emitReadLists(interval_data);
+            ++interval_it;
+            if(interval_it != intervalsFile.end()) {
+                interval_data.current_interval = **interval_it;
+                interval_data.current_interval_valid = true;
+            } else {
+                interval_data.current_interval_valid = false;
+            }
+
             sawReadInCurrentInterval = false;
         }
     }
     else {  // the read is past the current interval
-        cleanAndCallMap(&readLoc, *currentInterval);
+        if ( interval_data.readsToClean.size() > 0 ) {
+            GenomeLoc earliestPossibleMove = loc_parser->createGenomeLoc(*(interval_data.readsToClean.getReads()[0]));
+            if ( manager->canMoveReads(earliestPossibleMove) )
+                clean(interval_data);
+        }
+        interval_data.knownIndelsToTry.clear();
+        interval_data.indelRodsSeen.clear();
+        
+        emitReadLists(interval_data);
+
         do {
-            currentInterval = (++interval_it != intervalsFile.end()) ? *interval_it : NULL;
-            
-        } while ( currentInterval != NULL && currentInterval->isBefore(readLoc) );
+            ++interval_it;
+            if(interval_it != intervalsFile.end()) {
+                interval_data.current_interval = **interval_it;
+                interval_data.current_interval_valid = true;
+            } else {
+                interval_data.current_interval_valid = false;
+            }
+        } while ( interval_data.current_interval_valid && interval_data.current_interval.isBefore(readLoc) );
         sawReadInCurrentInterval = false;
-        map_func(read, metaDataTracker, currentInterval);
+        map_func(interval_data, read, metaDataTracker);
     }
     
     return 0;
@@ -500,39 +529,19 @@ bool LocalRealignment::doNotTryToClean( const BamAlignment & read) {
     // TODO -- it would be nice if we could use indels from 454 reads as alternate consenses
 }
 
-void LocalRealignment::cleanAndCallMap( GenomeLoc * readLoc, const GenomeLoc & currentInterval) {
-    if ( readsToClean.size() > 0 ) {
-        GenomeLoc earliestPossibleMove = loc_parser->createGenomeLoc(*(readsToClean.getReads()[0]));
-        if ( manager->canMoveReads(earliestPossibleMove) )
-            clean(readsToClean, currentInterval);
-    }
-    knownIndelsToTry.clear();
-    indelRodsSeen.clear();
-    
-    emitReadLists();
-}
-
-int LocalRealignment::reduceInit() {
-    return 0;
-}
-
-int LocalRealignment::reduce(int value, int sum) {
-    return sum + value;
-}
-
-void LocalRealignment::onTraversalDone(int result) {
-    if ( readsToClean.size() > 0 ) {
-        BamAlignment * read = readsToClean.getReads()[0];
+void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result) {
+    if ( interval_data.readsToClean.size() > 0 ) {
+        BamAlignment * read = interval_data.readsToClean.getReads()[0];
         GenomeLoc earliestPossibleMove = loc_parser->createGenomeLoc(*read);
         if ( manager->canMoveReads(earliestPossibleMove) )
-            clean(readsToClean, GenomeLoc("FinalClean", 0, 0, 0));
-        emitReadLists();
-    } else if ( readsNotToClean.size() > 0 ) {
-        emitReadLists();                            
+            clean(interval_data);
+        emitReadLists(interval_data);
+    } else if ( interval_data.readsNotToClean.size() > 0 ) {
+        emitReadLists(interval_data);
     }
     
-    knownIndelsToTry.clear();
-    indelRodsSeen.clear();
+    interval_data.knownIndelsToTry.clear();
+    interval_data.indelRodsSeen.clear();
     
     if ( write_out_indels )
         indelOutput.close();
@@ -547,16 +556,16 @@ void LocalRealignment::onTraversalDone(int result) {
         delete *interval_it;
 }
 
-void LocalRealignment::populateKnownIndels(const ReadMetaDataTracker & metaDataTracker) {
+void LocalRealignment::populateKnownIndels(IntervalData & interval_data, const ReadMetaDataTracker & metaDataTracker) {
     map<int, set<GATKFeature> > contigOffsetMapping = metaDataTracker.getContigOffsetMapping();
 
     for ( map<int, set<GATKFeature> >::iterator rods_it  = contigOffsetMapping.begin(); rods_it != contigOffsetMapping.end(); rods_it++) {
         for(set<GATKFeature>::iterator rodIter = rods_it->second.begin(); rodIter != rods_it->second.end();rodIter++) {
             const GATKFeature & feature = *rodIter;
             const GATKFeature & rod = feature;    // LCB TODO verify the correctness of this function vs original source code
-            if ( indelRodsSeen.count(rod) > 0 )
+            if ( interval_data.indelRodsSeen.count(rod) > 0 )
                 continue;
-            indelRodsSeen.insert(rod);
+            interval_data.indelRodsSeen.insert(rod);
             //LCB TODO do we need to include the next two lines? What is the significance of GATK's child being a VariantContext??
             //if ( dynamic_cast<VariantContext *>(&rod) ) //we need to statically decide this in OGE
             //    knownIndelsToTry.push_back(*(dynamic_cast<const VariantContext*>(&rod)));
@@ -565,22 +574,29 @@ void LocalRealignment::populateKnownIndels(const ReadMetaDataTracker & metaDataT
 }
 
 int LocalRealignment::mismatchQualitySumIgnoreCigar(AlignedRead & aRead, const string & refSeq, int refIndex, int quitAboveThisValue) {
+
     const string & readSeq = aRead.getReadBases();
     const string & quals = aRead.getBaseQualities();
     int sum = 0;
-    for (int readIndex = 0 ; readIndex < readSeq.size() ; refIndex++, readIndex++ ) {
-        if ( refIndex >= refSeq.size() ) {
+    size_t readSeq_size = readSeq.size();
+    size_t refSeq_size = refSeq.size();
+    const char * p_refSeq = refSeq.c_str();
+    const char * p_readSeq = readSeq.c_str();
+    const char * p_quals = quals.c_str();
+    for (int readIndex = 0 ; readIndex < readSeq_size ; refIndex++, readIndex++ ) {
+        if ( refIndex >= refSeq_size ) {
             sum += MAX_QUAL;
             // optimization: once we pass the threshold, stop calculating
-            if ( sum > quitAboveThisValue )
-                return sum;
+            //if ( sum > quitAboveThisValue )
+            //    return sum;
         } else {
-            char refChr = refSeq[refIndex];
-            char readChr = readSeq[readIndex];
-            if ( !BaseUtils::isRegularBase(readChr) || !BaseUtils::isRegularBase(refChr) )
-                continue; // do not count Ns/Xs/etc ?
+            char refChr = p_refSeq[refIndex];
+            if( !BaseUtils::isRegularBase(refChr) ) continue;
+            char readChr = p_readSeq[readIndex];
+            if ( !BaseUtils::isRegularBase(readChr) ) continue; // do not count Ns/Xs/etc ?
+
             if ( readChr != refChr ) {
-                sum += (int)quals[readIndex] -33;   // Our qualities are still stored in ASCII
+                sum += (int)p_quals[readIndex] -33;   // Our qualities are still stored in ASCII
                 // optimization: once we pass the threshold, stop calculating
                 if ( sum > quitAboveThisValue )
                     return sum;
@@ -590,14 +606,14 @@ int LocalRealignment::mismatchQualitySumIgnoreCigar(AlignedRead & aRead, const s
     return sum;
 }
 
-void LocalRealignment::clean(ReadBin readsToClean, const GenomeLoc & currentInterval) {
+void LocalRealignment::clean(IntervalData & interval_data) {
     
-    vector<BamAlignment *> reads = readsToClean.getReads();
+    vector<BamAlignment *> reads = interval_data.readsToClean.getReads();
     if ( reads.size() == 0 )
         return;
     
-    string reference = readsToClean.getReference(*referenceReader);
-    int leftmostIndex = readsToClean.getLocation().getStart();
+    string reference = interval_data.readsToClean.getReference(*referenceReader);
+    int leftmostIndex = interval_data.readsToClean.getLocation().getStart();
     
     vector<BamAlignment *> refReads;                 // reads that perfectly match ref
     vector<AlignedRead *> altReads;               // reads that don't perfectly match
@@ -605,7 +621,7 @@ void LocalRealignment::clean(ReadBin readsToClean, const GenomeLoc & currentInte
     set<Consensus *> altConsenses;               // list of alt consenses
     
     // if there are any known indels for this region, get them and create alternate consenses
-    generateAlternateConsensesFromKnownIndels(altConsenses, leftmostIndex, reference);
+    generateAlternateConsensesFromKnownIndels(interval_data, altConsenses, leftmostIndex, reference);
 
     // decide which reads potentially need to be cleaned;
     // if there are reads with a single indel in them, add that indel to the list of alternate consenses
@@ -698,7 +714,7 @@ void LocalRealignment::clean(ReadBin readsToClean, const GenomeLoc & currentInte
         }
         if ( consensusModel != KNOWNS_ONLY && !alternateReducesEntropy(altReads, reference, leftmostIndex) ) {
             if ( write_out_stats ) {
-                statsOutput << currentInterval.toString();
+                statsOutput << interval_data.current_interval.toString();
                 statsOutput << "\tFAIL (bad indel)\t"; // if improvement > LOD_THRESHOLD *BUT* entropy is not reduced (SNPs still exist)
                 statsOutput << improvement << endl;
             }
@@ -727,7 +743,7 @@ void LocalRealignment::clean(ReadBin readsToClean, const GenomeLoc & currentInte
                 indelOutput << str;
             }
             if ( write_out_stats ) {
-                statsOutput << currentInterval.toString() << "\tCLEAN"; // if improvement > LOD_THRESHOLD *AND* entropy is reduced
+                statsOutput << interval_data.current_interval.toString() << "\tCLEAN"; // if improvement > LOD_THRESHOLD *AND* entropy is reduced
                 if ( bestConsensus->cigar.size() > 1 )
                     statsOutput << " (found indel)\t" << improvement << endl;
             }
@@ -750,8 +766,8 @@ void LocalRealignment::clean(ReadBin readsToClean, const GenomeLoc & currentInte
                     int neededBases = max(neededBasesToLeft, neededBasesToRight);
                     if ( neededBases > 0 ) {
                         int padLeft = max(leftmostIndex-neededBases, 1);
-                        int padRight = min(leftmostIndex+reference.size()+neededBases, (unsigned long)atol(referenceReader->getSequenceDictionary()[currentInterval.getContig()].Length.c_str()));
-                        reference = referenceReader->getSubsequenceAt(currentInterval.getContig(), padLeft, padRight);
+                        int padRight = min(leftmostIndex+reference.size()+neededBases, (unsigned long)atol(referenceReader->getSequenceDictionary()[interval_data.current_interval.getContig()].Length.c_str()));
+                        reference = referenceReader->getSubsequenceAt(interval_data.current_interval.getContig(), padLeft, padRight);
                         leftmostIndex = padLeft;
                     }
                     
@@ -766,7 +782,7 @@ void LocalRealignment::clean(ReadBin readsToClean, const GenomeLoc & currentInte
                         read->RemoveTag("MD");
                     
                     // mark that it was actually cleaned
-                    readsActuallyCleaned.insert(read);
+                    interval_data.readsActuallyCleaned.insert(read);
                 }
             }
         }
@@ -774,12 +790,12 @@ void LocalRealignment::clean(ReadBin readsToClean, const GenomeLoc & currentInte
         // END IF ( improvement >= LOD_THRESHOLD )
         
     } else if ( write_out_stats ) {
-        statsOutput << currentInterval.toString() << "\tFAIL\t" << improvement << endl;
+        statsOutput << interval_data.current_interval.toString() << "\tFAIL\t" << improvement << endl;
     }
 }
 
-void LocalRealignment::generateAlternateConsensesFromKnownIndels(set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const string reference) {
-    for ( vector<VariantContext>::iterator knownIndelIt  = knownIndelsToTry.begin(); knownIndelIt != knownIndelsToTry.end(); knownIndelIt++ ) {
+void LocalRealignment::generateAlternateConsensesFromKnownIndels(IntervalData & interval_data, set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const string reference) {
+    for ( vector<VariantContext>::iterator knownIndelIt  = interval_data.knownIndelsToTry.begin(); knownIndelIt != interval_data.knownIndelsToTry.end(); knownIndelIt++ ) {
         VariantContext * knownIndel = &*knownIndelIt;
         if ( knownIndel == NULL || !knownIndel->isIndel() || knownIndel->isComplexIndel() )
             continue;
@@ -1316,22 +1332,23 @@ int LocalRealignment::runInternal()
 {
     initialize();
 
-    GenomeLoc * currentInterval = intervalsFile.empty() ? NULL : intervalsFile.front();
-    
-    readsToClean.initialize(loc_parser, getHeader());
-    
-    while(true)
-    {
+    interval_it = intervalsFile.begin();
+
+    IntervalData interval_data(intervalsFile.empty() ? NULL : intervalsFile.front());
+
+    interval_data.readsToClean.initialize(loc_parser, getHeader());
+
+    while(true) {
         BamAlignment * al = getInputAlignment();
         
         if(!al)
             break;
         
         const ReadMetaDataTracker rmdt(loc_parser, al, std::map<int, RODMetaDataContainer>() );
-        map_func(al, rmdt, currentInterval);
+        map_func(interval_data, al, rmdt);
     };
     
-    onTraversalDone(0);
+    onTraversalDone(interval_data, 0);
     
     return 0;
 }
