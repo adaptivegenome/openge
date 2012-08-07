@@ -45,6 +45,7 @@
 #include "algorithm_module.h"
 
 #include <string>
+#include <queue>
 
 #include "../util/fasta_reader.h"
 
@@ -312,9 +313,9 @@ private:
         , loc_parser(NULL)
         { }
         
-        void initialize(GenomeLocParser * loc_parser, const BamTools::SamHeader & header) {
+        void initialize(GenomeLocParser * loc_parser, const BamTools::SamSequenceDictionary & sequence_dict) {
             this->loc_parser = loc_parser;
-            sequences = header.Sequences;
+            sequences = sequence_dict;
         }
         
         // Return false if we can't process this read bin because the reads are not correctly overlapping.
@@ -348,26 +349,31 @@ private:
         IntervalData(GenomeLoc & currentInterval)
         : current_interval(currentInterval)
         , current_interval_valid(true)
+        , ready_for_flush(false)
         {}
         IntervalData(GenomeLoc * currentInterval)
-        : current_interval("None", 0,0,0)
+        : current_interval(currentInterval == NULL ? GenomeLoc("None", 0,0,0) : *currentInterval)
         , current_interval_valid(currentInterval != NULL)
-        {
-            if(current_interval_valid)
-                current_interval = *currentInterval;
-        }
+        , ready_for_flush(false)
+        { }
         IntervalData()
         : current_interval(GenomeLoc("None",0,0,0))
         , current_interval_valid(false)
+        , ready_for_flush(false)
         {}
         ReadBin readsToClean;
         std::vector<BamTools::BamAlignment *> readsNotToClean;
         std::vector<VariantContext> knownIndelsToTry;
         std::set<GATKFeature> indelRodsSeen;
         std::set<BamTools::BamAlignment *> readsActuallyCleaned;
-        GenomeLoc current_interval;
+        const GenomeLoc current_interval;
         bool current_interval_valid;
+        bool ready_for_flush;
     };
+    
+    IntervalData * loading_interval_data;
+    
+    BamTools::SamSequenceDictionary sequence_dictionary;
     
     static const int MAX_QUAL;
     
@@ -382,6 +388,42 @@ private:
     bool outputIndels, output_stats, output_snps;
     std::ofstream indelOutput, statsOutput, snpsOutput;
     
+    GenomeLoc * current_interval;
+    
+    class Emittable
+    {
+    public:
+        virtual void emit() = 0;
+        virtual bool canEmit() = 0;
+        virtual ~Emittable();
+    };
+    class EmittableRead;
+    class EmittableReadList;
+    class CleanAndEmitReadList;
+    
+    class CleanJob; //runs clean() for CleanAndEmitReadList objects
+
+    std::queue<Emittable *> emit_queue; //queue up reads ready to be emitted so that they are in order, including ReadBins that have been cleaned.
+    pthread_mutex_t emit_mutex; // only one thread should emit() at once
+    
+    void flushEmitQueue() {
+        
+        if(0 != pthread_mutex_lock(&emit_mutex) ) {
+            perror("Error locking LR emit mutex.");
+            exit(-1);
+        }
+        while(! emit_queue.empty() && emit_queue.front()->canEmit()) {
+            emit_queue.front()->emit();
+            //delete emit_queue.front();
+            emit_queue.pop();
+        }
+        
+        if(0 != pthread_mutex_unlock(&emit_mutex) ) {
+            perror("Error unlocking LR emit mutex.");
+            exit(-1);
+        }
+    }
+    
 public:
     void initialize();
     void writeRead(BamTools::BamAlignment * read) { putOutputAlignment(read); }
@@ -391,7 +433,7 @@ private:
     void emitReadLists(IntervalData & interval_data);
     
 public:
-    int map_func(IntervalData & interval_data, BamTools::BamAlignment * read, const ReadMetaDataTracker & metaDataTracker);
+    int map_func(BamTools::BamAlignment * read, const ReadMetaDataTracker & metaDataTracker);
 
 private:
     bool doNotTryToClean(const BamTools::BamAlignment & read);

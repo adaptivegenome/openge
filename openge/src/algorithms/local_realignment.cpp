@@ -359,7 +359,7 @@ void LocalRealignment::initialize() {
         exit(-1);
     }
     
-    loc_parser = new GenomeLocParser(getHeader().Sequences);
+    loc_parser = new GenomeLocParser(sequence_dictionary);
 
     // load intervals file
     {
@@ -394,6 +394,11 @@ void LocalRealignment::initialize() {
         statsOutput.open(OUT_STATS.c_str());
     if ( write_out_snps )
         snpsOutput.open(OUT_SNPS.c_str());
+    
+    if(0 != pthread_mutex_init(&emit_mutex, 0) ) {
+        perror("Error creating LR emit mutex.");
+        exit(-1);
+    }
 }
 
 void LocalRealignment::emit(IntervalData & interval_data, BamAlignment * read) {
@@ -414,10 +419,99 @@ void LocalRealignment::emitReadLists(IntervalData & interval_data) {
     interval_data.readsActuallyCleaned.clear();
 }
 
-int LocalRealignment::map_func(IntervalData & interval_data, BamAlignment * read, const ReadMetaDataTracker & metaDataTracker) {
+LocalRealignment::Emittable::~Emittable() {}
+
+class LocalRealignment::EmittableRead : public LocalRealignment::Emittable
+{
+    LocalRealignment::IntervalData * id;
+    BamAlignment * read;
+    LocalRealignment & lr;
+public:
+    EmittableRead(LocalRealignment & lr, IntervalData * id, BamAlignment * read)
+    : id(id)
+    , read(read)
+    , lr(lr)
+    {}
+    virtual bool canEmit() { return true; }
+    virtual void emit() {
+        lr.emit(*id, read);
+    }
+    virtual ~EmittableRead() {
+        delete id;
+    }
+};
+
+class LocalRealignment::EmittableReadList : public LocalRealignment::Emittable
+{
+    LocalRealignment::IntervalData * id;
+    LocalRealignment & lr;
+public:
+    EmittableReadList(LocalRealignment & lr, IntervalData * id)
+    : id(id)
+    , lr(lr)
+    {}
+    virtual bool canEmit() { return true; }
+    virtual void emit() {
+        lr.emitReadLists(*id);
+    }
+    virtual ~EmittableReadList() {
+        delete id;
+    }
+};
+
+class LocalRealignment::CleanAndEmitReadList : public LocalRealignment::Emittable
+{
+public:
+    bool clean_done;
+    LocalRealignment & lr;
+    LocalRealignment::IntervalData * id;
+    BamAlignment * read;
+
+    CleanAndEmitReadList(LocalRealignment & lr, IntervalData * id)
+    : clean_done(false)
+    , lr(lr)
+    , id(id)
+    { }
+    virtual bool canEmit() { return clean_done; }
+    virtual void emit() {
+        lr.emitReadLists(*id);
+    }
+    virtual ~CleanAndEmitReadList() {
+        delete id;
+    }
+};
+
+class LocalRealignment::CleanJob : public ThreadJob
+{
+    CleanAndEmitReadList * c;
+public:
+    CleanJob(CleanAndEmitReadList * c)
+    : c(c)
+    {}
+
+    virtual void runJob()
+    {
+        IntervalData * interval_data = c->id;
+        if ( interval_data->readsToClean.size() > 0 ) {
+            GenomeLoc earliestPossibleMove = c->lr.loc_parser->createGenomeLoc(*(interval_data->readsToClean.getReads()[0]));
+            if ( c->lr.manager->canMoveReads(earliestPossibleMove) )
+                c->lr.clean(*interval_data);
+        }
+        interval_data->knownIndelsToTry.clear();
+        interval_data->indelRodsSeen.clear();
+        
+        c->clean_done = true;
+        
+        c->lr.flushEmitQueue();
+    }
+};
+
+int LocalRealignment::map_func(BamAlignment * read, const ReadMetaDataTracker & metaDataTracker) {
     const int NO_ALIGNMENT_REFERENCE_INDEX = -1;
-    if ( !interval_data.current_interval_valid ) {
-        emit(interval_data, read);
+    if ( !loading_interval_data->current_interval_valid ) {
+        emit_queue.push(new EmittableRead(*this, loading_interval_data, read));
+        loading_interval_data = new IntervalData(NULL);
+        loading_interval_data->readsToClean.initialize(loc_parser, sequence_dictionary);
         return 0;
     }
     
@@ -425,23 +519,20 @@ int LocalRealignment::map_func(IntervalData & interval_data, BamAlignment * read
     //   unmapped reads while the currentInterval still isn't null.  We need to trigger the cleaning
     //   at this point without trying to create a GenomeLoc.
     if ( read->RefID == NO_ALIGNMENT_REFERENCE_INDEX ) {
-        if ( interval_data.readsToClean.size() > 0 ) {
-            GenomeLoc earliestPossibleMove = loc_parser->createGenomeLoc(*(interval_data.readsToClean.getReads()[0]));
-            if ( manager->canMoveReads(earliestPossibleMove) )
-                clean(interval_data);
-        }
-        interval_data.knownIndelsToTry.clear();
-        interval_data.indelRodsSeen.clear();
-        
-        emitReadLists(interval_data);
-        
+        CleanAndEmitReadList * read_list = new CleanAndEmitReadList(*this, loading_interval_data);
+        emit_queue.push(read_list);
+        ThreadPool::sharedPool()->addJob(new CleanJob(read_list));
+        flushEmitQueue();
+
         do {
             ++interval_it;
         } while ( interval_it != intervalsFile.end() );
-        interval_data.current_interval_valid = false;
+        current_interval = NULL;
+        loading_interval_data = new IntervalData(NULL);
+        loading_interval_data->readsToClean.initialize(loc_parser, sequence_dictionary);
         
         sawReadInCurrentInterval = false;
-        map_func(interval_data, read, metaDataTracker);
+        map_func(read, metaDataTracker);
         return 0;
     }
     GenomeLoc readLoc = loc_parser->createGenomeLoc(*read);
@@ -449,60 +540,60 @@ int LocalRealignment::map_func(IntervalData & interval_data, BamAlignment * read
     if ( readLoc.getStop() == 0 )
         readLoc = loc_parser->createGenomeLoc(readLoc.getContig(), readLoc.getStart(), readLoc.getStart());
     
-    if ( readLoc.isBefore(interval_data.current_interval) ) {
-        if ( !sawReadInCurrentInterval )
-            emit(interval_data, read);
-        else
-            interval_data.readsNotToClean.push_back(read);
+    if ( readLoc.isBefore(loading_interval_data->current_interval) ) {
+        if ( !sawReadInCurrentInterval ) {
+            emit_queue.push(new EmittableRead(*this, loading_interval_data, read));
+        } else
+            loading_interval_data->readsNotToClean.push_back(read);
     }
-    else if ( readLoc.overlapsP(interval_data.current_interval) ) {
+    else if ( readLoc.overlapsP(loading_interval_data->current_interval) ) {
         sawReadInCurrentInterval = true;
         
         if ( doNotTryToClean(*read) ) {
-            interval_data.readsNotToClean.push_back(read);
+            loading_interval_data->readsNotToClean.push_back(read);
         } else {
-            interval_data.readsToClean.add(read);
+            loading_interval_data->readsToClean.add(read);
             
             // add the rods to the list of known variants
-            populateKnownIndels(interval_data, metaDataTracker);
+            populateKnownIndels(*loading_interval_data, metaDataTracker);
         }
         
-        if ( interval_data.readsToClean.size() + interval_data.readsNotToClean.size() >= MAX_READS ) {
-            fprintf(stderr, "Not attempting realignment in interval %s because there are too many reads.", interval_data.current_interval.toString().c_str());
-            emitReadLists(interval_data);
+        if ( loading_interval_data->readsToClean.size() + loading_interval_data->readsNotToClean.size() >= MAX_READS ) {
+            fprintf(stderr, "Not attempting realignment in interval %s because there are too many reads.", loading_interval_data->current_interval.toString().c_str());
+            emit_queue.push(new EmittableReadList(*this, loading_interval_data));
+            flushEmitQueue();
             ++interval_it;
             if(interval_it != intervalsFile.end()) {
-                interval_data.current_interval = **interval_it;
-                interval_data.current_interval_valid = true;
+                current_interval = *interval_it;
             } else {
-                interval_data.current_interval_valid = false;
+                current_interval = NULL;
             }
+            
+            loading_interval_data = new IntervalData(current_interval);
+            loading_interval_data->readsToClean.initialize(loc_parser, sequence_dictionary);
 
             sawReadInCurrentInterval = false;
         }
     }
     else {  // the read is past the current interval
-        if ( interval_data.readsToClean.size() > 0 ) {
-            GenomeLoc earliestPossibleMove = loc_parser->createGenomeLoc(*(interval_data.readsToClean.getReads()[0]));
-            if ( manager->canMoveReads(earliestPossibleMove) )
-                clean(interval_data);
-        }
-        interval_data.knownIndelsToTry.clear();
-        interval_data.indelRodsSeen.clear();
-        
-        emitReadLists(interval_data);
+        CleanAndEmitReadList * read_list = new CleanAndEmitReadList(*this, loading_interval_data);
+        emit_queue.push(read_list);
+        ThreadPool::sharedPool()->addJob(new CleanJob(read_list));
+        flushEmitQueue();
 
         do {
             ++interval_it;
             if(interval_it != intervalsFile.end()) {
-                interval_data.current_interval = **interval_it;
-                interval_data.current_interval_valid = true;
+                current_interval = *interval_it;
             } else {
-                interval_data.current_interval_valid = false;
+                current_interval = NULL;
             }
-        } while ( interval_data.current_interval_valid && interval_data.current_interval.isBefore(readLoc) );
+        } while ( current_interval != NULL && current_interval->isBefore(readLoc) );
+        loading_interval_data = new IntervalData(current_interval);
+        loading_interval_data->readsToClean.initialize(loc_parser, sequence_dictionary);
+
         sawReadInCurrentInterval = false;
-        map_func(interval_data, read, metaDataTracker);
+        map_func( read, metaDataTracker);
     }
     
     return 0;
@@ -530,6 +621,26 @@ bool LocalRealignment::doNotTryToClean( const BamAlignment & read) {
 }
 
 void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result) {
+    //wait for emits to finish
+    bool finished = false;
+    while(!finished) {
+        if(0 != pthread_mutex_lock(&emit_mutex) ) {
+            perror("Error locking LR emit mutex.");
+            exit(-1);
+        }
+        
+        finished = emit_queue.empty();
+        
+        if(0 != pthread_mutex_unlock(&emit_mutex) ) {
+            perror("Error unlocking LR emit mutex.");
+            exit(-1);
+        }
+        if(!finished) {
+            usleep(20000);
+            flushEmitQueue();
+        }
+    }
+    
     if ( interval_data.readsToClean.size() > 0 ) {
         BamAlignment * read = interval_data.readsToClean.getReads()[0];
         GenomeLoc earliestPossibleMove = loc_parser->createGenomeLoc(*read);
@@ -554,6 +665,11 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     
     for(vector<GenomeLoc *>::const_iterator interval_it = intervalsFile.begin(); interval_it != intervalsFile.end(); interval_it++)
         delete *interval_it;
+    
+    if(0 != pthread_mutex_destroy(&emit_mutex) ) {
+        perror("Error destroying LR emit mutex.");
+        exit(-1);
+    }
 }
 
 void LocalRealignment::populateKnownIndels(IntervalData & interval_data, const ReadMetaDataTracker & metaDataTracker) {
@@ -726,7 +842,7 @@ void LocalRealignment::clean(IntervalData & interval_data) {
                 // NOTE: indels are printed out in the format specified for the low-coverage pilot1
                 //  indel calls (tab-delimited): chr position size type sequence
                 stringstream str;
-                str << getHeader().Sequences[reads[0]->RefID].Name;
+                str << sequence_dictionary[reads[0]->RefID].Name;
                 int position = bestConsensus->positionOnReference + bestConsensus->cigar[0].Length;
                 str << "\t" << (leftmostIndex + position - 1);
                 CigarOp ce = bestConsensus->cigar[1];
@@ -1248,7 +1364,7 @@ bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead *> & reads, co
         }
         if ( snpsOutput != NULL ) {
             if ( didMismatch ) {
-                const string & ref_name = getHeader().Sequences[reads[0]->getRead()->RefID].Name;
+                const string & ref_name = sequence_dictionary[reads[0]->getRead()->RefID].Name;
                 sb << ref_name << ":" << (leftmostIndex + i);
                 if ( stillMismatches )
                     sb << " SAME_SNP\n" << endl;
@@ -1323,6 +1439,7 @@ LocalRealignment::LocalRealignment()
 , referenceReader(NULL)
 , loc_parser(NULL)
 , sawReadInCurrentInterval(false)
+, loading_interval_data(NULL)
 , outputIndels(false)
 , output_stats(false)
 , output_snps(false)
@@ -1330,13 +1447,13 @@ LocalRealignment::LocalRealignment()
 
 int LocalRealignment::runInternal()
 {
+    sequence_dictionary = getHeader().Sequences;
     initialize();
 
     interval_it = intervalsFile.begin();
 
-    IntervalData interval_data(intervalsFile.empty() ? NULL : intervalsFile.front());
-
-    interval_data.readsToClean.initialize(loc_parser, getHeader());
+    loading_interval_data = new IntervalData(intervalsFile.empty() ? NULL : intervalsFile.front());
+    loading_interval_data->readsToClean.initialize(loc_parser, sequence_dictionary);
 
     while(true) {
         BamAlignment * al = getInputAlignment();
@@ -1345,10 +1462,10 @@ int LocalRealignment::runInternal()
             break;
         
         const ReadMetaDataTracker rmdt(loc_parser, al, std::map<int, RODMetaDataContainer>() );
-        map_func(interval_data, al, rmdt);
+        map_func( al, rmdt);
     };
     
-    onTraversalDone(interval_data, 0);
+    onTraversalDone(*loading_interval_data, 0);
     
     return 0;
 }
