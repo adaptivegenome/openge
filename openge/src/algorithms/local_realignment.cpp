@@ -523,7 +523,10 @@ int LocalRealignment::map_func(BamAlignment * read, const ReadMetaDataTracker & 
     if ( read->RefID == NO_ALIGNMENT_REFERENCE_INDEX ) {
         CleanAndEmitReadList * read_list = new CleanAndEmitReadList(*this, loading_interval_data);
         emit_queue.push(read_list);
-        ThreadPool::sharedPool()->addJob(new CleanJob(read_list));
+        if(nothreads)
+            CleanJob(read_list).runJob();
+        else
+            ThreadPool::sharedPool()->addJob(new CleanJob(read_list));
         flushEmitQueue();
 
         do {
@@ -580,7 +583,10 @@ int LocalRealignment::map_func(BamAlignment * read, const ReadMetaDataTracker & 
     else {  // the read is past the current interval
         CleanAndEmitReadList * read_list = new CleanAndEmitReadList(*this, loading_interval_data);
         emit_queue.push(read_list);
-        ThreadPool::sharedPool()->addJob(new CleanJob(read_list));
+        if(nothreads)
+            CleanJob(read_list).runJob();
+        else
+            ThreadPool::sharedPool()->addJob(new CleanJob(read_list));
         flushEmitQueue();
 
         do {
