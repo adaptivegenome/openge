@@ -974,8 +974,15 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
             if ( consensusModel != KNOWNS_ONLY && numBlocks == 2 )  {
                 Consensus * c = createAlternateConsensus(startOnRef, aRead->getCigar(), reference, aRead->getReadBases());
                 if ( c != NULL ) {
-                    altConsenses.insert(c);
-                }
+                    bool string_exists_in_other_consensus = false;
+                    for(set<Consensus *>::const_iterator i = altConsenses.begin(); i != altConsenses.end(); i++)
+                        if(c->str == (*i)->str)
+                            string_exists_in_other_consensus = true;
+                    if(!string_exists_in_other_consensus)
+                        altConsenses.insert(c);
+                    cerr << "New consensus " << cigarToString(c->cigar) << endl;//" with string " << c->str << endl;
+                } else
+                    cerr << "No new consensus" << endl;
             } else {
                 altAlignmentsToTest.push_back(aRead);
             }
