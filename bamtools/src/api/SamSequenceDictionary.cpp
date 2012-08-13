@@ -313,6 +313,12 @@ SamSequence& SamSequenceDictionary::operator[](const std::string& sequenceName) 
     const size_t index = m_lookupData[sequenceName];
     return m_data.at(index);
 }
+const SamSequence& SamSequenceDictionary::operator[](const std::string& sequenceName) const {
+    
+    assert(Contains(sequenceName) );
+    const size_t index = m_lookupData.find(sequenceName)->second;
+    return m_data.at(index);
+}
 
 /*! \fn SamSequence& SamSequenceDictionary::operator[](const int sequenceNumber)
  \brief Retrieves the modifiable SamSequence that matches \a sequenceNumber.
@@ -324,4 +330,10 @@ SamSequence& SamSequenceDictionary::operator[](const int sequenceNumber)
 {
   assert(sequenceNumber >= 0 && sequenceNumber < m_data.size());
   return m_data.at(sequenceNumber);
+}
+
+const SamSequence& SamSequenceDictionary::operator[](const int sequenceNumber) const
+{
+    assert(sequenceNumber >= 0 && sequenceNumber < m_data.size());
+    return m_data.at(sequenceNumber);
 }

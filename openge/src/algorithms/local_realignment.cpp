@@ -734,7 +734,7 @@ int LocalRealignment::mismatchQualitySumIgnoreCigar(AlignedRead & aRead, const s
     return sum;
 }
 
-void LocalRealignment::clean(IntervalData & interval_data) {
+void LocalRealignment::clean(IntervalData & interval_data) const {
     
     vector<BamAlignment *> reads = interval_data.readsToClean.getReads();
     if ( reads.size() == 0 )
@@ -928,7 +928,7 @@ void LocalRealignment::clean(IntervalData & interval_data) {
 #endif
 }
 
-void LocalRealignment::generateAlternateConsensesFromKnownIndels(IntervalData & interval_data, set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const string reference) {
+void LocalRealignment::generateAlternateConsensesFromKnownIndels(IntervalData & interval_data, set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const string reference) const {
     for ( vector<VariantContext>::iterator knownIndelIt  = interval_data.knownIndelsToTry.begin(); knownIndelIt != interval_data.knownIndelsToTry.end(); knownIndelIt++ ) {
         VariantContext * knownIndel = &*knownIndelIt;
         if ( knownIndel == NULL || !knownIndel->isIndel() || knownIndel->isComplexIndel() )
@@ -947,7 +947,7 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
                                             vector<AlignedRead *> & altAlignmentsToTest,
                                             set<Consensus *> & altConsenses,
                                             int leftmostIndex,
-                                            string & reference) {
+                                            string & reference) const{
     
     long totalRawMismatchSum = 0L;
     
@@ -1037,7 +1037,7 @@ void LocalRealignment::generateAlternateConsensesFromReads( vector<AlignedRead> 
 }
 
 // create a Consensus from cigar/read strings which originate somewhere on the reference
-LocalRealignment::Consensus * LocalRealignment::createAlternateConsensus(const int indexOnRef, const vector<CigarOp> & c, const string reference, const string readStr) {
+LocalRealignment::Consensus * LocalRealignment::createAlternateConsensus(const int indexOnRef, const vector<CigarOp> & c, const string reference, const string readStr) const {
     if ( indexOnRef < 0 )
         return NULL;
     
@@ -1106,7 +1106,7 @@ LocalRealignment::Consensus * LocalRealignment::createAlternateConsensus(const i
 }
 
 // create a Consensus from just the indel string that falls on the reference
-LocalRealignment::Consensus * LocalRealignment::createAlternateConsensus(const int indexOnRef, const string & reference, const string & indelStr, VariantContext indel) {
+LocalRealignment::Consensus * LocalRealignment::createAlternateConsensus(const int indexOnRef, const string & reference, const string & indelStr, VariantContext indel) const {
     if ( indexOnRef < 0 || indexOnRef >= reference.size() )
         return NULL;
     
@@ -1141,7 +1141,7 @@ LocalRealignment::Consensus * LocalRealignment::createAlternateConsensus(const i
 }
 
 
-pair<int, int> LocalRealignment::findBestOffset(const string & ref, AlignedRead read, const int leftmostIndex) {
+pair<int, int> LocalRealignment::findBestOffset(const string & ref, AlignedRead read, const int leftmostIndex) const {
     
     // optimization: try the most likely alignment first (to get a low score to beat)
     int originalAlignment = read.getOriginalAlignmentStart() - leftmostIndex;
@@ -1191,7 +1191,7 @@ string LocalRealignment::cigarToString(const vector<CigarOp> & cigar)
 }
  */
 
-bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int altPosOnRef, const int myPosOnAlt, AlignedRead & aRead, const int leftmostIndex) {
+bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int altPosOnRef, const int myPosOnAlt, AlignedRead & aRead, const int leftmostIndex) const {
     vector<CigarOp> readCigar;
     
     // special case: there is no indel
@@ -1299,7 +1299,7 @@ bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int al
     return true;
 }
 
-bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead *> & reads, const string & reference, const int leftmostIndex) {
+bool LocalRealignment::alternateReducesEntropy(const vector<AlignedRead *> & reads, const string & reference, const int leftmostIndex) const {
     const size_t array_size = reference.size();
     int originalMismatchBases[array_size];
     int cleanedMismatchBases[array_size];
@@ -1389,7 +1389,8 @@ bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead *> & reads, co
         }
         if ( output_snps ) {
             if ( didMismatch ) {
-                const string & ref_name = sequence_dictionary[reads[0]->getRead()->RefID].Name;
+                const SamSequenceDictionary & s = sequence_dictionary;
+                const string & ref_name = s[reads[0]->getRead()->RefID].Name;
                 sb << ref_name << ":" << (leftmostIndex + i);
                 if ( stillMismatches )
                     sb << " SAME_SNP\n" << endl;

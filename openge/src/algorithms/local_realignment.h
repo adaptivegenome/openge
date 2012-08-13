@@ -451,24 +451,24 @@ private:
     
     static int mismatchQualitySumIgnoreCigar(AlignedRead & aRead, const std::string & refSeq, int refIndex, int quitAboveThisValue);
     
-    void clean(IntervalData & interval_data) ;
-    void generateAlternateConsensesFromKnownIndels(IntervalData & interval_data, std::set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const std::string reference);
+    void clean(IntervalData & interval_data) const;
+    void generateAlternateConsensesFromKnownIndels(IntervalData & interval_data, std::set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const std::string reference) const;
     long determineReadsThatNeedCleaning( std::vector<BamTools::BamAlignment *> & reads,
                                         std::vector<BamTools::BamAlignment *> & refReadsToPopulate,
                                         std::vector<AlignedRead *> & altReadsToPopulate,
                                         std::vector<AlignedRead *> & altAlignmentsToTest,
                                         std::set<Consensus *> & altConsenses,
                                         int leftmostIndex,
-                                        std::string & reference) ;
+                                        std::string & reference) const;
     void generateAlternateConsensesFromReads( std::vector<AlignedRead> & altAlignmentsToTest,
                                              std::set<Consensus *> & altConsensesToPopulate,
                                              const std::string & reference,
                                              const int leftmostIndex);
-    Consensus * createAlternateConsensus(const int indexOnRef, const std::vector<BamTools::CigarOp> & c, const std::string reference, const std::string readStr);
-    Consensus * createAlternateConsensus(const int indexOnRef, const std::string & reference, const std::string & indelStr, VariantContext indel);
-    std::pair<int, int> findBestOffset(const std::string & ref, AlignedRead read, const int leftmostIndex) ;
-    bool updateRead(const std::vector<BamTools::CigarOp> & altCigar, const int altPosOnRef, const int myPosOnAlt, AlignedRead & aRead, const int leftmostIndex);
-    bool alternateReducesEntropy(std::vector<AlignedRead *> & reads, const std::string & reference, const int leftmostIndex) ;
+    Consensus * createAlternateConsensus(const int indexOnRef, const std::vector<BamTools::CigarOp> & c, const std::string reference, const std::string readStr) const;
+    Consensus * createAlternateConsensus(const int indexOnRef, const std::string & reference, const std::string & indelStr, VariantContext indel) const;
+    std::pair<int, int> findBestOffset(const std::string & ref, AlignedRead read, const int leftmostIndex) const;
+    bool updateRead(const std::vector<BamTools::CigarOp> & altCigar, const int altPosOnRef, const int myPosOnAlt, AlignedRead & aRead, const int leftmostIndex) const;
+    bool alternateReducesEntropy(const std::vector<AlignedRead *> & reads, const std::string & reference, const int leftmostIndex) const;
 
 protected:
 public:
