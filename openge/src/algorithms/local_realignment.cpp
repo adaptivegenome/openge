@@ -846,7 +846,7 @@ void LocalRealignment::clean(IntervalData & interval_data) {
             assert (bestConsensus->cigar.size() < 100);
             //cerr << "CLEAN: " << cigarToString(bestConsensus->cigar) << " " << string(bestConsensus->str) << " " << bestConsensus->cigar.size() << endl;
 
-            if ( indelOutput != NULL && bestConsensus->cigar.size() > 1 ) {
+            if ( outputIndels && bestConsensus->cigar.size() > 1 ) {
                 // NOTE: indels are printed out in the format specified for the low-coverage pilot1
                 //  indel calls (tab-delimited): chr position size type sequence
                 stringstream str;
@@ -1377,7 +1377,7 @@ bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead *> & reads, co
         } else if ( cleanedMismatchBases[i] > totalCleanedBases[i] * MISMATCH_THRESHOLD ) {
             cleanedMismatchColumns++;
         }
-        if ( snpsOutput != NULL ) {
+        if ( output_snps ) {
             if ( didMismatch ) {
                 const string & ref_name = sequence_dictionary[reads[0]->getRead()->RefID].Name;
                 sb << ref_name << ":" << (leftmostIndex + i);
@@ -1393,7 +1393,7 @@ bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead *> & reads, co
     //    cerr << "Original mismatch columns = " << originalMismatchColumns << "; cleaned mismatch columns = " << cleanedMismatchColumns << endl;
     
     const bool reduces = (originalMismatchColumns == 0 || cleanedMismatchColumns < originalMismatchColumns);
-    if ( reduces && snpsOutput != NULL ) {
+    if ( reduces && output_snps ) {
         snpsOutput << sb.str();
     }
     return reduces;
@@ -1448,9 +1448,9 @@ LocalRealignment::LocalRealignment()
 , MAX_READS_FOR_CONSENSUSES(120)
 , MAX_READS(20000)
 , NO_ORIGINAL_ALIGNMENT_TAGS(false)
-, write_out_indels(true)
-, write_out_stats(true)
-, write_out_snps(true)
+, write_out_indels(false)
+, write_out_stats(false)
+, write_out_snps(false)
 , referenceReader(NULL)
 , loc_parser(NULL)
 , sawReadInCurrentInterval(false)
