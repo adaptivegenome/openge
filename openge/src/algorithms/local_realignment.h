@@ -60,6 +60,9 @@
 #include "../util/gatk/ReadMetaDataTracker.h"
 #include "../util/gatk/SequenceUtil.h"
 
+//should we support outputing SNPS, INDELS and STATS files?
+//#define LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
+
 
 class LocalRealignment : public AlgorithmModule
 {
@@ -177,6 +180,7 @@ protected:
     bool NO_ORIGINAL_ALIGNMENT_TAGS;
     
     // DEBUGGING OPTIONS FOLLOW
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
     
     //@Hidden
     //@Output(fullName="indelsFileForDebugging", shortName="indels", required=false, doc="Output file (text) for the indels found; FOR DEBUGGING PURPOSES ONLY")
@@ -192,6 +196,7 @@ protected:
     //@Output(fullName="SNPsFileForDebugging", shortName="snps", doc="print out whether mismatching columns do or don't get cleaned out; FOR DEBUGGING PURPOSES ONLY", required=false)
     std::string OUT_SNPS;
     bool write_out_snps;
+#endif
     
 private:
     static std::vector<BamTools::CigarOp> unclipCigar(const std::vector<BamTools::CigarOp> & cigar);    

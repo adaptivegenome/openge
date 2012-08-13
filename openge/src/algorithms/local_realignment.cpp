@@ -388,12 +388,14 @@ void LocalRealignment::initialize() {
     // set up the output writer
     manager = new ConstrainedMateFixingManager(this, MAX_ISIZE_FOR_MOVEMENT, MAX_POS_MOVE_ALLOWED, MAX_RECORDS_IN_MEMORY, loc_parser);
     
-    if ( write_out_indels ) 
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
+    if ( write_out_indels )
         indelOutput.open(OUT_INDELS.c_str());
     if ( write_out_stats )
         statsOutput.open(OUT_STATS.c_str());
     if ( write_out_snps )
         snpsOutput.open(OUT_SNPS.c_str());
+#endif
     
     if(0 != pthread_mutex_init(&emit_mutex, 0) ) {
         perror("Error creating LR emit mutex.");
@@ -662,12 +664,14 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     interval_data.knownIndelsToTry.clear();
     interval_data.indelRodsSeen.clear();
     
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
     if ( write_out_indels )
         indelOutput.close();
     if ( write_out_stats )
         statsOutput.close();
     if ( write_out_snps ) 
         snpsOutput.close();
+#endif
     
     manager->close();
     
@@ -837,15 +841,17 @@ void LocalRealignment::clean(IntervalData & interval_data) {
                 return;
         }
         if ( consensusModel != KNOWNS_ONLY && !alternateReducesEntropy(altReads, reference, leftmostIndex) ) {
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
             if ( write_out_stats ) {
                 statsOutput << interval_data.current_interval.toString();
                 statsOutput << "\tFAIL (bad indel)\t"; // if improvement > LOD_THRESHOLD *BUT* entropy is not reduced (SNPs still exist)
                 statsOutput << improvement << endl;
             }
+#endif
         } else {
             assert (bestConsensus->cigar.size() < 100);
             //cerr << "CLEAN: " << cigarToString(bestConsensus->cigar) << " " << string(bestConsensus->str) << " " << bestConsensus->cigar.size() << endl;
-
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
             if ( outputIndels && bestConsensus->cigar.size() > 1 ) {
                 // NOTE: indels are printed out in the format specified for the low-coverage pilot1
                 //  indel calls (tab-delimited): chr position size type sequence
@@ -871,6 +877,7 @@ void LocalRealignment::clean(IntervalData & interval_data) {
                 if ( bestConsensus->cigar.size() > 1 )
                     statsOutput << " (found indel)\t" << improvement << endl;
             }
+#endif
             
             // finish cleaning the appropriate reads
             for ( vector<pair<int, int> >::iterator indexPair = bestConsensus->readIndexes.begin(); indexPair !=  bestConsensus->readIndexes.end(); indexPair++ ) {
@@ -913,9 +920,12 @@ void LocalRealignment::clean(IntervalData & interval_data) {
         
         // END IF ( improvement >= LOD_THRESHOLD )
         
-    } else if ( write_out_stats ) {
+    }
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
+    else if ( write_out_stats ) {
         statsOutput << interval_data.current_interval.toString() << "\tFAIL\t" << improvement << endl;
     }
+#endif
 }
 
 void LocalRealignment::generateAlternateConsensesFromKnownIndels(IntervalData & interval_data, set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const string reference) {
@@ -1393,9 +1403,11 @@ bool LocalRealignment::alternateReducesEntropy(vector<AlignedRead *> & reads, co
     //    cerr << "Original mismatch columns = " << originalMismatchColumns << "; cleaned mismatch columns = " << cleanedMismatchColumns << endl;
     
     const bool reduces = (originalMismatchColumns == 0 || cleanedMismatchColumns < originalMismatchColumns);
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
     if ( reduces && output_snps ) {
         snpsOutput << sb.str();
     }
+#endif
     return reduces;
 }
     
@@ -1448,9 +1460,11 @@ LocalRealignment::LocalRealignment()
 , MAX_READS_FOR_CONSENSUSES(120)
 , MAX_READS(20000)
 , NO_ORIGINAL_ALIGNMENT_TAGS(false)
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
 , write_out_indels(false)
 , write_out_stats(false)
 , write_out_snps(false)
+#endif
 , referenceReader(NULL)
 , loc_parser(NULL)
 , sawReadInCurrentInterval(false)
