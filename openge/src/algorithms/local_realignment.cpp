@@ -711,23 +711,30 @@ int LocalRealignment::mismatchQualitySumIgnoreCigar(AlignedRead & aRead, const s
     const char * p_refSeq = refSeq.c_str();
     const char * p_readSeq = readSeq.c_str();
     const char * p_quals = quals.c_str();
-    for (int readIndex = 0 ; readIndex < readSeq_size ; refIndex++, readIndex++ ) {
+    
+    int common_length = min(readSeq_size, refSeq_size - refIndex - 1);
+    int readIndex = 0;
+
+    for ( ; readIndex < common_length && sum <= quitAboveThisValue ; refIndex++, readIndex++ ) {
+        char refChr = p_refSeq[refIndex];
+        char readChr = p_readSeq[readIndex];
+        if ( !BaseUtils::isRegularBase(readChr) || !BaseUtils::isRegularBase(refChr) ) continue; // do not count Ns/Xs/etc ?
+        
+        if ( readChr != refChr ) {
+            sum += (int)p_quals[readIndex] -33;   // Our qualities are still stored in ASCII
+        }
+    }
+
+    for (; readIndex < readSeq_size && sum <= quitAboveThisValue; refIndex++, readIndex++ ) {
         if ( refIndex >= refSeq_size ) {
             sum += MAX_QUAL;
-            // optimization: once we pass the threshold, stop calculating
-            //if ( sum > quitAboveThisValue )
-            //    return sum;
         } else {
             char refChr = p_refSeq[refIndex];
-            if( !BaseUtils::isRegularBase(refChr) ) continue;
             char readChr = p_readSeq[readIndex];
-            if ( !BaseUtils::isRegularBase(readChr) ) continue; // do not count Ns/Xs/etc ?
+            if ( !BaseUtils::isRegularBase(readChr) || !BaseUtils::isRegularBase(refChr) ) continue; // do not count Ns/Xs/etc ?
 
             if ( readChr != refChr ) {
                 sum += (int)p_quals[readIndex] -33;   // Our qualities are still stored in ASCII
-                // optimization: once we pass the threshold, stop calculating
-                if ( sum > quitAboveThisValue )
-                    return sum;
             }
         }
     }
