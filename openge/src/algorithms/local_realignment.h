@@ -304,6 +304,13 @@ private:
         }
     };
     
+    class ConsensusScoreComparator : public std::less<LocalRealignment::Consensus *> {
+    public:
+        bool operator()(const Consensus * a, const Consensus * b) {
+            return a->mismatchSum < b->mismatchSum;
+        }
+    };
+    
 #pragma mark ReadBin
     class ReadBin {
     private:

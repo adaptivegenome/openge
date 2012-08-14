@@ -84,6 +84,8 @@ import java.util.*;
 using namespace BamTools;
 
 #include <cassert>
+#include <ctime>
+#include <sys/time.h>
 #include <list>
 #include <map>
 #include <set>
@@ -272,7 +274,7 @@ bool LocalRealignment::AlignedRead::constizeUpdate() {
     if ( newStart == -1 )
         newStart = read->Position;
     else if ( abs(newStart - read->Position) > MAX_POS_MOVE_ALLOWED ) {
-        cerr << "Attempting to realign read " << read->Name << " at " << read->Position << " more than " << MAX_POS_MOVE_ALLOWED << " bases to " << newStart << ".";
+        cerr << "Attempting to realign read " << read->Name << " at " << read->Position << " more than " << MAX_POS_MOVE_ALLOWED << " bases to " << newStart << "." << endl;
         return false;
     }
     
@@ -325,7 +327,7 @@ string LocalRealignment::ReadBin::getReference(FastaReader & referenceReader) {
     if ( reference.size() == 0 ) {
         // first, pad the reference to handle deletions in narrow windows (e.g. those with only 1 read)
         int padLeft = max(loc->getStart()-REFERENCE_PADDING, 0);    //LCB 1->0
-        int padRight = min(loc->getStop()+REFERENCE_PADDING, atoi(referenceReader.getSequenceDictionary()[loc->getContig()].Length.c_str()));
+        int padRight = min(loc->getStop()+REFERENCE_PADDING, atoi(referenceReader.getSequenceDictionary()[loc->getContig()].Length.c_str())-1);
         loc = new GenomeLoc(loc_parser->createGenomeLoc(loc->getContig(), padLeft, padRight));
         reference = referenceReader.readSequence(loc->getContig(), loc->getStart(), loc->getStop() - loc->getStart() + 1);
 
@@ -566,7 +568,7 @@ int LocalRealignment::map_func(BamAlignment * read, const ReadMetaDataTracker & 
         }
         
         if ( loading_interval_data->readsToClean.size() + loading_interval_data->readsNotToClean.size() >= MAX_READS ) {
-            fprintf(stderr, "Not attempting realignment in interval %s because there are too many reads.", loading_interval_data->current_interval.toString().c_str());
+            cerr << "Not attempting realignment in interval " << loading_interval_data->current_interval.toString().c_str() << " because there are too many reads." << endl;
             emit_queue.push(new EmittableReadList(*this, loading_interval_data));
             flushEmitQueue();
             ++interval_it;
@@ -762,12 +764,21 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
     // if there are reads with a single indel in them, add that indel to the list of alternate consenses
     long totalRawMismatchSum = determineReadsThatNeedCleaning(reads, refReads, altReads, altAlignmentsToTest, altConsenses, leftmostIndex, reference);
     
-    if ( verbose ) cerr << "------\nChecking consenses for " << interval_data.current_interval.toString() << "...(" << altConsenses.size() << ")\n--------\n" << endl;
+    if ( verbose ) cerr << "------\nChecking consenses for " << interval_data.current_interval.toString() << "...(" << altConsenses.size() << "consensuses across " << altReads.size() << " reads)\n--------\n" << endl;
+    
+    int inner_ct = 0, outer_ct = 0, early_out = 0;
+    timeval start_time;
+    gettimeofday(&start_time, NULL);
     
     Consensus * bestConsensus = NULL;
 
-    for (set<Consensus *>::iterator iter = altConsenses.begin(); iter != altConsenses.end(); iter++) {
+    // Randomize order of consensuses to try to avoid situations where we evaluate all the most expensive consenses first.
+    // Instead, we would like to increase our chances of encountering an easy consensus early to provide a lower early-out value more often.
+    vector<Consensus *> altConsensusRandomOrder(altConsenses.begin(), altConsenses.end());
+    random_shuffle(altConsensusRandomOrder.begin(), altConsensusRandomOrder.end() );
+    for (vector<Consensus *>::iterator iter = altConsensusRandomOrder.begin(); iter != altConsensusRandomOrder.end(); iter++) {
         Consensus &consensus = **iter;
+        outer_ct++;
         //if(verbose)
             //cerr << "Trying new consensus: " << cigarToString( consensus.cigar) /*<< " " << consensus.str*/ << endl;
         
@@ -815,22 +826,42 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
                 break;
         }
         
-        if(verbose)
-            cerr << "Mismatch sum of new consensus " << cigarToString(consensus.cigar) << ": " << consensus.mismatchSum << endl;
+        //if(verbose)
+        //    cerr << "Mismatch sum of new consensus " << cigarToString(consensus.cigar) << ": " << consensus.mismatchSum << endl;
         if ( bestConsensus == NULL || bestConsensus->mismatchSum > consensus.mismatchSum) {
             // we do not need this alt consensus, release memory right away!!
             if ( bestConsensus != NULL ) {
                 bestConsensus->readIndexes.clear();
             }
             bestConsensus = &consensus;
-            if(verbose)
-                cerr << "New consensus " << cigarToString(bestConsensus->cigar) <<  " is now best consensus" << endl;
+            //if(verbose)
+            //    cerr << "New consensus " << cigarToString(bestConsensus->cigar) <<  " is now best consensus" << endl;
         } else {
             // we do not need this alt consensus, release memory right away!!
             consensus.readIndexes.clear();
         }
     }
+    /*
+    cerr << "Scores: ";
+    set<Consensus *, ConsensusScoreComparator> consenses_sorted_by_score(altConsenses.begin(), altConsenses.end());
+    for(set<Consensus *>::const_iterator i = consenses_sorted_by_score.begin(); i != consenses_sorted_by_score.end(); i ++)
+        cerr << cigarToString((*i)->cigar) << " (" << (*i)->mismatchSum << ") ";
+    cerr << endl;
+     */
+    //cerr << "O " << outer_ct << " I " << inner_ct << " EO " << early_out << endl;
+
+    if(verbose && bestConsensus)
+        cerr << "Best consensus " << cigarToString(bestConsensus->cigar) <<  " has score (" << bestConsensus->mismatchSum << ")" << endl;
     
+    
+    timeval stop_time, real_time;
+    gettimeofday(&stop_time, NULL);
+    real_time.tv_sec = stop_time.tv_sec - start_time.tv_sec;
+    real_time.tv_usec = stop_time.tv_usec - start_time.tv_usec;
+    
+    float time = float(real_time.tv_sec ) + (1.e-6 * real_time.tv_usec);
+    if(time > 0.5)
+        cerr << "Elapsed time = " << time << "s" << endl;
     // if:
     // 1) the best alternate consensus has a smaller sum of quality score mismatches than the aligned version of the reads,
     // 2) beats the LOD threshold for the sum of quality score mismatches of the raw version of the reads,
@@ -1003,9 +1034,11 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
                             string_exists_in_other_consensus = true;
                     if(!string_exists_in_other_consensus)
                         altConsenses.insert(c);
-                    cerr << "New consensus " << cigarToString(c->cigar) << endl;//" with string " << c->str << endl;
+                    if(verbose)
+                        cerr << "New consensus " << cigarToString(c->cigar) << endl;//" with string " << c->str << endl;
                 } else
-                    cerr << "No new consensus" << endl;
+                    if(verbose)
+                        cerr << "No new consensus" << endl;
             } else {
                 altAlignmentsToTest.push_back(aRead);
             }
