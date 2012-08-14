@@ -499,7 +499,12 @@ void * BgzfStream::BgzfBlockCache::thread_start(void * block_cache)
     block->starting_blockOffset = cache->m_blockOffset;
     block->starting_blockAddress = cache->m_blockAddress;
 
-    cache->ReadBlock();
+      try {
+          cache->ReadBlock();
+      } catch (BamException & e) {
+          cerr << "Error reading file; is this BAM file corrupt or truncated?" << endl;
+          exit(-1);
+      }
 
     block->m_blockOffset = cache->m_blockOffset;
     block->m_blockLength = cache->m_blockLength;

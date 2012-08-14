@@ -402,7 +402,8 @@ bool BamReaderPrivate::LoadNextAlignmentInternal(BamAlignment& alignment) {
 
     // read in the 'block length' value, make sure it's not zero
     char buffer[sizeof(uint32_t)];
-    m_stream.Read(buffer, sizeof(uint32_t));
+    if(0 == m_stream.Read(buffer, sizeof(uint32_t)))    //if we read 0, this is the EOF.
+        return false;
     alignment.SupportData.BlockLength = BamTools::UnpackUnsignedInt(buffer);
     if ( m_isBigEndian ) BamTools::SwapEndian_32(alignment.SupportData.BlockLength);
     if ( alignment.SupportData.BlockLength == 0 )
@@ -410,8 +411,10 @@ bool BamReaderPrivate::LoadNextAlignmentInternal(BamAlignment& alignment) {
 
     // read in core alignment data, make sure the right size of data was read
     char x[Constants::BAM_CORE_SIZE];
-    if ( m_stream.Read(x, Constants::BAM_CORE_SIZE) != Constants::BAM_CORE_SIZE )
+    if ( m_stream.Read(x, Constants::BAM_CORE_SIZE) != Constants::BAM_CORE_SIZE ) {
+        cerr << "Expected more bytes reading BAM core. Is this file truncated or corrupted?" << endl;
         return false;
+    }
 
     // swap core endian-ness if necessary
     if ( m_isBigEndian ) {
@@ -473,6 +476,9 @@ bool BamReaderPrivate::LoadNextAlignmentInternal(BamAlignment& alignment) {
             // save CigarOp
             alignment.CigarData.push_back(op);
         }
+    } else {
+        cerr << "Expected more bytes reading BAM char data. Is this file truncated or corrupted?" << endl;
+        return false;
     }
 
     // return success/failure
