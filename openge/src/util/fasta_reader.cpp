@@ -135,8 +135,8 @@ string FastaReader::readSequence(string name, size_t start, size_t length) const
     
     const fasta_sequence_t & seq = i->second;
     
-    if(start + length >= seq.length) {
-        cerr << "Requested FASTA read is beyond end of sequence. Aborting." << endl;
+    if(start + length > seq.length) {
+        cerr << "Requested FASTA read " << name << ":" << start << "-" << (start + length - 1) << " is beyond end of sequence(" << seq.length << "). Aborting." << endl;
         assert(0);
         exit(-1);
     }
