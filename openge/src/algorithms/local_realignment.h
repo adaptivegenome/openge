@@ -426,12 +426,27 @@ private:
         }
         while(! emit_queue.empty() && emit_queue.front()->canEmit()) {
             emit_queue.front()->emit();
-            //delete emit_queue.front();
+            delete emit_queue.front();
             emit_queue.pop();
         }
         
         if(0 != pthread_mutex_unlock(&emit_mutex) ) {
             perror("Error unlocking LR emit mutex.");
+            exit(-1);
+        }
+    }
+            
+    void pushToEmitQueue(Emittable * e)
+    {
+        if(0 != pthread_mutex_lock(&emit_mutex) ) {
+            perror("Error locking LR emit push mutex.");
+            exit(-1);
+        }
+        
+        emit_queue.push(e);
+        
+        if(0 != pthread_mutex_unlock(&emit_mutex) ) {
+            perror("Error unlocking LR emit push mutex.");
             exit(-1);
         }
     }

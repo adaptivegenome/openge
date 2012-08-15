@@ -509,13 +509,14 @@ public:
         c->clean_done = true;
         
         c->lr.flushEmitQueue();
+        //delete interval_data;
     }
 };
 
 int LocalRealignment::map_func(BamAlignment * read, const ReadMetaDataTracker & metaDataTracker) {
     const int NO_ALIGNMENT_REFERENCE_INDEX = -1;
     if ( !loading_interval_data->current_interval_valid ) {
-        emit_queue.push(new EmittableRead(*this, loading_interval_data, read));
+        pushToEmitQueue(new EmittableRead(*this, loading_interval_data, read));
         loading_interval_data = new IntervalData(NULL);
         loading_interval_data->readsToClean.initialize(loc_parser, sequence_dictionary);
         return 0;
@@ -526,7 +527,7 @@ int LocalRealignment::map_func(BamAlignment * read, const ReadMetaDataTracker & 
     //   at this point without trying to create a GenomeLoc.
     if ( read->RefID == NO_ALIGNMENT_REFERENCE_INDEX ) {
         CleanAndEmitReadList * read_list = new CleanAndEmitReadList(*this, loading_interval_data);
-        emit_queue.push(read_list);
+        pushToEmitQueue(read_list);
         if(nothreads)
             CleanJob(read_list).runJob();
         else
@@ -551,7 +552,7 @@ int LocalRealignment::map_func(BamAlignment * read, const ReadMetaDataTracker & 
     
     if ( readLoc.isBefore(loading_interval_data->current_interval) ) {
         if ( !sawReadInCurrentInterval ) {
-            emit_queue.push(new EmittableRead(*this, loading_interval_data, read));
+            pushToEmitQueue(new EmittableRead(*this, loading_interval_data, read));
         } else
             loading_interval_data->readsNotToClean.push_back(read);
     }
@@ -568,8 +569,8 @@ int LocalRealignment::map_func(BamAlignment * read, const ReadMetaDataTracker & 
         }
         
         if ( loading_interval_data->readsToClean.size() + loading_interval_data->readsNotToClean.size() >= MAX_READS ) {
-            cerr << "Not attempting realignment in interval " << loading_interval_data->current_interval.toString().c_str() << " because there are too many reads." << endl;
-            emit_queue.push(new EmittableReadList(*this, loading_interval_data));
+            cerr << "Not attempting realignment in interval " << loading_interval_data->current_interval.toString().c_str() << " because there are too many reads(more than " << MAX_READS << ")." << endl;
+            pushToEmitQueue(new EmittableReadList(*this, loading_interval_data));
             flushEmitQueue();
             ++interval_it;
             if(interval_it != intervalsFile.end()) {
@@ -586,7 +587,7 @@ int LocalRealignment::map_func(BamAlignment * read, const ReadMetaDataTracker & 
     }
     else {  // the read is past the current interval
         CleanAndEmitReadList * read_list = new CleanAndEmitReadList(*this, loading_interval_data);
-        emit_queue.push(read_list);
+        pushToEmitQueue(read_list);
         if(nothreads)
             CleanJob(read_list).runJob();
         else
