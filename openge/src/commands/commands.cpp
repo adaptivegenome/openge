@@ -126,6 +126,8 @@ OpenGECommand::OpenGECommand()
 OpenGECommand * CommandMarshall::commandWithName(const string name) {
     const char * cname = name.c_str();
     
+    if(!strcmp(cname, "compare"))
+        return new CompareCommand;
     if(!strcmp(cname, "count"))
         return new CountCommand;
     if(!strcmp(cname, "coverage"))

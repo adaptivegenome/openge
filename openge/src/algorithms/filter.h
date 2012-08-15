@@ -43,11 +43,11 @@ public:
     void setTrimBeginLength(int length) { trim_begin_length = length; }
     void setTrimEndLength(int length) { trim_end_length = length; }
     bool setReadLengths(const std::string & length_string);
+    static bool ParseRegionString(const std::string& regionString, BamTools::BamRegion& region, const BamTools::SamSequenceDictionary & sequences);
 protected:
     virtual int runInternal();
     void trim(BamTools::BamAlignment & al);
 protected:
-    bool ParseRegionString(const std::string& regionString, BamTools::BamRegion& region);
     std::string region_string;
     bool has_region;
     size_t count_limit;

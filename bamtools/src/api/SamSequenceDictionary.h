@@ -69,6 +69,9 @@ class API_EXPORT SamSequenceDictionary {
         const SamSequence& operator[](const int sequenceNumber) const;
 
         int IndexOfString(const std::string & sequenceName);
+    
+        bool operator==(const SamSequenceDictionary &d) const { return m_data == d.m_data; }
+        bool operator!=(const SamSequenceDictionary &d) const { return m_data != d.m_data; }
 
     // retrieve STL-compatible iterators
     public:

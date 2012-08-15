@@ -83,6 +83,13 @@ protected:
 /////////////////////////////////
 // Actual commands
 
+class CompareCommand : public OpenGECommand
+{
+protected:
+    void getOptions();
+    virtual int runCommand();
+};
+
 class CountCommand : public OpenGECommand
 {
 protected:

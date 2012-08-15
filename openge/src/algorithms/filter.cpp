@@ -31,7 +31,7 @@ using namespace std;
 
 // this has been copied from bamtools utilities, since it isn't in the API. Original file is bamtools_utilities.cpp.
 // Like the rest of Bamtools, it is under the BSD license.
-bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
+bool Filter::ParseRegionString(const string& regionString, BamRegion& region, const SamSequenceDictionary & sequences)
 {
     // -------------------------------
     // parse region string
@@ -96,12 +96,10 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
     
     // -------------------------------
     // validate reference IDs & genomic positions
-    
-    SamHeader header = getHeader();
-    
+
     int RefID = -1;
-    for(int i = 0; i < header.Sequences.Size(); i++) {
-        if(header.Sequences[i].Name == chrom)
+    for(int i = 0; i < sequences.Size(); i++) {
+        if(sequences[i].Name == chrom)
             RefID = i;
     }
     
@@ -112,7 +110,7 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
     }
     
     // startPos cannot be greater than or equal to reference length
-    const SamSequence startReference = header.Sequences[RefID];
+    const SamSequence startReference = sequences[RefID];
     int sequence_length = atoi(startReference.Length.c_str());
     if ( startPos >= sequence_length ) {
         cerr << "Start position (" << startPos << ") after end of the reference sequence (" << sequence_length << ")" << endl;
@@ -222,7 +220,7 @@ int Filter::runInternal()
         
         // if region string parses OK
         BamRegion region;
-        if (ParseRegionString(region_string, region) ) {
+        if (ParseRegionString(region_string, region, getHeader().Sequences) ) {
             BamAlignment * al;
             while ( NULL != (al = getInputAlignment())  && count < count_limit) {
                 if ( (al->RefID >= region.LeftRefID)  && ( (al->Position + al->Length) >= region.LeftPosition ) &&
