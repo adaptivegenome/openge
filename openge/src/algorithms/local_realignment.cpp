@@ -244,7 +244,7 @@ void LocalRealignment::AlignedRead::setCigar(const vector<CigarOp> & cigar_in, b
             has_i_or_d = true;
 
     if ( !has_i_or_d) {
-        cerr << "Modifying a read with no associated indel; although this is possible, it is highly unlikely.  Perhaps this region should be double-checked: " << read->Name << " near read->getReferenceName():" << read->Position << endl;
+        cerr << "Modifying a read with no associated indel; although this is possible, it is highly unlikely.  Perhaps this region should be double-checked: " << read->Name << " near " << (*sequences)[read->RefID].Name << ":" << read->Position << endl;
         clearCigar();
         return;
     }
@@ -764,7 +764,7 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
     
     if ( verbose ) cerr << "------\nChecking consenses for " << interval_data.current_interval.toString() << "...(" << altConsenses.size() << "consensuses across " << altReads.size() << " reads)\n--------\n" << endl;
     
-    int inner_ct = 0, outer_ct = 0, early_out = 0;
+    //int inner_ct = 0, outer_ct = 0, early_out = 0;
     timeval start_time;
     gettimeofday(&start_time, NULL);
     
@@ -776,7 +776,7 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
     random_shuffle(altConsensusRandomOrder.begin(), altConsensusRandomOrder.end() );
     for (vector<Consensus *>::iterator iter = altConsensusRandomOrder.begin(); iter != altConsensusRandomOrder.end(); iter++) {
         Consensus &consensus = **iter;
-        outer_ct++;
+        //outer_ct++;
         //if(verbose)
             //cerr << "Trying new consensus: " << cigarToString( consensus.cigar) /*<< " " << consensus.str*/ << endl;
         
@@ -999,7 +999,7 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
             continue;
         }
         
-        AlignedRead * aRead = new AlignedRead(read);
+        AlignedRead * aRead = new AlignedRead(read, &sequence_dictionary);
         
         // first, move existing indels (for 1 indel reads only) to leftmost position within identical sequence
         int numBlocks = 0;

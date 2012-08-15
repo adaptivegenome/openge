@@ -207,6 +207,7 @@ private:
     class AlignedRead {
     private:
         BamTools::BamAlignment * read;
+        const BamTools::SamSequenceDictionary * sequences;
         std::string readBases;
         std::string baseQuals;
         std::vector<BamTools::CigarOp> newCigar;
@@ -216,13 +217,26 @@ private:
     public:
         static int MAX_POS_MOVE_ALLOWED;
         static int NO_ORIGINAL_ALIGNMENT_TAGS;
-        AlignedRead(BamTools::BamAlignment * read) 
+        AlignedRead(BamTools::BamAlignment * read, const BamTools::SamSequenceDictionary * sequences)
         : read(read)
+        , sequences(sequences)
         , newCigar(NULL)
         , newStart(-1)
         , mismatchScoreToReference(0)
         , alignerMismatchScore(0)
         { }
+        
+        AlignedRead & operator=(const AlignedRead & other) {
+            read = other.read;
+            sequences = other.sequences;
+            readBases = other.readBases;
+            baseQuals = other.baseQuals;
+            newCigar = other.newCigar;
+            newStart = other.newStart;
+            mismatchScoreToReference = other.mismatchScoreToReference;
+            alignerMismatchScore = other.alignerMismatchScore;
+            return *this;
+        }
         
         //AlignedRead & operator=(const AlignedRead & a) { assert(0);  return *this;}
         
