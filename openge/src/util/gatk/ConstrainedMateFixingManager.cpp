@@ -272,7 +272,7 @@ ConstrainedMateFixingManager::ConstrainedMateFixingManager( LocalRealignment * w
     }
 }
 
-bool ConstrainedMateFixingManager::canMoveReads(const GenomeLoc & earliestPosition) {
+bool ConstrainedMateFixingManager::canMoveReads(const GenomeLoc & earliestPosition) const {
     if ( DEBUG ) cerr << "Refusing to realign? " << earliestPosition.toString() << " vs. " << lastLocFlushed << endl;
     
     return lastLocFlushed == NULL ||
@@ -280,8 +280,8 @@ bool ConstrainedMateFixingManager::canMoveReads(const GenomeLoc & earliestPositi
     lastLocFlushed->distance(earliestPosition) > maxInsertSizeForMovingReadPairs;
 }
 
-bool ConstrainedMateFixingManager::noReadCanMoveBefore(int pos, BamAlignment * addedRead) {
-    return pos + 2 * MAX_POS_MOVE_ALLOWED < addedRead->Position;
+bool ConstrainedMateFixingManager::noReadCanMoveBefore(int pos, const BamAlignment & addedRead) const {
+    return pos + 2 * MAX_POS_MOVE_ALLOWED < addedRead.Position;
 }
 
 void * ConstrainedMateFixingManager::addread_threadproc(void * data)
@@ -314,7 +314,7 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
     addReadQueue.push(r);
 }
 
-void ConstrainedMateFixingManager::addReadInternal(BamAlignment * newRead, bool readWasModified) {
+void ConstrainedMateFixingManager::addReadInternal( BamAlignment * newRead, const bool readWasModified) {
     if ( DEBUG ) {
         string OP;
         newRead->GetTag("OP", OP);
@@ -324,7 +324,7 @@ void ConstrainedMateFixingManager::addReadInternal(BamAlignment * newRead, bool 
     // if the new read is on a different contig or we have too many reads, then we need to flush the queue and clear the map
     bool tooManyReads = (waitingReads.size() >= MAX_RECORDS_IN_MEMORY);
     if ( ( tooManyReads) || (waitingReads.size() > 0 && (*waitingReads.begin())->RefID != newRead->RefID) ) {
-        if ( true || DEBUG ) {
+        if ( DEBUG ) {
             stringstream ss("");
             if(tooManyReads)
                 ss << "too many reads";
@@ -353,7 +353,7 @@ void ConstrainedMateFixingManager::addReadInternal(BamAlignment * newRead, bool 
     // it to ensure proper sorting
     if ( newRead->IsPaired() ) {
         if ( forMateMatching.count(newRead->Name) ) {
-            SAMRecordHashObject mate = forMateMatching.find(newRead->Name)->second;
+            SAMRecordHashObject & mate = forMateMatching.find(newRead->Name)->second;
             // 1. Frustratingly, Picard's setMateInfo() method unaligns (by setting the reference contig
             // to '*') read pairs when both of their flags have the unmapped bit set.  This is problematic
             // when trying to emit reads in coordinate order because all of a sudden we have reads in the
@@ -385,7 +385,7 @@ void ConstrainedMateFixingManager::addReadInternal(BamAlignment * newRead, bool 
             }
             
             forMateMatching.erase(newRead->Name);
-        } else if ( pairedReadIsMovable(newRead) ) {
+        } else if ( pairedReadIsMovable(*newRead) ) {
             forMateMatching[newRead->Name] = SAMRecordHashObject(newRead, readWasModified);
         }
     }
@@ -396,9 +396,9 @@ void ConstrainedMateFixingManager::addReadInternal(BamAlignment * newRead, bool 
         while ( ! waitingReads.empty() ) { // there's something in the queue
             BamAlignment * read = *waitingReads.begin();
             
-            if ( noReadCanMoveBefore(read->Position, newRead) &&
-                (!pairedReadIsMovable(read)                               // we won't try to move such a read
-                 || noReadCanMoveBefore(read->MatePosition, newRead ) ) ) { // we're already past where the mate started
+            if ( noReadCanMoveBefore(read->Position, *newRead) &&
+                (!pairedReadIsMovable(*read)                               // we won't try to move such a read
+                 || noReadCanMoveBefore(read->MatePosition, *newRead ) ) ) { // we're already past where the mate started
                     
                     // remove reads from the map that we have emitted -- useful for case where the mate never showed up
                     forMateMatching.erase(read->Name);
@@ -421,7 +421,7 @@ void ConstrainedMateFixingManager::addReadInternal(BamAlignment * newRead, bool 
     }
 }
 
-void ConstrainedMateFixingManager::writeRead(BamAlignment * read) {
+void ConstrainedMateFixingManager::writeRead(BamAlignment * read) const {
     output_module->writeRead(read);
 }
 
@@ -429,11 +429,11 @@ void ConstrainedMateFixingManager::writeRead(BamAlignment * read) {
  * @param read  the read
  * @return true if the read shouldn't be moved given the constraints of this SAMFileWriter
  */
-bool ConstrainedMateFixingManager::iSizeTooBigToMove(const BamAlignment & read) {
+bool ConstrainedMateFixingManager::iSizeTooBigToMove(const BamAlignment & read) const {
     return iSizeTooBigToMove(read, maxInsertSizeForMovingReadPairs);               // we won't try to move such a read
 }
 
-bool ConstrainedMateFixingManager::iSizeTooBigToMove(const BamAlignment & read, int maxInsertSizeForMovingReadPairs) {
+ bool ConstrainedMateFixingManager::iSizeTooBigToMove(const BamAlignment & read, int maxInsertSizeForMovingReadPairs) {
     return ( read.IsPaired() && read.IsMapped() && read.RefID != read.MateRefID ) // maps to different chromosomes
     || abs(read.InsertSize) > maxInsertSizeForMovingReadPairs;     // we won't try to move such a read
 }
@@ -449,10 +449,10 @@ void ConstrainedMateFixingManager::purgeUnmodifiedMates() {
     forMateMatching = forMateMatchingCleaned;
 }
 
-bool ConstrainedMateFixingManager::pairedReadIsMovable(BamAlignment * read) {
-    return read->IsPaired()                                          // we're a paired read
-    && (read->IsMapped() || read->IsMateMapped())  // at least one read is mapped
-    && !iSizeTooBigToMove(*read);                                     // insert size isn't too big
+bool ConstrainedMateFixingManager::pairedReadIsMovable(const BamAlignment & read) const {
+    return read.IsPaired()                                          // we're a paired read
+    && (read.IsMapped() || read.IsMateMapped())  // at least one read is mapped
+    && !iSizeTooBigToMove(read);                                     // insert size isn't too big
     
 }
 
