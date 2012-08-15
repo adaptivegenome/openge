@@ -441,7 +441,6 @@ public:
         lr.emit(*id, read);
     }
     virtual ~EmittableRead() {
-        delete id;
     }
 };
 
@@ -459,7 +458,6 @@ public:
         lr.emitReadLists(*id);
     }
     virtual ~EmittableReadList() {
-        delete id;
     }
 };
 
@@ -481,7 +479,6 @@ public:
         lr.emitReadLists(*id);
     }
     virtual ~CleanAndEmitReadList() {
-        delete id;
     }
 };
 
@@ -960,6 +957,9 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
         // END IF ( improvement >= LOD_THRESHOLD )
         
     }
+    
+    for (set<Consensus *>::iterator iter = altConsenses.begin(); iter != altConsenses.end(); iter++)
+        delete *iter;
 #ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
     else if ( write_out_stats ) {
         statsOutput << interval_data.current_interval.toString() << "\tFAIL\t" << improvement << endl;
