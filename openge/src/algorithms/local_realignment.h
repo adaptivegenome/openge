@@ -220,7 +220,6 @@ private:
         AlignedRead(BamTools::BamAlignment * read, const BamTools::SamSequenceDictionary * sequences)
         : read(read)
         , sequences(sequences)
-        , newCigar(NULL)
         , newStart(-1)
         , mismatchScoreToReference(0)
         , alignerMismatchScore(0)
