@@ -415,7 +415,7 @@ void LocalRealignment::emit(IntervalData & interval_data, BamAlignment * read) {
     
     // check to see whether the read was modified by looking at the temporary tag
     bool wasModified = interval_data.readsActuallyCleaned.count(read) > 0;
-    manager->addRead(read, wasModified);
+    manager->addRead(read, wasModified, true);
 }
 
 void LocalRealignment::emitReadLists(IntervalData & interval_data) {

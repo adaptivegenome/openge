@@ -89,9 +89,11 @@ private:
     typedef struct {
         BamTools::BamAlignment * read;
         bool readWasModified;
+        bool canFlush;
     } cmfm_read_t;
     SynchronizedBlockingQueue<cmfm_read_t> addReadQueue;
     pthread_t add_read_thread;
+    pthread_mutex_t add_read_lock;
 
     GenomeLoc * lastLocFlushed;
     
@@ -127,6 +129,7 @@ private:
      */
 public:
     ConstrainedMateFixingManager( LocalRealignment * writer, const int maxInsertSizeForMovingReadPairs, const int maxMoveAllowed, const int maxRecordsInMemory,GenomeLocParser * loc_parser);
+    ~ConstrainedMateFixingManager();
 
     bool canMoveReads(const GenomeLoc & earliestPosition) const;
     
@@ -135,10 +138,10 @@ private:
     
 public:
     void addReads(const std::vector<BamTools::BamAlignment *> & newReads, const std::set<BamTools::BamAlignment *> & modifiedReads);
-    void addRead(BamTools::BamAlignment * newRead, bool readWasModified);
+    void addRead(BamTools::BamAlignment * newRead, bool readWasModified, bool canFlush);
 private:
     static void * addread_threadproc(void * data);
-    void addReadInternal( BamTools::BamAlignment * newRead, bool readWasModified);
+    void addReadInternal( BamTools::BamAlignment * newRead, bool readWasModified, bool canFlush);
     BamTools::BamAlignment * remove(std::set<BamTools::BamAlignment *> & treeSet);
     void writeRead( BamTools::BamAlignment * read) const;
     

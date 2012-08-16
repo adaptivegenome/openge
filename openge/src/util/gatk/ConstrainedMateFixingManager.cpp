@@ -156,7 +156,7 @@ int computeInsertSize(const BamAlignment & firstEnd, const BamAlignment & second
     return secondEnd5PrimePosition - firstEnd5PrimePosition + adjustment;
 }
 
-void setMateInfo( BamAlignment & rec1, BamAlignment & rec2, SamHeader * header) {
+void setMateInfo( BamAlignment & rec1, BamAlignment & rec2) {
     const int NO_ALIGNMENT_REFERENCE_INDEX = -1;
     const int NO_ALIGNMENT_START = -1;
     // If neither read is unmapped just set their mate info
@@ -270,6 +270,18 @@ ConstrainedMateFixingManager::ConstrainedMateFixingManager( LocalRealignment * w
         perror("Error creating ConstrainedMateFixingManager thread. Aborting.");
         exit(-1);
     }
+    
+	if(0 != pthread_mutex_init(&add_read_lock, NULL)) {
+		perror("Error opening ConstrainedMateFixingManager queueing mutex");
+        exit(-1);
+    }
+}
+
+ConstrainedMateFixingManager::~ConstrainedMateFixingManager() {
+	if(0 != pthread_mutex_destroy(&add_read_lock)) {
+		perror("Error closing ConstrainedMateFixingManager queueing mutex");
+        exit(-1);
+    }
 }
 
 bool ConstrainedMateFixingManager::canMoveReads(const GenomeLoc & earliestPosition) const {
@@ -296,25 +308,50 @@ void * ConstrainedMateFixingManager::addread_threadproc(void * data)
         if(r.read == NULL)
             break;
         
-        manager->addReadInternal(r.read, r.readWasModified);
+        manager->addReadInternal(r.read, r.readWasModified, r.canFlush);
     }
     
     return 0;
 }
 
 void ConstrainedMateFixingManager::addReads(const vector<BamAlignment *> & newReads, const set<BamAlignment *> & modifiedReads) {
-    for (vector<BamAlignment *>::const_iterator newRead =  newReads.begin(); newRead != newReads.end(); newRead++ )
-        addRead(*newRead, modifiedReads.count(*newRead) > 0);
+	if(0 != pthread_mutex_lock(&add_read_lock)) {
+		perror("Error locking ConstrainedMateFixingManager queueing mutex");
+        exit(-1);
+    }
+
+    for (vector<BamAlignment *>::const_iterator newRead =  newReads.begin(); newRead != newReads.end(); newRead++ ) {
+        cmfm_read_t r;
+        r.read = *newRead;
+        r.readWasModified = modifiedReads.count(*newRead) > 0;
+        r.canFlush = false;
+
+        addReadQueue.push(r);
+    }
+
+	if(0 != pthread_mutex_unlock(&add_read_lock)) {
+		perror("Error unlocking ConstrainedMateFixingManager queueing mutex");
+        exit(-1);
+    }
 }
 
-void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasModified) {
+void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasModified, bool canFlush) {
     cmfm_read_t r;
     r.read = newRead;
     r.readWasModified = readWasModified;
+    r.canFlush = canFlush;
+	if(0 != pthread_mutex_lock(&add_read_lock)) {
+		perror("Error locking ConstrainedMateFixingManager queueing mutex");
+        exit(-1);
+    }
     addReadQueue.push(r);
+	if(0 != pthread_mutex_unlock(&add_read_lock)) {
+		perror("Error unlocking ConstrainedMateFixingManager queueing mutex");
+        exit(-1);
+    }
 }
 
-void ConstrainedMateFixingManager::addReadInternal( BamAlignment * newRead, const bool readWasModified) {
+void ConstrainedMateFixingManager::addReadInternal( BamAlignment * newRead, const bool readWasModified, bool canFlush ) {
     if ( DEBUG ) {
         string OP;
         newRead->GetTag("OP", OP);
@@ -323,7 +360,7 @@ void ConstrainedMateFixingManager::addReadInternal( BamAlignment * newRead, cons
 
     // if the new read is on a different contig or we have too many reads, then we need to flush the queue and clear the map
     bool tooManyReads = (waitingReads.size() >= MAX_RECORDS_IN_MEMORY);
-    if ( ( tooManyReads) || (waitingReads.size() > 0 && (*waitingReads.begin())->RefID != newRead->RefID) ) {
+    if ( (canFlush && tooManyReads) || (waitingReads.size() > 0 && (*waitingReads.begin())->RefID != newRead->RefID) ) {
         if ( DEBUG ) {
             stringstream ss("");
             if(tooManyReads)
@@ -380,7 +417,7 @@ void ConstrainedMateFixingManager::addReadInternal( BamAlignment * newRead, cons
                 }
                 
                 // we've already seen our mate -- set the mate info and remove it from the map
-                setMateInfo(*mate.record, *newRead, NULL);
+                setMateInfo(*mate.record, *newRead);
                 if ( reQueueMate ) waitingReads.insert(mate.record);
             }
             
