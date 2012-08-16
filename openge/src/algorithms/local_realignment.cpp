@@ -863,7 +863,7 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
     real_time.tv_usec = stop_time.tv_usec - start_time.tv_usec;
     
     float time = float(real_time.tv_sec ) + (1.e-6 * real_time.tv_usec);
-    if(time > 0.5)
+    if(verbose && time > 0.5)
         cerr << "Elapsed time = " << time << "s" << endl;
     // if:
     // 1) the best alternate consensus has a smaller sum of quality score mismatches than the aligned version of the reads,
