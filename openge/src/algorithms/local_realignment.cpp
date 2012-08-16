@@ -316,8 +316,11 @@ void LocalRealignment::ReadBin::add(BamAlignment * read) {
     GenomeLoc locForRead = loc_parser->createGenomeLoc(*read);
     if ( loc == NULL )
         loc = new GenomeLoc(locForRead);
-    else if ( locForRead.getStop() > loc->getStop() )
+    else if ( locForRead.getStop() > loc->getStop() ) {
+        GenomeLoc * old_loc = loc;
         loc = new GenomeLoc(loc_parser->createGenomeLoc(loc->getContig(), loc->getStart(), locForRead.getStop()));
+        delete old_loc;
+    }
 
     reads.push_back(read);
 }
@@ -328,7 +331,9 @@ string LocalRealignment::ReadBin::getReference(FastaReader & referenceReader) {
         // first, pad the reference to handle deletions in narrow windows (e.g. those with only 1 read)
         int padLeft = max(loc->getStart()-REFERENCE_PADDING, 0);    //LCB 1->0
         int padRight = min(loc->getStop()+REFERENCE_PADDING, atoi(referenceReader.getSequenceDictionary()[loc->getContig()].Length.c_str())-1);
+        GenomeLoc * old_loc = loc;
         loc = new GenomeLoc(loc_parser->createGenomeLoc(loc->getContig(), padLeft, padRight));
+        delete old_loc;
         reference = referenceReader.readSequence(loc->getContig(), loc->getStart(), loc->getStop() - loc->getStart() + 1);
 
         //transform to upper case. STL sometimes makes things harder than they should be.
@@ -341,6 +346,7 @@ string LocalRealignment::ReadBin::getReference(FastaReader & referenceReader) {
 void LocalRealignment::ReadBin::clear() {
     reads.clear();
     reference.clear();
+    delete loc;
     loc = NULL;
 }
 
@@ -418,9 +424,6 @@ void LocalRealignment::emitReadLists(IntervalData & interval_data) {
     interval_data.readsNotToClean.insert(interval_data.readsNotToClean.end(), to_insert.begin(), to_insert.end());
     std::stable_sort( interval_data.readsNotToClean.begin(), interval_data.readsNotToClean.end(), Algorithms::Sort::ByPosition() );
     manager->addReads(interval_data.readsNotToClean, interval_data.readsActuallyCleaned);
-    interval_data.readsToClean.clear();
-    interval_data.readsNotToClean.clear();
-    interval_data.readsActuallyCleaned.clear();
 }
 
 LocalRealignment::Emittable::~Emittable() {}
@@ -458,6 +461,7 @@ public:
         lr.emitReadLists(*id);
     }
     virtual ~EmittableReadList() {
+        delete id;
     }
 };
 
@@ -479,6 +483,7 @@ public:
         lr.emitReadLists(*id);
     }
     virtual ~CleanAndEmitReadList() {
+        delete id;
     }
 };
 
@@ -960,6 +965,8 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
     
     for (set<Consensus *>::iterator iter = altConsenses.begin(); iter != altConsenses.end(); iter++)
         delete *iter;
+    for(vector<AlignedRead *>::const_iterator iter = altReads.begin(); iter != altReads.end(); iter++)
+        delete *iter;
 #ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
     else if ( write_out_stats ) {
         statsOutput << interval_data.current_interval.toString() << "\tFAIL\t" << improvement << endl;
@@ -1035,6 +1042,8 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
                             string_exists_in_other_consensus = true;
                     if(!string_exists_in_other_consensus)
                         altConsenses.insert(c);
+                    else
+                        delete c;
                     if(verbose)
                         cerr << "New consensus " << cigarToString(c->cigar) << endl;//" with string " << c->str << endl;
                 } else
@@ -1048,6 +1057,7 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
         }
         // otherwise, we can emit it as is
         else {
+            delete aRead;
             if(verbose)
                 cerr << "Adding " << read->Name << " with raw mismatch score " << rawMismatchScore << " to ref reads" << endl;
             refReadsToPopulate.push_back(read);

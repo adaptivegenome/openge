@@ -339,6 +339,10 @@ private:
         , loc_parser(NULL)
         { }
         
+        ~ReadBin() {
+            clear();
+        }
+        
         void initialize(GenomeLocParser * loc_parser, const BamTools::SamSequenceDictionary & sequence_dict) {
             this->loc_parser = loc_parser;
             sequences = sequence_dict;
