@@ -471,7 +471,7 @@ bool ConstrainedMateFixingManager::iSizeTooBigToMove(const BamAlignment & read) 
 }
 
  bool ConstrainedMateFixingManager::iSizeTooBigToMove(const BamAlignment & read, int maxInsertSizeForMovingReadPairs) {
-    return ( read.IsPaired() && read.IsMapped() && read.RefID != read.MateRefID ) // maps to different chromosomes
+    return ( read.IsPaired() && read.IsMateMapped() && read.RefID != read.MateRefID ) // maps to different chromosomes
     || abs(read.InsertSize) > maxInsertSizeForMovingReadPairs;     // we won't try to move such a read
 }
 
