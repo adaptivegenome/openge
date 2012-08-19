@@ -72,7 +72,7 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region, co
         // store contents before colon as startChrom, after as startPos
         if ( foundRangeDots == string::npos ) {
             startPos   = atoi( regionString.substr(foundFirstColon+1).c_str() ); 
-            stopPos    = -1;
+            stopPos    = startPos;
         } 
         
         // ".." found, so we have some sort of range selected
