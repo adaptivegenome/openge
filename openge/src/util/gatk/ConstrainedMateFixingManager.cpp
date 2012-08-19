@@ -230,12 +230,13 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2) {
     rec2.InsertSize = -insertSize;
 }
 
-BamAlignment * ConstrainedMateFixingManager::remove(set<BamAlignment *> & treeSet) {
+BamAlignment * ConstrainedMateFixingManager::remove(waitingReads_t & treeSet) {
     BamAlignment * first = *treeSet.begin();
     if ( !treeSet.erase(first) ) {
         cerr << "Error caching SAM record " << first->Name << ", which is usually caused by malformed SAM/BAM files in which multiple identical copies of a read are present." << endl;
         exit(-1);
     }
+    out << "r";
     return first;
 }
 
@@ -261,14 +262,19 @@ ConstrainedMateFixingManager::ConstrainedMateFixingManager( LocalRealignment * w
 , lastLocFlushed(NULL)
 , counter(0)
 , loc_parser(loc_parser)
-, cmp(Algorithms::Sort::ByPosition())
-, waitingReads(cmp)
 {
-    int ret = pthread_create(&add_read_thread, NULL, addread_threadproc, this);
-    
-    if(0 != ret) {
-        perror("Error creating ConstrainedMateFixingManager thread. Aborting.");
-        exit(-1);
+    if(!output_module->isNothreads()) {
+        int ret = pthread_create(&add_read_thread, NULL, addread_threadproc, this);
+        
+        if(0 != ret) {
+            perror("Error creating ConstrainedMateFixingManager thread. Aborting.");
+            exit(-1);
+        }
+
+        if(0 != pthread_mutex_init(&add_read_lock, NULL)) {
+            perror("Error opening ConstrainedMateFixingManager queueing mutex");
+            exit(-1);
+        }
     }
     
 	if(0 != pthread_mutex_init(&add_read_lock, NULL)) {
@@ -278,9 +284,11 @@ ConstrainedMateFixingManager::ConstrainedMateFixingManager( LocalRealignment * w
 }
 
 ConstrainedMateFixingManager::~ConstrainedMateFixingManager() {
-	if(0 != pthread_mutex_destroy(&add_read_lock)) {
-		perror("Error closing ConstrainedMateFixingManager queueing mutex");
-        exit(-1);
+    if(!output_module->isNothreads()) {
+        if(0 != pthread_mutex_destroy(&add_read_lock)) {
+            perror("Error closing ConstrainedMateFixingManager queueing mutex");
+            exit(-1);
+        }
     }
 }
 
@@ -315,7 +323,7 @@ void * ConstrainedMateFixingManager::addread_threadproc(void * data)
 }
 
 void ConstrainedMateFixingManager::addReads(const vector<BamAlignment *> & newReads, const set<BamAlignment *> & modifiedReads) {
-	if(0 != pthread_mutex_lock(&add_read_lock)) {
+	if(!output_module->isNothreads() &&  0 != pthread_mutex_lock(&add_read_lock)) {
 		perror("Error locking ConstrainedMateFixingManager queueing mutex");
         exit(-1);
     }
@@ -326,10 +334,13 @@ void ConstrainedMateFixingManager::addReads(const vector<BamAlignment *> & newRe
         r.readWasModified = modifiedReads.count(*newRead) > 0;
         r.canFlush = false;
 
-        addReadQueue.push(r);
+        if(output_module->isNothreads())
+            addReadInternal(r.read, r.readWasModified, r.canFlush);
+        else
+            addReadQueue.push(r);
     }
 
-	if(0 != pthread_mutex_unlock(&add_read_lock)) {
+	if(!output_module->isNothreads() && 0 != pthread_mutex_unlock(&add_read_lock)) {
 		perror("Error unlocking ConstrainedMateFixingManager queueing mutex");
         exit(-1);
     }
@@ -340,12 +351,15 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
     r.read = newRead;
     r.readWasModified = readWasModified;
     r.canFlush = canFlush;
-	if(0 != pthread_mutex_lock(&add_read_lock)) {
+	if(!output_module->isNothreads() && 0 != pthread_mutex_lock(&add_read_lock)) {
 		perror("Error locking ConstrainedMateFixingManager queueing mutex");
         exit(-1);
     }
-    addReadQueue.push(r);
-	if(0 != pthread_mutex_unlock(&add_read_lock)) {
+    if(output_module->isNothreads())
+        addReadInternal(r.read, r.readWasModified, r.canFlush);
+    else
+        addReadQueue.push(r);
+	if(!output_module->isNothreads() && 0 != pthread_mutex_unlock(&add_read_lock)) {
 		perror("Error unlocking ConstrainedMateFixingManager queueing mutex");
         exit(-1);
     }
@@ -500,7 +514,7 @@ void ConstrainedMateFixingManager::close() {
     addReadQueue.push(r);
     
     int ret = pthread_join(add_read_thread, NULL);
-    if(0 != ret) {
+    if(!output_module->isNothreads() && 0 != ret) {
         perror("Error closing ConstrainedMateFixingManager thread.");
         exit(-1);
     }

@@ -471,7 +471,6 @@ public:
     bool clean_done;
     LocalRealignment & lr;
     LocalRealignment::IntervalData * id;
-    BamAlignment * read;
 
     CleanAndEmitReadList(LocalRealignment & lr, IntervalData * id)
     : clean_done(false)
@@ -677,7 +676,8 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     if ( write_out_snps ) 
         snpsOutput.close();
 #endif
-    
+    if(!nothreads)
+    ThreadPool::sharedPool()->waitForJobCompletion();
     manager->close();
     
     for(vector<GenomeLoc *>::const_iterator interval_it = intervalsFile.begin(); interval_it != intervalsFile.end(); interval_it++)

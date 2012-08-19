@@ -116,8 +116,8 @@ private:
     /** read.name -> records */
     std::map<std::string, SAMRecordHashObject> forMateMatching;
     //std::less<BamTools::BamAlignment *> cmp;
-    BamTools::Algorithms::Sort::AlignmentPtrSortBase cmp;
-    std::set<BamTools::BamAlignment *> waitingReads;
+    typedef std::set<BamTools::BamAlignment *, BamTools::Algorithms::Sort::ByPosition> waitingReads_t;
+    waitingReads_t waitingReads;
 
     /**
      *
@@ -142,8 +142,8 @@ public:
 private:
     static void * addread_threadproc(void * data);
     void addReadInternal( BamTools::BamAlignment * newRead, bool readWasModified, bool canFlush);
-    BamTools::BamAlignment * remove(std::set<BamTools::BamAlignment *> & treeSet);
-    void writeRead( BamTools::BamAlignment * read) const;
+    BamTools::BamAlignment * remove(waitingReads_t & treeSet);
+    void writeRead( BamTools::BamAlignment * read);
     
     /**
      * @param read  the read
