@@ -14,6 +14,9 @@ add_test(NAME oge_sam_input_diff_bam COMMAND bash ${OPENGE_TEST_SCRIPT}/compare_
 add_test(NAME oge_bam_input COMMAND openge count ${OPENGE_TEST_DATA}/simple.bam)
 add_test(NAME oge_bam_input_pipe COMMAND bash ${OPENGE_TEST_SCRIPT}/pipe_assist.sh ${OPENGE_TEST_DATA}/simple.bam "${EXECUTABLE_OUTPUT_PATH}/openge count")
 add_test(NAME oge_bam_input_multi COMMAND openge count ${OPENGE_TEST_DATA}/simple.bam ${OPENGE_TEST_DATA}/simple.bam)
+add_test(NAME oge_bam_truncated COMMAND openge count ${OPENGE_TEST_DATA}/208.truncated.bam)
+add_test(NAME oge_bam_samtools_truncated COMMAND samtools view ${OPENGE_TEST_DATA}/208.truncated.bam)
+set_tests_properties(oge_bam_truncated oge_bam_samtools_truncated PROPERTIES WILL_FAIL true)
 
 ## Test count command
 add_test(NAME oge_count COMMAND openge count ${OPENGE_TEST_DATA}/simple.bam)
