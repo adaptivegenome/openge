@@ -9,6 +9,9 @@
 
 #include "api/BamAlignment.h"
 #include "api/BamConstants.h"
+
+#include <sstream>
+
 using namespace BamTools;
 using namespace std;
 

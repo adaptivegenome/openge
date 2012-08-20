@@ -18,6 +18,9 @@
 #include <string>
 #include <vector>
 #include <iostream>
+
+std::string cigarToString(const std::vector<BamTools::CigarOp> cigar);
+
 namespace BamTools {
 
 //! \cond
@@ -27,8 +30,6 @@ namespace Internal {
     class BamWriterPrivate;
 } // namespace Internal
 //! \endcond
-    
-std::string cigarToString(const std::vector<CigarOp> cigar);
 
 // BamAlignment data structure
 class API_EXPORT BamAlignment {
@@ -169,7 +170,7 @@ class API_EXPORT BamAlignment {
     //! \endinternal
     
 public:
-    std::string cigarString() { return cigarToString(CigarData); }
+    std::string cigarString() const { return cigarToString(CigarData); }
 };
 
 // ---------------------------------------------------------
