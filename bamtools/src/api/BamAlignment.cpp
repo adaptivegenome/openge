@@ -975,3 +975,12 @@ bool BamAlignment::SkipToNextTag(const char storageType,
     // if we get here, tag skipped OK - return success
     return true;
 }
+
+string cigarToString(const vector<CigarOp> cigar)
+{
+    stringstream ss;
+    for(vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++)
+        ss << i->Length << i->Type;
+
+    return string(ss.str());
+}

@@ -27,6 +27,8 @@ namespace Internal {
     class BamWriterPrivate;
 } // namespace Internal
 //! \endcond
+    
+std::string cigarToString(const std::vector<CigarOp> cigar);
 
 // BamAlignment data structure
 class API_EXPORT BamAlignment {
@@ -165,6 +167,9 @@ class API_EXPORT BamAlignment {
 
         mutable std::string ErrorString; // mutable to allow updates even in logically const methods
     //! \endinternal
+    
+public:
+    std::string cigarString() { return cigarToString(CigarData); }
 };
 
 // ---------------------------------------------------------

@@ -175,15 +175,6 @@ string  LocalRealignment::AlignedRead::getBaseQualities() {
     return baseQuals;
 }
 
-string cigarToString(vector<CigarOp> cigar)
-{
-    stringstream ss;
-    for(vector<CigarOp>::iterator i = cigar.begin(); i != cigar.end(); i++)
-        ss << i->Length << i->Type;
-    
-    return ss.str();
-}
-
 // pull out the bases that aren't clipped out
 void LocalRealignment::AlignedRead::getUnclippedBases() {
     readBases.clear();
@@ -280,7 +271,7 @@ bool LocalRealignment::AlignedRead::constizeUpdate() {
     
     // annotate the record with the original cigar (and optionally the alignment start)
     if ( !NO_ORIGINAL_ALIGNMENT_TAGS ) {
-        read->AddTag(ORIGINAL_CIGAR_TAG, "Z", cigarToString(read->CigarData));
+        read->AddTag(ORIGINAL_CIGAR_TAG, "Z", read->cigarString());
         if ( newStart != read->Position )
             read->AddTag(ORIGINAL_POSITION_TAG, "i", read->Position+1);
     }
@@ -1231,16 +1222,6 @@ pair<int, int> LocalRealignment::findBestOffset(const string & ref, AlignedRead 
 
     return pair<int, int>(bestIndex, bestScore);
 }
-/*
-string LocalRealignment::cigarToString(const vector<CigarOp> & cigar)
-{
-    stringstream ss;
-    for(vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++)
-        ss << i->Length << i->Type;
-    
-    return ss.str();
-}
- */
 
 bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int altPosOnRef, const int myPosOnAlt, AlignedRead & aRead, const int leftmostIndex) const {
     vector<CigarOp> readCigar;
