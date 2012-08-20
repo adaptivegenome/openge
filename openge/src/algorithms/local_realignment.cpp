@@ -1031,12 +1031,13 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
                     for(set<Consensus *>::const_iterator i = altConsenses.begin(); i != altConsenses.end(); i++)
                         if(c->str == (*i)->str)
                             string_exists_in_other_consensus = true;
+                    
+                    if(verbose)
+                        cerr << "New consensus " << cigarToString(c->cigar) << endl;//" with string " << c->str << endl;
                     if(!string_exists_in_other_consensus)
                         altConsenses.insert(c);
                     else
                         delete c;
-                    if(verbose)
-                        cerr << "New consensus " << cigarToString(c->cigar) << endl;//" with string " << c->str << endl;
                 } else
                     if(verbose)
                         cerr << "No new consensus" << endl;
