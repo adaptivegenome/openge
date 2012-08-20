@@ -17,8 +17,10 @@ endif()
 
 set( EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/bin" )
 set( LIBRARY_OUTPUT_PATH    "${CMAKE_SOURCE_DIR}/lib" )
+set( DOCUMENTATION_OUTPUT_PATH    "${CMAKE_SOURCE_DIR}/doc" )
 
 include_directories(${Boost_INCLUDE_DIRS} ${BAMTOOLS_INCLUDE_DIR})
 
 add_subdirectory(src)
 add_subdirectory(test)
+add_subdirectory(doc)
