@@ -143,7 +143,7 @@ private:
     static void * addread_threadproc(void * data);
     void addReadInternal( BamTools::BamAlignment * newRead, bool readWasModified, bool canFlush);
     BamTools::BamAlignment * remove(waitingReads_t & treeSet);
-    void writeRead( BamTools::BamAlignment * read);
+    void writeRead( BamTools::BamAlignment * read) const;
     
     /**
      * @param read  the read

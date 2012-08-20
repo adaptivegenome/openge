@@ -236,7 +236,6 @@ BamAlignment * ConstrainedMateFixingManager::remove(waitingReads_t & treeSet) {
         cerr << "Error caching SAM record " << first->Name << ", which is usually caused by malformed SAM/BAM files in which multiple identical copies of a read are present." << endl;
         exit(-1);
     }
-    out << "r";
     return first;
 }
 
