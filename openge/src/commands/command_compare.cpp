@@ -63,6 +63,12 @@ public:
         }
         return false;
     }
+    
+    string toString(const SamSequenceDictionary & sequence_dictionary) const {
+        stringstream ss;
+        ss << sequence_dictionary[ chr].Name << ":" << position << " " << cigarToString(cigar);
+        return ss.str();
+    }
 };
             
 bool regionContainsRead(const BamRegion & region, const BamAlignment & read) {
@@ -74,7 +80,8 @@ bool regionContainsRead(const BamRegion & region, const BamAlignment & read) {
 void CompareCommand::getOptions()
 {
     options.add_options()
-    ("region,r", po::value<vector<string> >(), "Genomic regions to use.");
+    ("region,r", po::value<vector<string> >(), "Genomic regions to use.")
+    ("print,p", "Print the location of each change")
     ;
 }
 
@@ -108,6 +115,8 @@ int CompareCommand::runCommand()
         region_strings.push_back("");
         regions.push_back(BamRegion(0, 0, INT_MAX, INT_MAX ));
     }
+    
+    bool print_changes = vm.count("print") > 0;
     
     vector<vector<CompareElement> > * ref_data_p = NULL;
     
@@ -159,6 +168,22 @@ int CompareCommand::runCommand()
                 std::set_intersection(  compare_data[region].begin(), compare_data[region].end(), ref_data[region].begin(), ref_data[region].end(), std::back_inserter( common_elements )  );
                 int additions = compare_data[region].size() - common_elements.size();
                 int deletions = ref_data[region].size() - common_elements.size();
+                
+                if(print_changes) {
+                    std::vector<CompareElement> additions_r;
+                    std::set_difference(compare_data[region].begin(), compare_data[region].end(), common_elements.begin(), common_elements.end(),
+                                        std::back_inserter(additions_r));
+                    
+                    std::vector<CompareElement> deletions_r;
+                    std::set_difference(ref_data[region].begin(), ref_data[region].end(), common_elements.begin(), common_elements.end(),
+                                        std::back_inserter(deletions_r));
+                    
+                    for(vector<CompareElement>::const_iterator i = additions_r.begin(); i != additions_r.end(); i++)
+                        cout << "Add: " << i->toString(compare_sequences) << endl;
+                    for(vector<CompareElement>::const_iterator i = deletions_r.begin(); i != deletions_r.end(); i++)
+                        cout << "Del: " << i->toString(compare_sequences) << endl;
+                }
+                
                 if(additions || deletions) {
                     if(print_file_names)
                         cout << "   ";
