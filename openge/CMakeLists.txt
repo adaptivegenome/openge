@@ -23,4 +23,4 @@ include_directories(${Boost_INCLUDE_DIRS} ${BAMTOOLS_INCLUDE_DIR})
 
 add_subdirectory(src)
 add_subdirectory(test)
-add_subdirectory(doc)
+#add_subdirectory(doc)
