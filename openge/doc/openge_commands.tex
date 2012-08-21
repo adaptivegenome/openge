@@ -29,6 +29,7 @@ where \textit{command} is one of the commands listed in the following table, and
 \begin{tabular}{lp{3.5in}}
 \hline
 Command&Description\\ \hline
+compare&Compare reads in two files to find changes\\
 count&Count reads in an alignment\\
 coverage&Compute coverage statistics for an alignment\\
 dedup&Mark (or remove) duplicate reads\\
@@ -77,7 +78,7 @@ will count the number of lines in a SAM file. Console redirection can be used as
 
 \subsection {File formats}
 
-OpenGE supports both BAM and SAM formats as inputs for all commands. By default, results are written in BAM format; experimental SAM and FASTQ support is also present. To write in SAM format, specify a filename with a .sam or .SAM extension; for FASTQ format, use a .fastq or .FASTQ extension.
+OpenGE supports both BAM and SAM formats as inputs for all commands except for 'compare'. By default, results are written in BAM format; experimental SAM and FASTQ support is also present. To write in SAM format, specify a filename with a .sam or .SAM extension; for FASTQ format, use a .fastq or .FASTQ extension.
 
 Most commands support multiple files as inputs; these files should have identical headers; corrupted data may result from processing multiple BAM or SAM files with different headers. A warning will be displayed if the headers in your input files are not identical.
 
@@ -100,6 +101,27 @@ To summarize, the following methods are used to select file type (in order of pr
 \end{itemize}
 
 \section {Commands}
+
+\subsection {compare}
+The compare command compares the reads present in two different files to detect when a file has reads that have changed, been added, or been removed.
+
+\begin{center}
+\begin{tabular}{llp{3.5in}}
+\hline
+Flag&Long flag&Description\\ \hline
+-p&{-}{-}print&Output coverage data base-by-base to a TSV file.\\
+-r  \textit{region}&{-}{-}region \textit{region}&Regions to compare.\\
+\end{tabular}
+\end{center}
+
+When no region is specified, the whole file is compared.
+
+Multiple regions may be provided- including overlapping regions. The region string format is described in the "Region string format" section below.
+
+Example:
+\cmd{openge compare a.bam b.bam}
+\cmd{openge compare --print b.bam c.bam d.bam}
+\cmd{openge compare --print b.bam c.bam d.bam -r YHet:1..200 -r U:100..400}
 
 \subsection {count}
 The count command returns the number of reads contained in one or more files. No parameters (other than input files) are required.
