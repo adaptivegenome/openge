@@ -1369,9 +1369,9 @@ bool LocalRealignment::alternateReducesEntropy(const vector<AlignedRead *> & rea
                 //System.out.println( "Ref left: "+ leftmostIndex +"; ref length=" + reference.length() + "; read alignment start: "+read.getOriginalAlignmentStart() );
                 break;
             }
-            totalOriginalBases[refIdx] += quals[j];
+            totalOriginalBases[refIdx] += quals[j] - 33;
             if ( readStr[j] != reference[refIdx] )
-                originalMismatchBases[refIdx] += quals[j];
+                originalMismatchBases[refIdx] += quals[j] - 33;
         }
         
         // reset and now do the calculation based on the cleaning
@@ -1386,9 +1386,9 @@ bool LocalRealignment::alternateReducesEntropy(const vector<AlignedRead *> & rea
                     for (int k = 0 ; k < elementLength ; k++, refIdx++, altIdx++ ) {
                         if ( refIdx >= reference.size() )
                             break;
-                        totalCleanedBases[refIdx] += quals[altIdx];
+                        totalCleanedBases[refIdx] += quals[altIdx] - 33;
                         if ( readStr[altIdx] != reference[refIdx] )
-                            cleanedMismatchBases[refIdx] += quals[altIdx];
+                            cleanedMismatchBases[refIdx] += quals[altIdx] - 33;
                     }
                     break;
                 case 'I':
