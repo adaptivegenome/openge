@@ -1015,8 +1015,8 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
         
         // if this doesn't match perfectly to the reference, let's try to clean it
         if ( rawMismatchScore > 0 ) {
-            if(verbose)
-                cerr << "Adding " << read->Name << " with raw mismatch score " << rawMismatchScore << " to non-ref reads" << endl;
+            //if(verbose)
+            //    cerr << "Adding " << read->Name << " with raw mismatch score " << rawMismatchScore << " to non-ref reads" << endl;
             
             if ( !read->IsDuplicate() )
                 totalRawMismatchSum += rawMismatchScore;
@@ -1050,8 +1050,8 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
         // otherwise, we can emit it as is
         else {
             delete aRead;
-            if(verbose)
-                cerr << "Adding " << read->Name << " with raw mismatch score " << rawMismatchScore << " to ref reads" << endl;
+            //if(verbose)
+            //    cerr << "Adding " << read->Name << " with raw mismatch score " << rawMismatchScore << " to ref reads" << endl;
             refReadsToPopulate.push_back(read);
         }
     }
