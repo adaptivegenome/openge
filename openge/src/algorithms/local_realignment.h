@@ -414,8 +414,11 @@ private:
     static const int REFERENCE_PADDING;
     
     // other output files
+            
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
     bool outputIndels, output_stats, output_snps;
     std::ofstream indelOutput, statsOutput, snpsOutput;
+#endif
     
     GenomeLoc * current_interval;
     

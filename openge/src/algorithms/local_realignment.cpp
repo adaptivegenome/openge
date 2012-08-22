@@ -1420,6 +1420,8 @@ bool LocalRealignment::alternateReducesEntropy(const vector<AlignedRead *> & rea
         } else if ( cleanedMismatchBases[i] > totalCleanedBases[i] * MISMATCH_THRESHOLD ) {
             cleanedMismatchColumns++;
         }
+        
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
         if ( output_snps ) {
             if ( didMismatch ) {
                 const SamSequenceDictionary & s = sequence_dictionary;
@@ -1431,6 +1433,7 @@ bool LocalRealignment::alternateReducesEntropy(const vector<AlignedRead *> & rea
                     sb << " NOT_SNP" << endl;
             }
         }
+#endif
     }
     
     //if(verbose)
@@ -1503,9 +1506,11 @@ LocalRealignment::LocalRealignment()
 , loc_parser(NULL)
 , sawReadInCurrentInterval(false)
 , loading_interval_data(NULL)
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
 , outputIndels(false)
 , output_stats(false)
 , output_snps(false)
+#endif
 {}
 
 int LocalRealignment::runInternal()
