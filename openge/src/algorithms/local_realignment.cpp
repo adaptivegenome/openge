@@ -758,9 +758,8 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
     // if there are reads with a single indel in them, add that indel to the list of alternate consenses
     long totalRawMismatchSum = determineReadsThatNeedCleaning(reads, refReads, altReads, altAlignmentsToTest, altConsenses, leftmostIndex, reference);
     
-    if ( verbose ) cerr << "Checking consenses for " << interval_data.current_interval.toString() << "...(" << altConsenses.size() << " consensuses across " << altReads.size() << " reads)" << endl;
+    if ( verbose  && !altConsenses.empty()) cerr << "Checking consenses for " << interval_data.current_interval.toString() << "...(" << altConsenses.size() << " consensuses across " << altReads.size() << " reads)" << endl;
     
-    //int inner_ct = 0, outer_ct = 0, early_out = 0;
     timeval start_time;
     gettimeofday(&start_time, NULL);
     
@@ -772,7 +771,6 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
     random_shuffle(altConsensusRandomOrder.begin(), altConsensusRandomOrder.end() );
     for (vector<Consensus *>::iterator iter = altConsensusRandomOrder.begin(); iter != altConsensusRandomOrder.end(); iter++) {
         Consensus &consensus = **iter;
-        //outer_ct++;
         //if(verbose)
             //cerr << "Trying new consensus: " << cigarToString( consensus.cigar) /*<< " " << consensus.str*/ << endl;
         
@@ -836,26 +834,22 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
         }
     }
     
-    cerr << "Scores: ";
-    set<Consensus *, ConsensusScoreComparator> consenses_sorted_by_score(altConsenses.begin(), altConsenses.end());
-    for(set<Consensus *>::const_iterator i = consenses_sorted_by_score.begin(); i != consenses_sorted_by_score.end(); i ++)
-        cerr << cigarToString((*i)->cigar) << " (" << (*i)->mismatchSum << ") ";
-    cerr << endl;
-     
-    //cerr << "O " << outer_ct << " I " << inner_ct << " EO " << early_out << endl;
-
-    //if(verbose && bestConsensus)
-        //cerr << "Best consensus " << cigarToString(bestConsensus->cigar) <<  " has score (" << bestConsensus->mismatchSum << ")" << endl;
-    
-    
-    timeval stop_time, real_time;
-    gettimeofday(&stop_time, NULL);
-    real_time.tv_sec = stop_time.tv_sec - start_time.tv_sec;
-    real_time.tv_usec = stop_time.tv_usec - start_time.tv_usec;
-    
-    float time = float(real_time.tv_sec ) + (1.e-6 * real_time.tv_usec);
-    if(verbose && time > 0.5)
-        cerr << "Elapsed time = " << time << "s" << endl;
+    if(verbose && !altConsenses.empty()) {
+        cerr << "Scores: ";
+        set<Consensus *, ConsensusScoreComparator> consenses_sorted_by_score(altConsenses.begin(), altConsenses.end());
+        for(set<Consensus *>::const_iterator i = consenses_sorted_by_score.begin(); i != consenses_sorted_by_score.end(); i ++)
+            cerr << cigarToString((*i)->cigar) << " (" << (*i)->mismatchSum << ") ";
+        cerr << endl;
+        
+        timeval stop_time, real_time;
+        gettimeofday(&stop_time, NULL);
+        real_time.tv_sec = stop_time.tv_sec - start_time.tv_sec;
+        real_time.tv_usec = stop_time.tv_usec - start_time.tv_usec;
+        
+        float time = float(real_time.tv_sec ) + (1.e-6 * real_time.tv_usec);
+        if(verbose && time > 0.5)
+            cerr << "Elapsed time = " << time << "s" << endl;
+    }
     // if:
     // 1) the best alternate consensus has a smaller sum of quality score mismatches than the aligned version of the reads,
     // 2) beats the LOD threshold for the sum of quality score mismatches of the raw version of the reads,
