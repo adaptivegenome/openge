@@ -205,49 +205,45 @@ GenomeLoc GenomeLocParser::createGenomeLoc(const string & contig, int index, con
  */
 bool GenomeLocParser::validateGenomeLoc(const string contig, const int contigIndex, const int start, const int stop, const bool mustBeOnReference, const bool exceptOnError) const {
     if ( ! contigInfo->Contains(contig) ) {
-        cerr << "Unknown contig " << contig << endl;
+        cerr << "validateGenomeLoc: Unknown contig " << contig << endl;
         assert(0);
         return false;
     }
     
     if (stop < start) {
-        stringstream ss;
-        ss << "The stop position " << stop << " is less than start " << start << " in contig " << contig;
-        cerr << ss << endl;
+        cerr << "validateGenomeLoc: The stop position " << stop << " is less than start " << start << " in contig " << contig << endl;
         assert(0);
         return false;
     }
     
     if (contigIndex < 0){
-        stringstream ss;
-        ss << "The contig index " << contigIndex << " is less than 0";
-        cerr << ss << endl;
+        cerr << "validateGenomeLoc: The contig index " << contigIndex << " is less than 0" << endl;
         assert(0);
         return false;
     }
     
     if (contigIndex >= contigInfo->Size()) {
-        fprintf(stderr, "The contig index %d is greater than the stored sequence count (%d)", contigIndex, contigInfo->Size());
+        cerr << "validateGenomeLoc: The contig index " << contigIndex << " is greater than the stored sequence count (" << contigInfo->Size() << ")" << endl;
         assert(0);
         return false;
     }
     
     if ( mustBeOnReference ) {
         if (start < 0) {
-            cerr << "The start position " << start << " is less than 0" << endl;
+            cerr << "validateGenomeLoc: The start position " << start << " is less than 0" << endl;
             assert(0);
             return false;
         }
 
         if (stop < 0) {
-            cerr << "The stop position " << stop << " is less than 0" << endl;
+            cerr << "validateGenomeLoc: The stop position " << stop << " is less than 0" << endl;
             assert(0);
             return false;
         }
 
         int contigSize = atoi((*contigInfo)[contigIndex].Length.c_str());
         if (start > contigSize || stop > contigSize) {
-            cerr << "The genome loc coordinates " << start << "-" << stop << " exceed the contig size (" << contigSize << ")" << endl;
+            cerr << "validateGenomeLoc: The genome loc coordinates " << start << "-" << stop << " exceed the contig size (" << contigSize << ")" << endl;
             assert(0);
             return false;
         }
