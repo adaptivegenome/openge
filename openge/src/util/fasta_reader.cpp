@@ -63,6 +63,11 @@ bool hasSuffix (std::string const &fullString, std::string const &ending)
     }
 }
 
+bool fileExists(const std::string & filename)
+{
+    return ifstream(filename.c_str()).good();
+}
+
 bool FastaReader::Open(const string filename)
 {
     //first determine file length
@@ -87,12 +92,12 @@ bool FastaReader::Open(const string filename)
     }
     
     string index_filename;
-    if(hasSuffix(filename, "fa"))
-        index_filename = filename + "i"; // .fa to .fai
-    else if(hasSuffix(filename, "fasta"))
-        index_filename = filename.substr(0, filename.size() - 3) + "i"; // .fasta to .fai
-    else
+    if(fileExists(filename + ".fai"))
         index_filename = filename + ".fai"; //append .fai
+    else if(hasSuffix(filename, "fa") && fileExists(filename + "i"))
+        index_filename = filename + "i"; // .fa to .fai
+    else if(hasSuffix(filename, "fasta") && fileExists(filename.substr(0, filename.size() - 3) + "i") )
+        index_filename = filename.substr(0, filename.size() - 3) + "i"; // .fasta to .fai
 
     bool index_exists = true;
     FILE *file;
@@ -268,7 +273,7 @@ bool FastaReader::readFastaIndex(string filename)
         string line;
         getline(file, line);
         if(file.fail())
-            return true;
+            break;
         
         stringstream ss(line);
         fasta_sequence_t seq = {0};
@@ -279,6 +284,40 @@ bool FastaReader::readFastaIndex(string filename)
         sequences[seq.name] = seq;
         ordered_sequences.push_back(seq);
     }
+    
+    //check that FASTA entries are where we expect them
+    if(ordered_sequences.size() == 0) {
+        cerr << "Error- no sequences from FASTA " << filename << " were loaded. Quitting." << endl;
+    } else {
+        char * data_p = file_data;
+        for(int seq_ctr = 0; seq_ctr < ordered_sequences.size(); seq_ctr++) {
+            
+            // check for the header of the next sequence
+            if(*data_p != '>') {
+                cerr << "Error: FASTA index does not match FASTA file. Make sure the FASTA and FAI are properly\nformatted. Aborting." << endl;
+                exit(-1);
+            }
+            fasta_sequence_t & seq = ordered_sequences[seq_ctr];
+            int full_lines = seq.length / seq.line_data_length;
+            int last_line_length = seq.length % seq.line_data_length;
+            if(last_line_length != 0)
+                last_line_length++;
+            
+            // check for the beginning of the next sequence.
+            while(*(++data_p) != '\n');
+            
+            if(data_p + 1 != seq.sequence_start) {
+                cerr << "Error: FASTA index does not match FASTA file. Make sure the FASTA and FAI are properly\nformatted. Aborting." << endl;
+                exit(-1);
+            }
+
+            if(seq_ctr + 1 < ordered_sequences.size()) {
+                data_p = ordered_sequences[seq_ctr].sequence_start + full_lines * seq.line_length + last_line_length ;
+            }
+        }
+    }
+    
+    return true;
 }
 
 void FastaReader::Close()
