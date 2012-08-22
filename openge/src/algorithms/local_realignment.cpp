@@ -758,7 +758,7 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
     // if there are reads with a single indel in them, add that indel to the list of alternate consenses
     long totalRawMismatchSum = determineReadsThatNeedCleaning(reads, refReads, altReads, altAlignmentsToTest, altConsenses, leftmostIndex, reference);
     
-    if ( verbose ) cerr << "------\nChecking consenses for " << interval_data.current_interval.toString() << "...(" << altConsenses.size() << "consensuses across " << altReads.size() << " reads)\n--------\n" << endl;
+    if ( verbose ) cerr << "Checking consenses for " << interval_data.current_interval.toString() << "...(" << altConsenses.size() << " consensuses across " << altReads.size() << " reads)" << endl;
     
     //int inner_ct = 0, outer_ct = 0, early_out = 0;
     timeval start_time;
@@ -835,17 +835,17 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
             consensus.readIndexes.clear();
         }
     }
-    /*
+    
     cerr << "Scores: ";
     set<Consensus *, ConsensusScoreComparator> consenses_sorted_by_score(altConsenses.begin(), altConsenses.end());
     for(set<Consensus *>::const_iterator i = consenses_sorted_by_score.begin(); i != consenses_sorted_by_score.end(); i ++)
         cerr << cigarToString((*i)->cigar) << " (" << (*i)->mismatchSum << ") ";
     cerr << endl;
-     */
+     
     //cerr << "O " << outer_ct << " I " << inner_ct << " EO " << early_out << endl;
 
-    if(verbose && bestConsensus)
-        cerr << "Best consensus " << cigarToString(bestConsensus->cigar) <<  " has score (" << bestConsensus->mismatchSum << ")" << endl;
+    //if(verbose && bestConsensus)
+        //cerr << "Best consensus " << cigarToString(bestConsensus->cigar) <<  " has score (" << bestConsensus->mismatchSum << ")" << endl;
     
     
     timeval stop_time, real_time;
@@ -1032,15 +1032,15 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
                         if(c->str == (*i)->str)
                             string_exists_in_other_consensus = true;
                     
-                    if(verbose)
-                        cerr << "New consensus " << cigarToString(c->cigar) << endl;//" with string " << c->str << endl;
+                    //if(verbose)
+                    //    cerr << "New consensus " << cigarToString(c->cigar) << endl;//" with string " << c->str << endl;
                     if(!string_exists_in_other_consensus)
                         altConsenses.insert(c);
                     else
                         delete c;
-                } else
-                    if(verbose)
-                        cerr << "No new consensus" << endl;
+                } //else
+                    //if(verbose)
+                    //    cerr << "No new consensus" << endl;
             } else {
                 altAlignmentsToTest.push_back(aRead);
             }
