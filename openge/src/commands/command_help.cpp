@@ -47,6 +47,8 @@ int HelpCommand::runCommand()
     cerr << command_name << "-specific options:" << endl;
     cerr << command->options << endl;
     
+    delete command;
+    
     return 0;
 }
 
