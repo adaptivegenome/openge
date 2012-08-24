@@ -28,7 +28,7 @@ class OpenGECommand
     friend class HelpCommand;
 public:
     OpenGECommand();
-    ~OpenGECommand();
+    virtual ~OpenGECommand();
     int runWithParameters(int argc, const char ** argv);
 protected:
     // Inheriting classes can override this function to add command line options, using

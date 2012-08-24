@@ -123,6 +123,8 @@ OpenGECommand::OpenGECommand()
     ;
 }
 
+OpenGECommand::~OpenGECommand() {}
+
 OpenGECommand * CommandMarshall::commandWithName(const string name) {
     const char * cname = name.c_str();
     
