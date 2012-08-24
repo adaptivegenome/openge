@@ -43,11 +43,12 @@ int MeasureCoverage::runInternal()
     int total_length = 0;
     int num_correct_maps = 0;
     int num_skipped_reads = 0;
+    bool overflow = false;
     
     if(verbose) 
         cerr << "Setting up coverage counting structures" << endl;
     for(SamSequenceConstIterator i = header.Sequences.Begin(); i != header.Sequences.End(); i++) {
-        int length = atoi(i->Length.c_str());
+        int length = (atoi(i->Length.c_str()) + binsize - 1) / binsize;
         total_length += length;
 
         coverage_map[i->Name].reserve(length);
@@ -75,12 +76,16 @@ int MeasureCoverage::runInternal()
 
         string & chr = header.Sequences[al->RefID].Name;
         assert(coverage_map.count(chr) > 0);
-        vector<int> & chr_vector = coverage_map[chr];
+        vector<unsigned int> & chr_vector = coverage_map[chr];
 
-        for(int i = al->Position; i <= al->Position + al->Length; i++)
-            chr_vector[i]++;
+        for(int i = al->Position; i <= al->Position + al->Length; i++) {
+            chr_vector[i/binsize]++;
+            
+            if(chr_vector[i/binsize] == UINT_MAX)
+                overflow = true;
+        }
 
-        // we are scanning read names that look like 
+        // we are scanning read names that look like
         // "@chr1_80429992_80429614_1_0_0_0_0:0:0_0:0:0_2ed4"
         // and define correctness as chromosome name matching, and 
         // position being within 5 bases of either of the two numbers
@@ -101,9 +106,13 @@ int MeasureCoverage::runInternal()
                ) {
                 
                     assert(correctness_map.count(chr) > 0);
-                    vector<int> & correct_vector = correctness_map[chr];
-                    for(int i = al->Position; i <= al->Position + al->Length; i++)
-                        correct_vector[i]++;
+                    vector<unsigned int> & correct_vector = correctness_map[chr];
+                    for(int i = al->Position; i <= al->Position + al->Length; i++) {
+                        correct_vector[i/binsize]++;
+                        
+                        if(correct_vector[i/binsize] == UINT_MAX)
+                            overflow = true;
+                    }
                 
                     num_correct_maps++;
                 }
@@ -118,11 +127,11 @@ int MeasureCoverage::runInternal()
     
     //now print coverage:
     cerr << "Average coverage:" << endl;
-    for(map<string, vector<int> >::const_iterator vec = coverage_map.begin(); vec != coverage_map.end(); vec++) {
+    for(map<string, vector<unsigned int> >::const_iterator vec = coverage_map.begin(); vec != coverage_map.end(); vec++) {
         int64_t total_coverage = 0;
         for(int i = 0; i < vec->second.size(); i++)
             total_coverage += vec->second[i];
-        cerr << "   " << setw(20) << vec->first << ": " << setw(8) << double( total_coverage) / vec->second.size() << "x" << endl;
+        cerr << "   " << setw(20) << vec->first << ": " << setw(8) << double( total_coverage) / atoi(header.Sequences[vec->first].Length.c_str()) << "x" << endl;
     }
     
     if(verbose && verify_mapping)
@@ -144,24 +153,16 @@ int MeasureCoverage::runInternal()
         else
             outfile << "chromosome\tposition\tcoverage\n";
         int write_ct = 0;
-        for(map<string, vector<int> >::const_iterator vec = coverage_map.begin(); vec != coverage_map.end(); vec++) {
-            const int * count_data = &(vec->second[0]);
-            const int * correctness_data = &(correctness_map[vec->first][0]);
+        for(map<string, vector<unsigned int> >::const_iterator vec = coverage_map.begin(); vec != coverage_map.end(); vec++) {
+            const unsigned int * count_data = &(vec->second[0]);
+            const unsigned int * correctness_data = &(correctness_map[vec->first][0]);
             
-            for(int i = 0; i < vec->second.size(); i+= binsize) {
-                int64_t count_accumulator = 0;
-                int64_t correct_accumulator = 0;
-                for(int j = i; j < min<size_t>(vec->second.size(), i + binsize); j++) {
-                    count_accumulator += count_data[j];
+            for(int i = 0; i < vec->second.size(); i++) {
+                if(print_zero_cover_bases || count_data[i] != 0) {
                     if(verify_mapping)
-                        correct_accumulator += correctness_data[j];
-                }
-
-                if(print_zero_cover_bases || count_accumulator != 0) {
-                    if(verify_mapping)
-                        outfile << vec->first << "\t" << i+1 << "\t" << count_accumulator << "\t" << correct_accumulator << "\n";
+                        outfile << vec->first << "\t" << binsize * i+1 << "\t" << count_data[i] << "\t" << correctness_data[i] << "\n";
                     else
-                        outfile << vec->first << "\t" << i+1 << "\t" << count_accumulator << "\n";
+                        outfile << vec->first << "\t" << binsize * i+1 << "\t" << count_data[i] << "\n";
                 }
 
                 write_ct += binsize;
@@ -172,6 +173,9 @@ int MeasureCoverage::runInternal()
         if(verbose)
             cerr << "\rWriting 100% done" << endl;
     }
+    
+    if(overflow)
+        cerr << "Error: at least one overflow occurred when measuring coverage- try reducing binsizes." << endl;
 
     return 0;
 }

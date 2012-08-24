@@ -37,8 +37,8 @@ public:
 protected:
     virtual int runInternal();
 protected:
-    std::map<std::string, std::vector<int> > coverage_map;
-    std::map<std::string, std::vector<int> > correctness_map;
+    std::map<std::string, std::vector<unsigned int> > coverage_map;
+    std::map<std::string, std::vector<unsigned int> > correctness_map;
 
     bool verify_mapping;
     bool print_zero_cover_bases;
