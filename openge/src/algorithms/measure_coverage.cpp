@@ -44,20 +44,23 @@ int MeasureCoverage::runInternal()
     int num_correct_maps = 0;
     int num_skipped_reads = 0;
     bool overflow = false;
-    
-    if(verbose) 
-        cerr << "Setting up coverage counting structures" << endl;
-    for(SamSequenceConstIterator i = header.Sequences.Begin(); i != header.Sequences.End(); i++) {
-        int length = (atoi(i->Length.c_str()) + binsize - 1) / binsize;
-        total_length += length;
-
-        coverage_map[i->Name].reserve(length);
-        coverage_map[i->Name].insert(coverage_map[i->Name].begin(), length, 0);
-        
-        if(verify_mapping) {
-            correctness_map[i->Name].reserve(length);
-            correctness_map[i->Name].insert(correctness_map[i->Name].begin(), length, 0);
+    try {
+        if(verbose)
+            cerr << "Setting up coverage counting structures" << endl;
+        for(SamSequenceConstIterator i = header.Sequences.Begin(); i != header.Sequences.End(); i++) {
+            size_t length = (atol(i->Length.c_str()) + binsize - 1) / binsize;
+            total_length += length;
+            
+            coverage_map[i->Name].reserve(length);
+            coverage_map[i->Name].insert(coverage_map[i->Name].begin(), length, 0);
+            
+            if(verify_mapping) {
+                correctness_map[i->Name].reserve(length);
+                correctness_map[i->Name].insert(correctness_map[i->Name].begin(), length, 0);
+            }
         }
+    } catch (bad_alloc& ba) {
+        cerr << "Ran out of memory allocating tracking structures. Try using a higher value for --binsize." << endl;
     }
     
     if(verbose) 
