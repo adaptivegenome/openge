@@ -81,7 +81,7 @@ int MeasureCoverage::runInternal()
         assert(coverage_map.count(chr) > 0);
         vector<unsigned int> & chr_vector = coverage_map[chr];
 
-        for(int i = al->Position; i <= al->Position + al->Length; i++) {
+        for(int i = al->Position; i <= al->Position + al->Length && i < chr_vector.size(); i++) {
             chr_vector[i/binsize]++;
             
             if(chr_vector[i/binsize] == UINT_MAX)
