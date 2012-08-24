@@ -45,6 +45,7 @@
 #include "algorithm_module.h"
 
 #include <string>
+#include <queue>
 
 #include "../util/fasta_reader.h"
 
@@ -58,6 +59,9 @@
 #include "../util/gatk/VariantContext.h"
 #include "../util/gatk/ReadMetaDataTracker.h"
 #include "../util/gatk/SequenceUtil.h"
+
+//should we support outputing SNPS, INDELS and STATS files?
+//#define LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
 
 
 class LocalRealignment : public AlgorithmModule
@@ -175,19 +179,8 @@ protected:
     //@Argument(fullName="noOriginalAlignmentTags", shortName="noTags", required=false, doc="Don't output the original cigar or alignment start tags for each realigned read in the output bam")
     bool NO_ORIGINAL_ALIGNMENT_TAGS;
     
-    //@Hidden
-    //@Argument(fullName="generate_nWayOut_md5s",doc="Generate md5sums for BAMs")
-    bool generateMD5s;
-    
     // DEBUGGING OPTIONS FOLLOW
-    
-    //@Hidden
-    //@Argument(fullName="check_early",shortName="check_early",required=false,doc="Do early check of reads against existing consensuses")
-    bool CHECKEARLY;
-    
-    //@Hidden
-    //@Argument(fullName="keepPGTags", shortName="keepPG", required=false, doc="Keep older PG tags left in the bam header by previous runs of this tool (by default, all these "+ "historical tags will be replaced by the latest tag generated in the current run).")
-    bool KEEP_ALL_PG_RECORDS;
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
     
     //@Hidden
     //@Output(fullName="indelsFileForDebugging", shortName="indels", required=false, doc="Output file (text) for the indels found; FOR DEBUGGING PURPOSES ONLY")
@@ -203,65 +196,104 @@ protected:
     //@Output(fullName="SNPsFileForDebugging", shortName="snps", doc="print out whether mismatching columns do or don't get cleaned out; FOR DEBUGGING PURPOSES ONLY", required=false)
     std::string OUT_SNPS;
     bool write_out_snps;
+#endif
     
 private:
     static std::vector<BamTools::CigarOp> unclipCigar(const std::vector<BamTools::CigarOp> & cigar);    
     static bool isClipOperator(const BamTools::CigarOp op);
-    static std::vector<BamTools::CigarOp> reclipCigar(std::vector<BamTools::CigarOp> & cigar, BamTools::BamAlignment * read);
-    
+    static std::vector<BamTools::CigarOp> reclipCigar(const std::vector<BamTools::CigarOp> & cigar, BamTools::BamAlignment * read);
+
+#pragma mark AlignedRead
     class AlignedRead {
     private:
         BamTools::BamAlignment * read;
-        std::string * readBases;
-        std::string * baseQuals;
-        std::vector<BamTools::CigarOp> * newCigar;
+        const BamTools::SamSequenceDictionary * sequences;
+        std::string readBases;
+        std::string baseQuals;
+        std::vector<BamTools::CigarOp> newCigar;
         int newStart;
         int mismatchScoreToReference;
         long alignerMismatchScore;
     public:
         static int MAX_POS_MOVE_ALLOWED;
         static int NO_ORIGINAL_ALIGNMENT_TAGS;
-        AlignedRead(BamTools::BamAlignment * read) 
-        : read(read) 
-        , newCigar(NULL)
+        AlignedRead(BamTools::BamAlignment * read, const BamTools::SamSequenceDictionary * sequences)
+        : read(read)
+        , sequences(sequences)
         , newStart(-1)
         , mismatchScoreToReference(0)
         , alignerMismatchScore(0)
         { }
         
-        BamTools::BamAlignment * getRead() {
-            return read;
+        AlignedRead & operator=(const AlignedRead & other) {
+            read = other.read;
+            sequences = other.sequences;
+            readBases = other.readBases;
+            baseQuals = other.baseQuals;
+            newCigar = other.newCigar;
+            newStart = other.newStart;
+            mismatchScoreToReference = other.mismatchScoreToReference;
+            alignerMismatchScore = other.alignerMismatchScore;
+            return *this;
         }
         
-        int getReadLength() {
-            return readBases != NULL ? readBases->size() : read->getLength();
+        //AlignedRead & operator=(const AlignedRead & a) { assert(0);  return *this;}
+        
+        BamTools::BamAlignment * getRead() const {
+            return read;
+        }
+
+        int getReadLength() const {
+            return readBases.size() != 0 ? readBases.size() : read->getLength();
+        }
+        
+        
+        size_t getCigarLength() const {
+            const std::vector<BamTools::CigarOp> & cigar = (newCigar.size() > 0) ? newCigar : read->getCigarData();
+            size_t len = 0;
+            
+            for(std::vector<BamTools::CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++) {
+                switch(i->Type)
+                {
+                    case 'H':
+                    case 'S':
+                    case 'D':
+                        break;
+                    case 'I':
+                    default:
+                        len += i->Length;
+                        break;
+                }
+            }
+            return len;
         }
         
         std::string getReadBases();
         
-        std::string getBaseQualities() ;
+        std::string getBaseQualities();
         
     private:
         // pull out the bases that aren't clipped out
         void getUnclippedBases();
         
         // pull out the bases that aren't clipped out
-        std::vector<BamTools::CigarOp> reclipCigar(std::vector<BamTools::CigarOp> & cigar);
+        std::vector<BamTools::CigarOp> reclipCigar(const std::vector<BamTools::CigarOp> & cigar)const ;
     public:
-        std::vector<BamTools::CigarOp> getCigar();
+        const std::vector<BamTools::CigarOp> & getCigar() const;
         // tentatively sets the new Cigar, but it needs to be confirmed later
-        void setCigar(std::vector<BamTools::CigarOp> * cigar, bool fixClippedCigar = true);
-        
+        void setCigar(const std::vector<BamTools::CigarOp> & cigar, bool fixClippedCigar = true);
+        void clearCigar() { newCigar.clear(); }
+
     public:
         void setAlignmentStart(int start);
-        int getAlignmentStart();
-        int getOriginalAlignmentStart();        
+        int getAlignmentStart() const;
+        int getOriginalAlignmentStart() const;        
         bool constizeUpdate();
 
         void setMismatchScoreToReference(int score);
-        int getMismatchScoreToReference();        
+        int getMismatchScoreToReference() const;
         void setAlignerMismatchScore(long score);
-        long getAlignerMismatchScore();
+        long getAlignerMismatchScore() const;
     };
     
 #pragma mark Consensus
@@ -285,24 +317,34 @@ private:
         }
     };
     
+    class ConsensusScoreComparator : public std::less<LocalRealignment::Consensus *> {
+    public:
+        bool operator()(const Consensus * a, const Consensus * b) {
+            return a->mismatchSum < b->mismatchSum;
+        }
+    };
+    
 #pragma mark ReadBin
     class ReadBin {
     private:
         std::vector<BamTools::BamAlignment *> reads;
-        std::string * reference;
+        std::string reference;
         GenomeLoc * loc;
         GenomeLocParser * loc_parser;
         BamTools::SamSequenceDictionary sequences;
     public:
         ReadBin() 
-        : reference(NULL)
-        , loc(NULL)
+        : loc(NULL)
         , loc_parser(NULL)
         { }
         
-        void initialize(GenomeLocParser * loc_parser, const BamTools::SamHeader & header) {
+        ~ReadBin() {
+            clear();
+        }
+        
+        void initialize(GenomeLocParser * loc_parser, const BamTools::SamSequenceDictionary & sequence_dict) {
             this->loc_parser = loc_parser;
-            sequences = header.Sequences;
+            sequences = sequence_dict;
         }
         
         // Return false if we can't process this read bin because the reads are not correctly overlapping.
@@ -311,7 +353,7 @@ private:
         
         std::vector<BamTools::BamAlignment *> getReads() { return reads; }
         
-        std::string * getReference(FastaReader & referenceReader);
+        std::string getReference(FastaReader & referenceReader);
         GenomeLoc getLocation() { return *loc; }
         
         int size() { return reads.size(); }
@@ -328,92 +370,154 @@ private:
     std::vector<GenomeLoc *>::iterator interval_it;
     
     // the current interval in the list
-    GenomeLoc * currentInterval;
     bool sawReadInCurrentInterval;
     
     // the reads and known indels that fall into the current interval
-    ReadBin readsToClean;
-    std::vector<BamTools::BamAlignment *> readsNotToClean;
-    std::vector<VariantContext *> knownIndelsToTry;
-    std::set<GATKFeature> indelRodsSeen;
-    std::set<BamTools::BamAlignment *> readsActuallyCleaned;
+    class IntervalData {
+    public:
+        IntervalData(GenomeLoc & currentInterval)
+        : current_interval(currentInterval)
+        , current_interval_valid(true)
+        , ready_for_flush(false)
+        {}
+        IntervalData(GenomeLoc * currentInterval)
+        : current_interval(currentInterval == NULL ? GenomeLoc("None", 0,0,0) : *currentInterval)
+        , current_interval_valid(currentInterval != NULL)
+        , ready_for_flush(false)
+        { }
+        IntervalData()
+        : current_interval(GenomeLoc("None",0,0,0))
+        , current_interval_valid(false)
+        , ready_for_flush(false)
+        {}
+        ReadBin readsToClean;
+        std::vector<BamTools::BamAlignment *> readsNotToClean;
+        std::vector<VariantContext> knownIndelsToTry;
+        std::set<GATKFeature> indelRodsSeen;
+        std::set<BamTools::BamAlignment *> readsActuallyCleaned;
+        const GenomeLoc current_interval;
+        bool current_interval_valid;
+        bool ready_for_flush;
+    };
+    
+    IntervalData * loading_interval_data;
+    
+    BamTools::SamSequenceDictionary sequence_dictionary;
     
     static const int MAX_QUAL;
     
     // fraction of mismatches that need to no longer mismatch for a column to be considered cleaned
     static const double MISMATCH_COLUMN_CLEANED_FRACTION;
     
-    static const double SW_MATCH;      // 1.0;
-    static const double SW_MISMATCH;  //-1.0/3.0;
-    static const double SW_GAP;       //-1.0-1.0/3.0;
-    static const double SW_GAP_EXTEND; //-1.0/.0;
-    
     // reference base padding size
     // TODO -- make this a command-line argument if the need arises
     static const int REFERENCE_PADDING;
     
     // other output files
+            
+#ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
     bool outputIndels, output_stats, output_snps;
     std::ofstream indelOutput, statsOutput, snpsOutput;
+#endif
     
-    //###protected Map<SAMReaderID, ConstrainedMateFixingManager> nwayWriters = NULL;
+    GenomeLoc * current_interval;
     
+    class Emittable
+    {
+    public:
+        virtual void emit() = 0;
+        virtual bool canEmit() = 0;
+        virtual ~Emittable();
+    };
+    class EmittableRead;
+    class EmittableReadList;
+    class CleanAndEmitReadList;
     
-    // debug info for lazy SW evaluation:
-    long exactMatchesFound; // how many reads exactly matched a consensus we already had
-    long SWalignmentRuns; // how many times (=for how many reads) we ran SW alignment
-    long SWalignmentSuccess; // how many SW alignments were "successful" (i.e. found a workable indel and resulted in non-null consensus)
+    class CleanJob; //runs clean() for CleanAndEmitReadList objects
+
+    std::queue<Emittable *> emit_queue; //queue up reads ready to be emitted so that they are in order, including ReadBins that have been cleaned.
+    pthread_mutex_t emit_mutex; // only one thread should emit() at once
+    
+    void flushEmitQueue() {
+        
+        if(0 != pthread_mutex_lock(&emit_mutex) ) {
+            perror("Error locking LR emit mutex.");
+            exit(-1);
+        }
+        while(! emit_queue.empty() && emit_queue.front()->canEmit()) {
+            emit_queue.front()->emit();
+            delete emit_queue.front();
+            emit_queue.pop();
+        }
+        
+        if(0 != pthread_mutex_unlock(&emit_mutex) ) {
+            perror("Error unlocking LR emit mutex.");
+            exit(-1);
+        }
+    }
+            
+    void pushToEmitQueue(Emittable * e)
+    {
+        bool emit_queue_full = false;
+        while(emit_queue_full) {
+            if(0 != pthread_mutex_lock(&emit_mutex) ) {
+                perror("Error locking LR emit push mutex.");
+                exit(-1);
+            }
+            emit_queue_full = emit_queue.size() > 10000;
+            if(!emit_queue_full)
+                emit_queue.push(e);
+            
+            if(0 != pthread_mutex_unlock(&emit_mutex) ) {
+                perror("Error unlocking LR emit push mutex.");
+                exit(-1);
+            }
+            
+            if(emit_queue_full)
+                usleep(20000);
+        }
+    }
     
 public:
     void initialize();
     void writeRead(BamTools::BamAlignment * read) { putOutputAlignment(read); }
 
 private:
-    void setupWriter( BamTools::SamHeader header);
-    BamTools::SamProgram createProgramRecord();
-    void emit(BamTools::BamAlignment * read);
-    void emitReadLists();
+    void emit(IntervalData & interval_data, BamTools::BamAlignment * read);
+    void emitReadLists(IntervalData & interval_data);
     
 public:
-    int map_func(BamTools::BamAlignment * read, ReadMetaDataTracker metaDataTracker);
+    int map_func(BamTools::BamAlignment * read, const ReadMetaDataTracker & metaDataTracker);
 
 private:
-    void abortCleanForCurrentInterval();
-    bool doNotTryToClean( BamTools::BamAlignment * read);
-    void cleanAndCallMap(BamTools::BamAlignment * read, ReadMetaDataTracker metaDataTracker, GenomeLoc * readLoc);
+    bool doNotTryToClean(const BamTools::BamAlignment & read);
     
 public:
-    int reduceInit();
-    int reduce(int value, int sum);
-    void onTraversalDone(int result);
+    void onTraversalDone(IntervalData & interval_data, int result);
 
 private:
-    void populateKnownIndels(ReadMetaDataTracker metaDataTracker) ;
+    void populateKnownIndels(IntervalData & interval_data, const ReadMetaDataTracker & metaDataTracker) ;
     
-    static int mismatchQualitySumIgnoreCigar(AlignedRead aRead, const std::string refSeq, int refIndex, int quitAboveThisValue);
+    static int mismatchQualitySumIgnoreCigar(AlignedRead & aRead, const std::string & refSeq, int refIndex, int quitAboveThisValue);
     
-    void clean(ReadBin readsToClean) ;
-    void generateAlternateConsensesFromKnownIndels(std::set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const std::string reference);
+    void clean(IntervalData & interval_data) const;
+    void generateAlternateConsensesFromKnownIndels(IntervalData & interval_data, std::set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const std::string reference) const;
     long determineReadsThatNeedCleaning( std::vector<BamTools::BamAlignment *> & reads,
                                         std::vector<BamTools::BamAlignment *> & refReadsToPopulate,
-                                        std::vector<AlignedRead> & altReadsToPopulate,
-                                        std::vector<AlignedRead> & altAlignmentsToTest,
+                                        std::vector<AlignedRead *> & altReadsToPopulate,
+                                        std::vector<AlignedRead *> & altAlignmentsToTest,
                                         std::set<Consensus *> & altConsenses,
                                         int leftmostIndex,
-                                        std::string & reference) ;
+                                        std::string & reference) const;
     void generateAlternateConsensesFromReads( std::vector<AlignedRead> & altAlignmentsToTest,
                                              std::set<Consensus *> & altConsensesToPopulate,
                                              const std::string & reference,
                                              const int leftmostIndex);
-    void createAndAddAlternateConsensus(const std::string & read, std::set<Consensus *> & altConsensesToPopulate, const std::string & reference);
-    void createAndAddAlternateConsensus1(AlignedRead & read, std::set<Consensus *> & altConsensesToPopulate,
-                                         const std::string & reference, const int leftmostIndex);
-    Consensus * createAlternateConsensus(const int indexOnRef, const std::vector<BamTools::CigarOp> & c, const std::string reference, const std::string readStr);
-    Consensus * createAlternateConsensus(const int indexOnRef, const std::string & reference, const std::string & indelStr, VariantContext indel);
-    std::pair<int, int> findBestOffset(const std::string & ref, AlignedRead read, const int leftmostIndex) ;
-    std::string cigarToString(const std::vector<BamTools::CigarOp> & cigar);
-    bool updateRead(const std::vector<BamTools::CigarOp> & altCigar, const int altPosOnRef, const int myPosOnAlt, AlignedRead & aRead, const int leftmostIndex);
-    bool alternateReducesEntropy(std::vector<AlignedRead> & reads, const std::string & reference, const int leftmostIndex) ;
+    Consensus * createAlternateConsensus(const int indexOnRef, const std::vector<BamTools::CigarOp> & c, const std::string reference, const std::string readStr) const;
+    Consensus * createAlternateConsensus(const int indexOnRef, const std::string & reference, const std::string & indelStr, VariantContext indel) const;
+    std::pair<int, int> findBestOffset(const std::string & ref, AlignedRead read, const int leftmostIndex) const;
+    bool updateRead(const std::vector<BamTools::CigarOp> & altCigar, const int altPosOnRef, const int myPosOnAlt, AlignedRead & aRead, const int leftmostIndex) const;
+    bool alternateReducesEntropy(const std::vector<AlignedRead *> & reads, const std::string & reference, const int leftmostIndex) const;
 
 protected:
 public:

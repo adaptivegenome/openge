@@ -46,8 +46,15 @@
 class BaseUtils
 {
 public:
-    static bool isRegularBase(char base);
-    static int simpleBaseToBaseIndex(char base);
+    static bool isRegularBase(char base){
+        if(base == 'A' || base == 'C'
+           || base == 'G' || base == 'T'
+           || base == 'a' || base == 'c'
+           || base == 'g' || base == 't'
+           || base == '*')
+            return true;
+        return false;
+    }
 };
 
 #endif

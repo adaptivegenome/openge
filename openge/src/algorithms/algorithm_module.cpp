@@ -165,8 +165,3 @@ SamHeader AlgorithmModule::getHeader()
 {
     return source->getHeader();
 }
-
-RefVector AlgorithmModule::getReferences()
-{
-    return source->getReferences();
-}

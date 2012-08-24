@@ -90,14 +90,14 @@ public:
      * @return a mapping from the position in the read to the reference ordered datum
      */
 private:
-    std::map<int, std::set<GATKFeature> > createReadAlignment(BamTools::BamAlignment * record, std::map<int, RODMetaDataContainer> queue, std::string name);
+    std::map<int, std::set<GATKFeature> > createReadAlignment(BamTools::BamAlignment * record, std::map<int, RODMetaDataContainer> queue, std::string name) const;
     
     /**
      * create an alignment of read position to reference ordered datum
      *
      * @return a mapping from the position in the read to the reference ordered datum
      */
-    std::map<int, std::set<GATKFeature> > createGenomeLocAlignment(const BamTools::BamAlignment & record, std::map<int, RODMetaDataContainer> mapping, std::string name);
+    std::map<int, std::set<GATKFeature> > createGenomeLocAlignment(const BamTools::BamAlignment & record, std::map<int, RODMetaDataContainer> mapping, std::string * name) const;
     
     /**
      * get the position mapping, from read offset to ROD
@@ -105,31 +105,31 @@ private:
      * @return a mapping of read offset to ROD(s)
      */
 public:
-    std::map<int, std::set<GATKFeature> > getReadOffsetMapping() ;    
+    std::map<int, std::set<GATKFeature> > getReadOffsetMapping() const ;
     /**
      * get the position mapping, from read offset to ROD
      *
      * @return a mapping of genome loc position to ROD(s)
      */
-    std::map<int, std::set<GATKFeature> > getContigOffsetMapping() ;
+    std::map<int, std::set<GATKFeature> > getContigOffsetMapping() const ;
     
     /**
      * get the position mapping, from read offset to ROD
      *
      * @return a mapping of read offset to ROD(s)
      */
-    std::map<int, std::set<GATKFeature> > getReadOffsetMapping(std::string name) ;    
+    std::map<int, std::set<GATKFeature> > getReadOffsetMapping(std::string name) const ;
     /**
      * get the position mapping, from read offset to ROD
      *
      * @return a mapping of genome loc position to ROD(s)
      */
-    std::map<int, std::set<GATKFeature> > getContigOffsetMapping(std::string name) ;       
+    std::map<int, std::set<GATKFeature> > getContigOffsetMapping(std::string name) const ;
     /**
      * get the list of all the RODS overlapping this read, without any information about their position
      * @return a Collection (no order guaranteed), of all the RODs covering this read
      */
-    std::vector<GATKFeature> getAllCoveringRods() ;
+    std::vector<GATKFeature> getAllCoveringRods() const ;
 };
 
 #endif

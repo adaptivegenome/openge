@@ -46,13 +46,12 @@ public:
     SamReader();
     bool Open(const std::string & filename);
     bool Close();
-    bool IsLoaded();
     // retrieves next available alignment
     bool GetNextAlignment(BamTools::BamAlignment& alignment);
     BamTools::BamAlignment * GetNextAlignment();
     
     // returns the current file's header data
-    BamTools::SamHeader GetHeader(void) const;
+    const BamTools::SamHeader & GetHeader(void) const;
     // get reference data
     const BamTools::RefVector & GetReferenceData(void);
     //read a single line of a SAM file
@@ -65,7 +64,6 @@ protected:
     // retrieves header text from SAM file
     void LoadHeaderData(void);
 
-    std::ifstream file;
     BamTools::SamHeader header;
     BamTools::RefVector m_refData;
     std::string filename;

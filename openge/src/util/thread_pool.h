@@ -124,6 +124,30 @@ protected:
     std::queue<T> q;
 };
 
+template<class T>
+class SynchronizedBlockingQueue : public SynchronizedQueue<T>{
+public:
+    T pop() {
+        bool success = false;
+        T ret;
+        while(!success) {
+            this->lock.lock();
+            if(!this->q.empty()) {
+                ret = this->q.front();
+                this->q.pop();
+                success = true;
+            }
+            this->lock.unlock();
+            if(!success)
+                usleep(20000);
+        }
+
+        return ret;
+    }
+protected:
+        
+};
+
 // The shared thread pool should only be used for non-blocking tasks!
 
 class ThreadPool
@@ -221,5 +245,27 @@ ogeSortMt(_RandomAccessIterator __first, _RandomAccessIterator __last,
             inplace_merge(__first, __first + i * job_size, __first + (i+1) * job_size, __comp);
     }
 }
+
+class OGEParallelismSettings
+{
+public:
+    // return the number of cores availble in the current system
+    static int availableCores();
+    
+    // Configure the number of threads to use for each thread pool. Set
+    // 0 to use all threads on the system.
+    static void setNumberThreads(int threads);
+    static int getNumberThreads();
+    
+    // Enable or disable the use of multithreading
+    static void disableMultithreading();
+    static void enableMultithreading();
+    static bool isMultithreadingEnabled() { return m_multithreading_enabled; }
+    
+protected:
+    static int m_configured_threads;
+    static bool m_multithreading_enabled;
+};
+
 
 #endif

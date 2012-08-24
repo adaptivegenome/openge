@@ -17,6 +17,7 @@
 
 
 #include "thread_pool.h"
+#include <api/BamParallelismSettings.h>
 
 #include <cassert>
 #include <string>
@@ -48,7 +49,7 @@ jobs_current(0)
 	jobs_in_process = 0;
     int32_t sem_id = 0xffffffff & (int64_t) this;
     
-    sprintf(sem_name, "bam_tp_%x",sem_id);
+    sprintf(sem_name, "oge_tp_%x",sem_id);
     sem_unlink(sem_name);
     job_semaphore = sem_open(sem_name, O_CREAT | O_EXCL,0700,0);
     
@@ -57,7 +58,7 @@ jobs_current(0)
 		assert(0);
 	}
 
-    sprintf(sem_submission_name, "bam_tpjs_%x",sem_id);
+    sprintf(sem_submission_name, "oge_tpjs_%x",sem_id);
     sem_unlink(sem_submission_name);
     job_submission_semaphore = sem_open(sem_submission_name, O_CREAT | O_EXCL,0700,THREADPOOL_MAX_JOBS_IN_QUEUE);
     
@@ -113,21 +114,14 @@ ThreadPool::~ThreadPool()
 
 int ThreadPool::availableCores()
 {
-#ifdef OPENMP
-    // the openmp function is included here as it is known to be a more reliable way to
-    // detect the number of available cores. However, it is only available when compiling
-    // with OMP turned on.
-	return omp_get_num_procs();
-#endif
-	
-	return sysconf(_SC_NPROCESSORS_ONLN);
+    return OGEParallelismSettings::availableCores();
 }
 
 //add a job to the queue to be 
 bool ThreadPool::addJob(ThreadJob * job)
 {
     if(0 != sem_wait(job_submission_semaphore))
-        perror("Error waiting for job submission semaphore");
+        perror("Error waiting for job submission semaphore (OGE addjob)");
     
     jobs_mutex.lock();
 
@@ -149,7 +143,7 @@ bool ThreadPool::addJob(ThreadJob * job)
 ThreadJob * ThreadPool::startJob()
 {
     if(0 != sem_wait(job_semaphore))
-        perror("Error waiting for job submission semaphore");
+        perror("Error waiting for job submission semaphore (OGE start job)");
     
 	if(threads_exit)
 	{
@@ -216,3 +210,49 @@ void * ThreadPool::thread_start(void * thread_pool)
 }
 
 ThreadJob::~ThreadJob() {}
+
+#pragma mark OGEParallelismSettings
+
+#include <unistd.h>
+
+int OGEParallelismSettings::m_configured_threads = 0;
+bool OGEParallelismSettings::m_multithreading_enabled = false;
+
+int OGEParallelismSettings::availableCores()
+{
+    
+#ifdef OPENMP
+    // the openmp function is included here as it is known to be a more reliable way to
+    // detect the number of available cores. However, it is only available when compiling
+    // with OMP turned on.
+	return omp_get_num_procs();
+#endif
+	
+	return sysconf(_SC_NPROCESSORS_ONLN);
+}
+
+void OGEParallelismSettings::setNumberThreads(int threads)
+{
+    m_configured_threads = threads;
+    BamParallelismSettings::setNumberThreads(threads);
+}
+
+int OGEParallelismSettings::getNumberThreads()
+{
+    if(m_configured_threads == 0)
+        return availableCores();
+    else
+        return m_configured_threads;
+}
+
+void OGEParallelismSettings::disableMultithreading()
+{
+    m_multithreading_enabled = false;
+    BamParallelismSettings::disableMultithreading();
+}
+
+void OGEParallelismSettings::enableMultithreading()
+{
+    m_multithreading_enabled = true;
+    BamParallelismSettings::enableMultithreading();
+}

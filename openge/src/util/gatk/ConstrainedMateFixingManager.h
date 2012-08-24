@@ -48,6 +48,10 @@
 #include "GenomeLoc.h"
 #include "GenomeLocParser.h"
 
+#include "api/algorithms/Sort.h"
+
+#include "../thread_pool.h"
+
 #include <list>
 #include <map>
 #include <set>
@@ -81,6 +85,15 @@ private:
      * How many reads should we store in memory before flushing the queue?
      */
     int MAX_RECORDS_IN_MEMORY;
+    
+    typedef struct {
+        BamTools::BamAlignment * read;
+        bool readWasModified;
+        bool canFlush;
+    } cmfm_read_t;
+    SynchronizedBlockingQueue<cmfm_read_t> addReadQueue;
+    pthread_t add_read_thread;
+    pthread_mutex_t add_read_lock;
 
     GenomeLoc * lastLocFlushed;
     
@@ -102,17 +115,10 @@ private:
     
     /** read.name -> records */
     std::map<std::string, SAMRecordHashObject> forMateMatching;
-    std::set<BamTools::BamAlignment *> waitingReads;
-    
-private:
-    BamTools::BamAlignment * remove(std::set<BamTools::BamAlignment *> & treeSet);
-    
-    
-    //private SimpleTimer timer = new SimpleTimer("ConstrainedWriter");
-    //private long PROGRESS_PRINT_FREQUENCY = 10 * 1000;             // in milliseconds
-    //private long lastProgressPrintTime = -1;                       // When was the last time we printed progress log?
-    
-    
+    //std::less<BamTools::BamAlignment *> cmp;
+    typedef std::set<BamTools::BamAlignment *, BamTools::Algorithms::Sort::ByPosition> waitingReads_t;
+    waitingReads_t waitingReads;
+
     /**
      *
      * @param writer                                 actual writer
@@ -123,32 +129,33 @@ private:
      */
 public:
     ConstrainedMateFixingManager( LocalRealignment * writer, const int maxInsertSizeForMovingReadPairs, const int maxMoveAllowed, const int maxRecordsInMemory,GenomeLocParser * loc_parser);
-    
-    int getNReadsInQueue();
-    
-    bool canMoveReads(const GenomeLoc & earliestPosition);
+    ~ConstrainedMateFixingManager();
+
+    bool canMoveReads(const GenomeLoc & earliestPosition) const;
     
 private:
-    bool noReadCanMoveBefore(int pos, BamTools::BamAlignment * addedRead);
+    bool noReadCanMoveBefore(int pos, const BamTools::BamAlignment & addedRead) const;
     
 public:
-    void addReads(std::vector<BamTools::BamAlignment *> newReads, std::set<BamTools::BamAlignment *> modifiedReads);
-    void addRead(BamTools::BamAlignment * newRead, bool readWasModified, bool canFlush = true);
-    
+    void addReads(const std::vector<BamTools::BamAlignment *> & newReads, const std::set<BamTools::BamAlignment *> & modifiedReads);
+    void addRead(BamTools::BamAlignment * newRead, bool readWasModified, bool canFlush);
 private:
-    void writeRead(BamTools::BamAlignment * read);
+    static void * addread_threadproc(void * data);
+    void addReadInternal( BamTools::BamAlignment * newRead, bool readWasModified, bool canFlush);
+    BamTools::BamAlignment * remove(waitingReads_t & treeSet);
+    void writeRead( BamTools::BamAlignment * read) const;
     
     /**
      * @param read  the read
      * @return true if the read shouldn't be moved given the constraints of this SAMFileWriter
      */
 public:
-    bool iSizeTooBigToMove(BamTools::BamAlignment * read);
-    static bool iSizeTooBigToMove(BamTools::BamAlignment * read, int maxInsertSizeForMovingReadPairs);
+    bool iSizeTooBigToMove(const BamTools::BamAlignment & read) const;
+    static bool iSizeTooBigToMove(const BamTools::BamAlignment & read, int maxInsertSizeForMovingReadPairs);
     
 private:
     void purgeUnmodifiedMates();
-    bool pairedReadIsMovable(BamTools::BamAlignment * read);
+    bool pairedReadIsMovable(const BamTools::BamAlignment & read) const;
     
 public:
     void close();

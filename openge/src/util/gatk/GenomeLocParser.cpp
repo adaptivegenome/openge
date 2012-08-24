@@ -90,10 +90,12 @@ public GenomeLocParser(ReferenceSequenceFile refFile) {
 #endif
 GenomeLocParser::GenomeLocParser( SamSequenceDictionary seqDict) {
     contigInfo = new SamSequenceDictionary(seqDict);
+    /*
     cerr << "Prepared reference sequence contig dictionary" << endl;
     for (SamSequenceConstIterator contig = contigInfo->Begin(); contig != contigInfo->End(); contig++) {
         fprintf(stderr, "\t%25s (%8d bp)\n", contig->Name.c_str(), atoi(contig->Length.c_str()));
     }
+     */
 }
 
 /**
@@ -181,6 +183,7 @@ GenomeLoc GenomeLocParser::createGenomeLoc(const string & contig, int index, con
 
 //@ThrowEnsures({"UserException.MalformedGenomeLoc", "!isValidGenomeLoc(contig, start, stop,mustBeOnReference)"})
 GenomeLoc GenomeLocParser::createGenomeLoc(const string & contig, int index, const int start, const int stop, bool mustBeOnReference) const {
+    //cerr << "CGL: " << contig << " ix: " << index << " " << start << ":" << stop << endl;
     validateGenomeLoc(contig, index, start, stop, mustBeOnReference, true);
     return GenomeLoc(contig, index, start, stop);
 }
@@ -202,49 +205,45 @@ GenomeLoc GenomeLocParser::createGenomeLoc(const string & contig, int index, con
  */
 bool GenomeLocParser::validateGenomeLoc(const string contig, const int contigIndex, const int start, const int stop, const bool mustBeOnReference, const bool exceptOnError) const {
     if ( ! contigInfo->Contains(contig) ) {
-        cerr << "Unknown contig " << contig << endl;
+        cerr << "validateGenomeLoc: Unknown contig " << contig << endl;
         assert(0);
         return false;
     }
     
     if (stop < start) {
-        stringstream ss;
-        ss << "The stop position " << stop << " is less than start " << start << " in contig " << contig;
-        cerr << ss << endl;
+        cerr << "validateGenomeLoc: The stop position " << stop << " is less than start " << start << " in contig " << contig << endl;
         assert(0);
         return false;
     }
     
     if (contigIndex < 0){
-        stringstream ss;
-        ss << "The contig index " << contigIndex << " is less than 0";
-        cerr << ss << endl;
+        cerr << "validateGenomeLoc: The contig index " << contigIndex << " is less than 0" << endl;
         assert(0);
         return false;
     }
     
     if (contigIndex >= contigInfo->Size()) {
-        fprintf(stderr, "The contig index %d is greater than the stored sequence count (%d)", contigIndex, contigInfo->Size());
+        cerr << "validateGenomeLoc: The contig index " << contigIndex << " is greater than the stored sequence count (" << contigInfo->Size() << ")" << endl;
         assert(0);
         return false;
     }
     
     if ( mustBeOnReference ) {
         if (start < 0) {
-            cerr << "The start position " << start << " is less than 0" << endl;
+            cerr << "validateGenomeLoc: The start position " << start << " is less than 0" << endl;
             assert(0);
             return false;
         }
 
         if (stop < 0) {
-            cerr << "The stop position " << stop << " is less than 0" << endl;
+            cerr << "validateGenomeLoc: The stop position " << stop << " is less than 0" << endl;
             assert(0);
             return false;
         }
 
         int contigSize = atoi((*contigInfo)[contigIndex].Length.c_str());
         if (start > contigSize || stop > contigSize) {
-            cerr << "The genome loc coordinates " << start << "-" << stop << " exceed the contig size (" << contigSize << ")" << endl;
+            cerr << "validateGenomeLoc: The genome loc coordinates " << start << "-" << stop << " exceed the contig size (" << contigSize << ")" << endl;
             assert(0);
             return false;
         }
@@ -266,7 +265,7 @@ public bool isValidGenomeLoc(string contig, int start, int stop ) {
 
 private bool vglHelper(bool exceptOnError, string msg) {
     if ( exceptOnError )
-        throw new UserException.MalformedGenomeLoc("Parameters to GenomeLocParser are incorrect:" + msg);
+        throw new UserException.MalformedGenomeLoc(string("Parameters to GenomeLocParser are incorrect:") + msg);
     else
         return false;
 }
@@ -311,9 +310,9 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
         *hyphen_loc = 0;
     }
     
-    int start = strtol(colon_loc + 1, NULL, 10);
+    int start = strtol(colon_loc + 1, NULL, 10) - 1;
     
-    if(errno) {
+    if(start == 0 && errno == EINVAL) {
         cerr << "Could not find start in interval file: " << str << endl;
         perror("Reason:");
         exit(-1);
@@ -321,9 +320,9 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
     
     int stop = start;   //for the chr1:1 case
     if(hyphen_loc) {    // chr1:1-4 case
-        stop = strtol(hyphen_loc + 1, NULL, 10);
+        stop = strtol(hyphen_loc + 1, NULL, 10) - 1;
         
-        if(errno) {
+        if(stop == 0 && errno == EINVAL) {
             cerr << "Could not find stop in interval file: " << str << endl;
             perror("Reason:");
             exit(-1);
@@ -341,6 +340,7 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
     if (stop == INT_MAX)
         // lookup the actually stop position!
         stop = strtol((*contigInfo)[contig].Length.c_str(), NULL, 10);
+    delete [] line;
     
     return createGenomeLoc(contig, getContigIndex(contig), start, stop, true);
 }
@@ -398,8 +398,20 @@ GenomeLoc GenomeLocParser::createGenomeLoc(const BamAlignment & read) const {
         return GenomeLoc::UNMAPPED;
     else {
         // Use max to ensure that end >= start (Picard assigns the end to reads that are entirely within an insertion as start-1)
-        int end = read.IsMapped() ? max(read.getPosition() + read.getLength(), read.getPosition()):read.getPosition() ;
-        return createGenomeLoc(getContig(read.getRefID()), read.getPosition(), end);
+        int length = read.getQueryBases().size();
+        for( vector <CigarOp>::const_iterator i = read.getCigarData().begin(); i != read.getCigarData().end(); i++) {
+            if(i->Type == 'D')
+                length += i->Length;
+            if(i->Type == 'I')
+                length -= i->Length;
+            if(i->Type == 'S' || i->Type == 'H')
+                length -= i->Length;
+        }
+
+        int end = read.IsMapped() ? max(read.getPosition() + length, read.getPosition()):read.getPosition() ;
+        //cerr << "CGL READ: " << getContig(read.RefID) << " Pos: " << read.Position << ":" << end << " len:" << length << " mapped: " << (int) read.IsMapped() << "read " << read.QueryBases[0] << endl;
+
+        return createGenomeLoc(getContig(read.getRefID()), read.getPosition(), max(end-1, read.getPosition()));
     }
 }
 #if 0

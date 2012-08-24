@@ -74,7 +74,6 @@ protected:
 
 public:
     virtual BamTools::SamHeader getHeader();
-    virtual BamTools::RefVector getReferences();
     
     bool isVerbose() const { return AlgorithmModule::verbose; }
     bool isNothreads() const { return AlgorithmModule::nothreads; }

@@ -23,8 +23,6 @@
 #include "../algorithms/split_by_chromosome.h"
 #include <iostream>
 
-#include <api/BamMultiReader.h>
-#include <api/BamWriter.h>
 using namespace BamTools;
 namespace po = boost::program_options;
 using namespace std;
@@ -34,8 +32,6 @@ void DedupCommand::getOptions()
     options.add_options()
     ("out,o", po::value<string>()->default_value("stdout"), "Output filename. Omit for stdout.")
     ("remove,r", "Remove duplicates")
-    ("compression,c", po::value<int>()->default_value(6), "Compression level of the output. Valid 0-9.")
-    ("nosplit","Do not split by chromosome (for speed) when processing")
     ;
 }
 
@@ -48,7 +44,7 @@ int DedupCommand::runCommand()
     if(no_split && verbose)
         cerr << "Disabling split-by-chromosome." << endl;
 
-    int num_chains = min(12,ThreadPool::availableCores()/2);
+    int num_chains = min(12,OGEParallelismSettings::getNumberThreads()/2);
 
     if(nothreads || no_split || num_chains <= 1)
     {
@@ -67,6 +63,7 @@ int DedupCommand::runCommand()
 
         reader.addFiles(input_filenames);
         writer.setFilename(vm["out"].as<string>());
+        writer.addProgramLine(command_line);
         writer.setCompressionLevel(compression_level);
         
         return writer.runChain();
@@ -108,6 +105,7 @@ int DedupCommand::runCommand()
         reader.addFiles(input_filenames);
         writer.setFilename(vm["out"].as<string>());
         writer.setCompressionLevel(compression_level);
+        writer.addProgramLine(command_line);
         
         int ret = writer.runChain();
         

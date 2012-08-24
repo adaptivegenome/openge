@@ -10,7 +10,6 @@ set(OPENGE_UTIL_SOURCES
 
   ${UTIL_DIR}/gatk/AlignmentUtils.cpp
   ${UTIL_DIR}/gatk/Allele.cpp
-  ${UTIL_DIR}/gatk/BaseUtils.cpp
   ${UTIL_DIR}/gatk/ConstrainedMateFixingManager.cpp
   ${UTIL_DIR}/gatk/GenomeLoc.cpp
   ${UTIL_DIR}/gatk/GenomeLocParser.cpp

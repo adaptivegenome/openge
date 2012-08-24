@@ -499,7 +499,12 @@ void * BgzfStream::BgzfBlockCache::thread_start(void * block_cache)
     block->starting_blockOffset = cache->m_blockOffset;
     block->starting_blockAddress = cache->m_blockAddress;
 
-    cache->ReadBlock();
+      try {
+          cache->ReadBlock();
+      } catch (BamException & e) {
+          cerr << "Error reading file; is this BAM file corrupt or truncated?" << endl;
+          exit(-1);
+      }
 
     block->m_blockOffset = cache->m_blockOffset;
     block->m_blockLength = cache->m_blockLength;
@@ -588,7 +593,12 @@ void BgzfStream::Close(void) {
         pthread_mutex_destroy(m_lastWriteLock);
     delete m_lastWriteLock;
     m_lastWriteLock = NULL;
-    
+
+    if(m_thread_pool) {
+        m_thread_pool->waitForJobCompletion();
+        delete m_thread_pool;
+    }
+ 
     if(m_cache) delete m_cache;
 
     // close device
@@ -808,7 +818,7 @@ void BgzfStream::Open(const string& filename, const IBamIODevice::OpenMode mode)
     Close();
     BT_ASSERT_X( (m_device == 0), "BgzfStream::Open() - unable to properly close previous IO device" );
 
-    if(BamParallelismSettings::isMultithreadingEnabled())
+    if(BamParallelismSettings::isMultithreadingEnabled() && mode == IBamIODevice::WriteOnly)
         m_thread_pool = new BamThreadPool();
 	
     // retrieve new IO device depending on filename

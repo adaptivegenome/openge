@@ -107,13 +107,13 @@ string GenomeLoc::toString() const  {
     if ( throughEndOfContigP() && atBeginningOfContigP() )
         return getContig();
     else if ( throughEndOfContigP() || getStart() == getStop() ) {
-        sprintf(start_str, "%d", getStart());
-        return string("") + getContig() + ":" + start_str;
+        sprintf(start_str, "%d", getStart()+1);
+        return string("") + getContig() + string(":") + start_str;
     }
     else {
-        sprintf(start_str, "%d", getStart());
-        sprintf(stop_str, "%d", getStop());
-        return string("") + getContig() + ":" + start_str + "-" + stop_str;
+        sprintf(start_str, "%d", getStart()+1);
+        sprintf(stop_str, "%d", getStop()+1);
+        return string("") + getContig() + string(":") + start_str + string("-") + stop_str;
     }
 }
 

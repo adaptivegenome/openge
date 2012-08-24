@@ -84,14 +84,13 @@ protected:
 public:
     void addEntry(GATKFeature & data) {
         nameMap.insert(std::pair<std::string, GATKFeature>(data.getName(), data));
-        //nameMap[data.getName()] = data;
     }
     
-    std::set<GATKFeature> getSet(std::string name) {
+    std::set<GATKFeature> getSet(std::string name) const {
         if (name.size() == 0) return getSet();
         std::set<GATKFeature> set;
         if (nameMap.count(name)) 
-            set.insert(nameMap[name]);
+            set.insert(nameMap.at(name));
         return set;
     }
     
@@ -99,9 +98,9 @@ public:
      * get the feature contents of this container; the unfiltered set without their name association
      * @return
      */
-    std::set<GATKFeature> getSet() {
+    std::set<GATKFeature> getSet() const {
         std::set<GATKFeature> ret;
-        for(std::map<std::string, GATKFeature>::iterator nm_it = nameMap.begin(); nm_it != nameMap.end(); nm_it++)
+        for(std::map<std::string, GATKFeature>::const_iterator nm_it = nameMap.begin(); nm_it != nameMap.end(); nm_it++)
             ret.insert(nm_it->second);
         return ret;
     }

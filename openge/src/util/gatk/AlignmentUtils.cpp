@@ -102,7 +102,7 @@ AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const BamTools::B
                     //    continue; // do not count Ns/Xs/etc ?
                     if (readChr != refChr) {
                         mc.numMismatches++;
-                        mc.mismatchQualities += r->getQualities()[readIdx];
+                        mc.mismatchQualities += r->getQualities()[readIdx] - 33;
                     }
                 }
                 break;
@@ -123,6 +123,7 @@ AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const BamTools::B
         }
         
     }
+    //cerr << mc.mismatchQualities << " ref: " << refSeq << " read: " << readSeq << endl;
     return mc;
 }
 #if 0
@@ -245,7 +246,7 @@ public static BitSet mismatchesInRefWindow(SAMRecord read, ReferenceContext ref,
     byte[] refBases = ref.getBases();
     int refIndex = readStartPos - ref.getWindow().getStart();
     if (refIndex < 0) {
-        throw new IllegalStateException("When calculating mismatches, we somehow don't have enough previous reference context for read " + read.getReadName() + " at position " + ref.getLocus());
+        throw new IllegalStateException(string("When calculating mismatches, we somehow don't have enough previous reference context for read ") + read.getReadName() + string(" at position ") + ref.getLocus());
     }
     
     byte[] readBases = read.getReadBases();
@@ -394,7 +395,7 @@ public static byte[] alignmentToByteArray(final Cigar cigar, final byte[] read, 
             case P:
                 break;
             default:
-                throw new ReviewedStingException("Unsupported cigar operator: " + ce.getOperator());
+                throw new ReviewedStingException(string("Unsupported cigar operator: ") + ce.getOperator());
         }
     }
     return alignment;
@@ -456,7 +457,7 @@ public static int calcAlignmentByteArrayOffset(final Cigar cigar, PileupElement 
             case P:
                 break;
             default:
-                throw new ReviewedStingException("Unsupported cigar operator: " + ce.getOperator());
+                throw new ReviewedStingException(string("Unsupported cigar operator: ") + ce.getOperator());
         }
     }
     
@@ -486,7 +487,7 @@ public static byte[] readToAlignmentByteArray(final Cigar cigar, final byte[] re
             case P:
                 break;
             default:
-                throw new ReviewedStingException("Unsupported cigar operator: " + ce.getOperator());
+                throw new ReviewedStingException(string("Unsupported cigar operator: ") + ce.getOperator());
         }
     }
     
@@ -534,7 +535,7 @@ public static byte[] readToAlignmentByteArray(final Cigar cigar, final byte[] re
             case P:
                 break;
             default:
-                throw new ReviewedStingException("Unsupported cigar operator: " + ce.getOperator());
+                throw new ReviewedStingException(string("Unsupported cigar operator: ") + ce.getOperator());
         }
     }
     return alignment;
@@ -667,22 +668,21 @@ vector<CigarOp> AlignmentUtils::leftAlignIndel( vector<CigarOp> cigar, const str
     
     const int indelLength = cigar[indexOfIndel].Length;
     
-    string * altString = createIndelString(cigar, indexOfIndel, refSeq, readSeq, refIndex, readIndex);
-    if (altString == NULL)
+    string altString = createIndelString(cigar, indexOfIndel, refSeq, readSeq, refIndex, readIndex);
+    if (altString.size() == 0)
         return cigar;
     
     vector<CigarOp> newCigar = cigar;
 
     for (int i = 0; i < indelLength; i++) {
         newCigar = moveCigarLeft(newCigar, indexOfIndel);
-        string * pnewAltString = createIndelString(newCigar, indexOfIndel, refSeq, readSeq, refIndex, readIndex);
-        assert(NULL != pnewAltString);
-        string newAltString = *pnewAltString;
+        string newAltString = createIndelString(newCigar, indexOfIndel, refSeq, readSeq, refIndex, readIndex);
+        assert(newAltString.size() > 0);
         
         // check to make sure we haven't run off the end of the read
         bool reachedEndOfRead = cigarHasZeroSizeElement(newCigar);
         
-        if (0 == strcmp(altString->c_str(), newAltString.c_str())) {
+        if (altString == newAltString) {
             cigar = newCigar;
             i = -1;
             if (reachedEndOfRead)
@@ -741,7 +741,7 @@ vector<CigarOp> AlignmentUtils::moveCigarLeft(const vector<CigarOp> & cigar, int
     return elements;
 }
 
-string * AlignmentUtils::createIndelString(const vector<CigarOp> & cigar, const int indexOfIndel, const string refSeq, const string readSeq, int refIndex, int readIndex) {
+string AlignmentUtils::createIndelString(const vector<CigarOp> & cigar, const int indexOfIndel, const string refSeq, const string readSeq, int refIndex, int readIndex) {
     CigarOp indel = cigar[indexOfIndel];
     int indelLength = indel.Length;
     
@@ -778,7 +778,8 @@ string * AlignmentUtils::createIndelString(const vector<CigarOp> & cigar, const 
     // add the bases before the indel, making sure it's not aligned off the end of the reference
     if (refIndex > alt.size() || refIndex > refSeq.size())
         return NULL;
-    memcpy(&alt[0], &readSeq[0], refIndex);
+    assert(refIndex <= refSeq.size() && refIndex <= alt.size());
+    memcpy(&alt[0], &refSeq[0], refIndex);
     //System.arraycopy(refSeq, 0, alt, 0, refIndex);
     int currentPos = refIndex;
     
@@ -793,10 +794,10 @@ string * AlignmentUtils::createIndelString(const vector<CigarOp> & cigar, const 
     
     // add the bases after the indel, making sure it's not aligned off the end of the reference
     if (refSeq.size() - refIndex > alt.size() - currentPos)
-        return NULL;
+        return string();
     //System.arraycopy(refSeq, refIndex, alt, currentPos, refSeq.length - refIndex);
     
-    memcpy(&alt[currentPos], &readSeq[readIndex], refSeq.size() - refIndex);
+    memcpy(&alt[currentPos], &refSeq[refIndex], refSeq.size() - refIndex);
     
-    return new string(alt);
+    return alt;
 }

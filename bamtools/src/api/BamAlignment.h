@@ -18,6 +18,9 @@
 #include <string>
 #include <vector>
 #include <iostream>
+
+std::string cigarToString(const std::vector<BamTools::CigarOp> cigar);
+
 namespace BamTools {
 
 // BamAlignment data structure
@@ -194,6 +197,9 @@ public:
 
         mutable std::string ErrorString; // mutable to allow updates even in logically const methods
     //! \endinternal
+    
+public:
+    std::string cigarString() const { return cigarToString(CigarData); }
 };
 
 // ---------------------------------------------------------
@@ -225,7 +231,8 @@ inline bool BamAlignment::AddTag(const std::string& tag, const std::string& type
 
     // check that storage type code is OK for T
   if ( !TagTypeHelper<T>::CanConvertTo(type.at(0)) ) {
-	std::cerr << "Can convert to error" << std::endl;
+	std::cerr << "Can convert to error - data provided for AddTag is probably wrong data type" << std::endl;
+      assert(0);
         return false;
     }
 

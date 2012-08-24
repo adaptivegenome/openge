@@ -37,15 +37,13 @@ void MergeSortCommand::getOptions()
     
     options.add_options()
     ("out,o", po::value<string>()->default_value("stdout"), "Output filename. Omit for stdout.")
-    ("compression,c", po::value<int>()->default_value(6), "Compression level of the output. Valid 0-9.")
     ("region,r", po::value<string>(), "Genomic region to use.")
     ("mapq,q", po::value<int>(), "Minimum map quality allowed in reads")
     ("byname,b", "Sort by name. Otherwise, sorts by position.")
     ("n,n", po::value<int>()->default_value(5e5), "Alignments per temp file.")
     ("compresstempfiles,C", "Compress temp files. By default, uncompressed")
-    ("markduplicates,d", "Mark duplicates after sorting.")
+    ("markduplicates,M", "Mark duplicates after sorting.")
     ("removeduplicates,R", "Remove duplicates.")
-    ("nosplit","Do not split by chromosome (for speed) when processing")
     ;
 }
 
@@ -65,7 +63,7 @@ int MergeSortCommand::runCommand()
     if(no_split && verbose)
         cerr << "Disabling split-by-chromosome." << endl;
     
-    int num_chains = min(12,ThreadPool::availableCores()/2);
+    int num_chains = min(12,OGEParallelismSettings::getNumberThreads ()/2);
     
     if(nothreads || no_split || !do_mark_duplicates || num_chains <= 1)
     {
@@ -110,6 +108,7 @@ int MergeSortCommand::runCommand()
 
         reader.addFiles(input_filenames);
         writer.setFilename(vm["out"].as<string>());
+        writer.addProgramLine(command_line);
         writer.setCompressionLevel(compression_level);
         if(vm.count("format"))
             writer.setFormat(vm["format"].as<string>());
@@ -170,6 +169,7 @@ int MergeSortCommand::runCommand()
         
         reader.addFiles(input_filenames);
         writer.setFilename(vm["out"].as<string>());
+        writer.addProgramLine(command_line);
         writer.setCompressionLevel(compression_level);
         
         int ret = writer.runChain();

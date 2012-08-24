@@ -116,20 +116,25 @@ struct API_EXPORT Sort {
         { }
 
         // comparison function
-        bool operator()(const BamTools::BamAlignment& lhs, const BamTools::BamAlignment& rhs) {
-
+        bool operator()(const BamTools::BamAlignment& lhs, const BamTools::BamAlignment& rhs) const {
             // force unmapped aligmnents to end
+
             if ( lhs.getRefID() == -1 ) return false;
             if ( rhs.getRefID() == -1 ) return true;
-
-            // if on same reference, sort on position
-            if ( lhs.getRefID() == rhs.getRefID() )
+            
+            if(lhs.getRefID() != rhs.getRefID())
+                return sort_helper(m_order, lhs.getRefID(), rhs.getRefID());
+            if ( lhs.getPosition() != rhs.getPosition() )
                 return sort_helper(m_order, lhs.getPosition(), rhs.getPosition());
-
-            // otherwise sort on reference ID
-            return sort_helper(m_order, lhs.getRefID(), rhs.getRefID());
+            if ( lhs.IsReverseStrand() != rhs.IsReverseStrand() )
+                return lhs.IsReverseStrand() ? false: true;
+            if ( lhs.getName() != rhs.getName() )
+                return sort_helper<std::string>(m_order, lhs.getName(), rhs.getName());
+            if ( lhs.getAlignmentFlag() != rhs.getAlignmentFlag() )
+                return sort_helper(m_order, lhs.getAlignmentFlag(), rhs.getAlignmentFlag());
+            return sort_helper(m_order, &lhs, &rhs);
         }
-        bool operator()(const BamTools::BamAlignment * lhs, const BamTools::BamAlignment * rhs) {
+        bool operator()(const BamTools::BamAlignment * lhs, const BamTools::BamAlignment * rhs) const {
             return operator()(*lhs, *rhs);
         }
 

@@ -31,11 +31,11 @@ FastqWriter::FastqWriter()
     
 }
 
-bool FastqWriter::Open(const string& filename, const std::string& samHeaderText, const BamTools::RefVector& referenceSequences) {
+bool FastqWriter::Open(const string& filename, const SamHeader & samHeader) {
     this->filename = filename;
     
     if(filename != "stdout") {
-        fwd_file.open((filename + ".fwd.fastq").c_str(), ios::out);
+        fwd_file.open((filename + "_1.fastq").c_str(), ios::out);
         
         if(fwd_file.fail()) {
             cerr << "Failed to open FASTQ forward output file " << filename << endl;
@@ -43,7 +43,7 @@ bool FastqWriter::Open(const string& filename, const std::string& samHeaderText,
         }
         fwd_stream = &fwd_file;
         
-        rev_file.open((filename + ".rev.fastq").c_str(), ios::out);
+        rev_file.open((filename + "_2.fastq").c_str(), ios::out);
         
         if(rev_file.fail()) {
             cerr << "Failed to open FASTQ reverse output file " << filename << endl;
@@ -51,7 +51,7 @@ bool FastqWriter::Open(const string& filename, const std::string& samHeaderText,
         }
         rev_stream = &rev_file;
         
-        orphan_file.open((filename + ".orphan.fastq").c_str(), ios::out);
+        orphan_file.open((filename + ".fastq").c_str(), ios::out);
         
         if(orphan_file.fail()) {
             cerr << "Failed to open FASTQ orphan output file " << filename << endl;
@@ -125,8 +125,8 @@ bool FastqWriter::SaveAlignment(BamTools::BamAlignment & a) {
             reverse(rev_qual.begin(), rev_qual.end());
             compliment(rev_seq);
 
-            *fwd_stream << "@" << a.getName() << endl << fwd_seq << endl << "+" << a.getName() << endl << fwd_qual << endl;
-            *rev_stream << "@" << a.getName() << endl << rev_seq << endl << "+" << a.getName() << endl << rev_qual << endl;
+            *fwd_stream << "@" << a.getName() << "/1" << endl << fwd_seq << endl << "+" << a.getName() << "/1" << endl << fwd_qual << endl;
+            *rev_stream << "@" << a.getName() << "/2" << endl << rev_seq << endl << "+" << a.getName() << "/2" << endl << rev_qual << endl;
             
             if(fwd_stream->fail() || rev_stream->fail()) {
                 cerr << "Error writing out line to fastq file. Aborting." << endl;

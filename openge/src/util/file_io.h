@@ -18,6 +18,7 @@
  *********************************************************************/
 
 #include <api/BamAlignment.h>
+#include <api/SamHeader.h>
 
 #include <string>
 #include <algorithm>
@@ -44,7 +45,7 @@ inline file_format_t detectFileFormatFromFilename(std::string filename) {
 
 class FileWriterClass {
 public:
-    virtual bool Open(const std::string& filename, const std::string& samHeaderText, const BamTools::RefVector& referenceSequences) = 0;
+    virtual bool Open(const std::string& filename, const BamTools::SamHeader & samHeader) = 0;
     virtual bool SaveAlignment(BamTools::BamAlignment & a) = 0;
 };
 

@@ -1,7 +1,6 @@
 \documentclass[11pt]{article}
 
 \usepackage[parfill]{parskip}
-\usepackage{comment}
 
 \setlength{\topmargin}{-.5in}
 \setlength{\textheight}{9in}
@@ -18,7 +17,7 @@ leecb@vt.edu, david.mittelman@vt.edu}
 \maketitle
 
 \section {Introduction}
-The Open Genomics Engine (OpenGE) is a open software framework for manipulating and interpreting high-throughput sequencing data. This documentation describes core functions that are integrated into the official distribution of the framework. For a background on the project visit http://www.openge.org. OpenGE is available as binaries for Linux and MacOS or as source. The source distribution contains further instructions for compiling and installing the software. Future releases will include VMware and Amazon EC2 images.
+The Open Genomics Engine (OpenGE) is an open software framework for manipulating and interpreting high-throughput sequencing data. This documentation describes core functions that are integrated into the official distribution of the framework. OpenGE is available as binaries for Linux and MacOS or as source. The source distribution contains further instructions for compiling and installing the software. Future releases will include VMware and Amazon EC2 images.
 \section {Using OpenGE}
 OpenGE consists of a collection of operations that can be invoked on the command line using the following syntax:
 
@@ -30,10 +29,14 @@ where \textit{command} is one of the commands listed in the following table, and
 \begin{tabular}{lp{3.5in}}
 \hline
 Command&Description\\ \hline
-count&Count reads in a file\\
+compare&Compare reads in two files to find changes\\
+count&Count reads in an alignment\\
+coverage&Compute coverage statistics for an alignment\\
 dedup&Mark (or remove) duplicate reads\\
 help&View detailed help for any OpenGE command\\
+history&Print commands used to generate a file\\
 mergesort&Merge and sort multiple input files\\
+localrealign&Realign misaligned reads due to indels\\
 stats&Generate statistics for one or more files\\
 version&Print out the version number\\
 view&View a filtered subset of a file\\
@@ -49,12 +52,16 @@ Flag&Long flag&Description\\ \hline
 -i \textit{filename}&{-}{-}in \textit{filename}&Input filename. Input files can also be specified without this flag. Defaults to stein if no input is specified.\\
 -o \textit{filename}&{-}{-}out \textit{filename}&Output filename. Defaults to stdout if omitted. \\
 -v&{-}{-}verbose&Display additional information to stderr during operation (e.g. progress indicators and other informational messages). Optional.\\
+-c \textit{level}&{-}{-}compression \textit{level}&Compression level- defaults to 6. Valid levels are 0-9, and correspond to zlib's deflate compression levels. Optional.\\
 -T&{-}{-}tmpdir&Specify a directory to store temporary files. (default /tmp) Optional.\\
 -t&{-}{-}threads&Set the number of threads to be used for multithreaded operations. Optional.\\
 -d&{-}{-}nothreads&Disable multithreading. Optional.\\
+&{-}{-}nosplit&Disable splitting by chromosome (see below). Optional.\\
 -F \textit{format}&{-}{-}format \textit{format}&Select file format. Optional.\\
 \end{tabular}
 \end{center}
+
+When running some commands, OpenGE may process chromosomes in separate threads in order to increase speed. Whether or not this occurs depends on the number of cores available on your machine. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
 
 When input or output files are required, stdin or stdout may be used by simply omitting \textit{filename}. For example, the following command:
 
@@ -71,7 +78,7 @@ will count the number of lines in a SAM file. Console redirection can be used as
 
 \subsection {File formats}
 
-OpenGE supports both BAM and SAM formats as inputs for all commands. By default, results are written in BAM format; experimental SAM and FASTQ support is also present. To write in SAM format, specify a filename with a .sam or .SAM extension; for FASTQ format, use a .fastq or .FASTQ extension.
+OpenGE supports both BAM and SAM formats as inputs for all commands except for 'compare'. By default, results are written in BAM format; experimental SAM and FASTQ support is also present. To write in SAM format, specify a filename with a .sam or .SAM extension; for FASTQ format, use a .fastq or .FASTQ extension.
 
 Most commands support multiple files as inputs; these files should have identical headers; corrupted data may result from processing multiple BAM or SAM files with different headers. A warning will be displayed if the headers in your input files are not identical.
 
@@ -95,12 +102,58 @@ To summarize, the following methods are used to select file type (in order of pr
 
 \section {Commands}
 
+\subsection {compare}
+The compare command compares the reads present in two different files to detect when a file has reads that have changed, been added, or been removed.
+
+\begin{center}
+\begin{tabular}{llp{3.5in}}
+\hline
+Flag&Long flag&Description\\ \hline
+-p&{-}{-}print&Output coverage data base-by-base to a TSV file.\\
+-r  \textit{region}&{-}{-}region \textit{region}&Regions to compare.\\
+\end{tabular}
+\end{center}
+
+When no region is specified, the whole file is compared.
+
+Multiple regions may be provided- including overlapping regions. The region string format is described in the "Region string format" section below.
+
+Example:
+\cmd{openge compare a.bam b.bam}
+\cmd{openge compare --print b.bam c.bam d.bam}
+\cmd{openge compare --print b.bam c.bam d.bam -r YHet:1..200 -r U:100..400}
+
 \subsection {count}
 The count command returns the number of reads contained in one or more files. No parameters (other than input files) are required.
 
 Example:
 \cmd{openge count a.bam}
 \cmd{openge count b.bam c.bam d.bam}
+
+\subsection {coverage}
+The coverage command reports the read depth as a function of reference genome location. 
+
+Optionally, detailed information on the coverage of every base of the reference genome can be reported. This file can be very large and time consuming to generate, so it is not enabled by default. 
+
+\begin{center}
+\begin{tabular}{llp{3.5in}}
+\hline
+Flag&Long flag&Description\\ \hline
+-o  \textit{filename}&{-}{-}output \textit{filename}&Output coverage data base-by-base to a TSV file.\\
+&{-}{-}omituncoveredbases&Omit bases from the output file that are not covered by any read\\
+-V&{-}{-}verifymapping&Verify that mapping was performed correctly (see below)\\
+-S&{-}{-}strict&Use strict verification- only use first coordinate\\
+-B \textit{size}&{-}{-}binsize \textit{size}&Bin output data into bins of \textit{size} bases\\
+\end{tabular}
+\end{center}
+
+Coverage can also be used to verify that mappings have been performed correctly. To do this, reads must be named with a name that starts with the chromosome name and contains the position of the read start and end, each separated with underscores ('\_'). For example, "chr1\_2345\_2388" is valid, as is "chr99\_3350203\_3350299\_long\_name\_9993352:2334". A read is marked as correctly mapped if the mapped chromosome matches the chromosome in the name, and the position is within 5 bases of either of the positions identified in the name (without {-}{-}strict), or within five bases of the first position (with {-}{-}strict). The number of correctly mapped bases is included in the output file, if enabled (ie, if -o and -V are used).
+
+To only report the coverage statistics for each chromosome:
+\cmd{openge coverage a.bam}
+
+Or, to output the coverage statistics for each base, and verify the mapping correctness:
+\cmd{openge coverage b.bam -o bases.tsv -V}
 
 \subsection {dedup}
 The dedup command either marks duplicate reads (compatible with Picard) or removes the duplicate reads. 
@@ -111,16 +164,13 @@ Duplicates are marked by setting the 'duplicate' bitflag for each read found to 
 \begin{tabular}{llp{3.5in}}
 \hline
 Flag&Long flag&Description\\ \hline
--r&{-}{-}remove&Remove duplicates instead of only marking them.\\
-&{-}{-}nosplit&Disable splitting by chromosome (see below).\\
+-R&{-}{-}removeduplicates&Remove duplicates instead of only marking them.\\
 \end{tabular}
 \end{center}
 
 For example,
 \cmd{openge dedup a.bam -o z.bam} 
 identifies duplicates in a.bam, and writes all reads to z.bam with duplicates identified.
-
-When marking duplicates, dedup may process chromosomes in separate threads in order to increase speed. Whether or not this occurs depends on the number of cores available on your machine. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
 
 \subsection {help}
 The help command shows available options for any OpenGE command. 
@@ -135,6 +185,10 @@ For example:
 
 Available commands can be seen in the table at the top of this section.
 
+\subsection {history}
+The history command prints out a list of commands from @PG records in a SAM or BAM file. This can be useful to see how a file was constructed.
+
+There are no command line arguments for this command.
 
 \subsection {mergesort}
 This command generates a single file from one or more input files. The supplied input files are merged and then sorted by read position or region.
@@ -144,20 +198,36 @@ Parameters:
 \begin{tabular}{llp{3.5in}}
 \hline
 Flag&Long flag&Description\\ \hline
--c \textit{level}&{-}{-}compression \textit{level}&Compression level- defaults to 6. Valid levels are 0-9, and correspond to zlib's deflate compression levels. \\
 -r \textit{region}&{-}{-}region \textit{region}&Genomic region to use\\
 -q \textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapping quality for a read to be included in the mergesort.\\
 -n \textit{reads}&{-}{-}n \textit{reads}&Number of reads to use per temporary file. Defaults to 500,000.\\
 -C&{-}{-}compresstempfiles&Compress temporary files. By default, temporary files are not compressed.\\
-&{-}{-}nosplit&Disable splitting by chromosome (see below).\\
--m&{-}{-}markduplicates&Mark duplicates after sorting.\\
+-M&{-}{-}markduplicates&Mark duplicates after sorting.\\
 -R&{-}{-}removeduplicates&Mark and remove duplicates after sorting.\\
 \end{tabular}
 \end{center}
 
 The number of reads per temporary file can have a substantial effect on speed when processing large datasets. Increasing the number of reads per file produces larger (and fewer) temporary files at the expense of memory, but reduces the processing time.
 
-When marking duplicates, mergesort may process chromosomes in separate threads in order to increase speed. Whether or not this occurs depends on the number of cores available on your machine. This increases the amount of memory consumed- you can disable this with the {-}{-}nosplit option.
+\subsection {localrealign}
+This command realigns reads around indels in order to minimize the number of mismatching bases. Since localrealignment uses multiple reads to form a consensus when realigning, it may produce more correct mappings than the original mapper.
+
+This function is intended to be compatible with GATK's IndelRealigner tool.
+\begin{center}
+\begin{tabular}{llp{3.5in}}
+\hline
+Flag&Long flag&Description\\ \hline
+-R \textit{filename}&{-}{-}reference \textit{filename}&Reference genome in FASTA format. Required.\\
+-L \textit{filename}&{-}{-}intervals \textit{filename}&Target intervals to realign. See below for format. Required.\\
+\end{tabular}
+\end{center}
+
+For example, to realign a file a.bam (generating a.realigned.bam), use the following command:
+\cmd{openge localrealign --reference dmel.fasta --intervals a.intervals a.bam -o a.realigned.bam}
+
+\subsubsection {Intervals file format}
+The intervals file is a text file listing intervals around which we should realign. Lines must be in the following format:
+\textit{chr:\#} or \textit{chr:\#-\#} with no whitespace. This matches the format generated by GATK's RealignerTargetCreator.
 
 \subsection{stats}
 Prints out statistics about a file. No flags are required.
@@ -207,11 +277,13 @@ Prints out the version number and the date and time that this version was compil
 The view command returns a portion of a file optionally restricted to:
 \begin{itemize}
 \item Reads mapped to a specified chromosome, or region of a chromosome ({-}{-}region)
-\item Reads with mapq values above a threshold ({-}{-}mapq)
+\item Reads with Mapq values above a threshold ({-}{-}mapq)
 \item Reads of a certain length or range of lengths ({-}{-}length)
 \item Limited to a certain number of results ({-}{-}count)
 \end{itemize}
 or any combination of the above.
+
+The view command can also trim bases from the beginning or end of reads. If the amount being trimmed from the beginning and end combined exceeds the length of the read, the read will be omitted.
 
 Parameters:
 \begin{center}
@@ -222,8 +294,12 @@ Flag&Long flag&Description\\ \hline
 -r \textit{region}&{-}{-}region \textit{region}&Region string (see below for format)\\
 -q \textit{min\_mapq}&{-}{-}mapq \textit{min\_mapq}&Minimum mapq allowed\\
 -l \textit{length}&{-}{-}length \textit{length}&Allowed range of read lengths (see below for format)\\
+-B \textit{length}&{-}{-}trimbegin \textit{length}&Trim \textit{length} bases from the beginning of all reads\\
+-E \textit{length}&{-}{-}trimend \textit{length}&Trim \textit{length} bases from the end of all reads\\
 \end{tabular}
 \end{center}
+
+Trimming with the {-}{-}trimbegin and {-}{-}trimend parameters is only supported for the FASTQ output format at this time.
 
 \subsubsection{Region string format}
 Region strings are formatted similarly to the equivalent bamtools region strings, and this section is an excerpt from the bamtools documentation.

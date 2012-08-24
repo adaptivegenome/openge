@@ -64,9 +64,14 @@ class API_EXPORT SamSequenceDictionary {
 
         // retrieves a modifiable reference to the SamSequence object associated with this name
         SamSequence& operator[](const std::string& sequenceName);
+        const SamSequence& operator[](const std::string& sequenceName) const;
         SamSequence& operator[](const int sequenceNumber);
+        const SamSequence& operator[](const int sequenceNumber) const;
 
         int IndexOfString(const std::string & sequenceName);
+    
+        bool operator==(const SamSequenceDictionary &d) const { return m_data == d.m_data; }
+        bool operator!=(const SamSequenceDictionary &d) const { return m_data != d.m_data; }
 
     // retrieve STL-compatible iterators
     public:

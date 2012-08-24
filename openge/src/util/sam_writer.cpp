@@ -59,8 +59,7 @@ SamWriter::SamWriter()
 }
 
 bool SamWriter::Open(const string& filename,
-                     const string& samHeaderText,
-                     const RefVector& referenceSequences) {
+                     const SamHeader & samHeader) {
     this->filename = filename;
 
     if(filename != "stdout") {
@@ -72,10 +71,8 @@ bool SamWriter::Open(const string& filename,
             return false;
         }
     }
-    
-    *output_stream << samHeaderText;
-
-    references = referenceSequences;
+    this->header = samHeader;
+    *output_stream << header.ToString();
     
     open = true;
     
@@ -214,7 +211,7 @@ bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
             break;
     }
     
-    m_out << endl;
+    m_out << "\n";
     
     return true;
 }

@@ -31,7 +31,7 @@ using namespace std;
 
 // this has been copied from bamtools utilities, since it isn't in the API. Original file is bamtools_utilities.cpp.
 // Like the rest of Bamtools, it is under the BSD license.
-bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
+bool Filter::ParseRegionString(const string& regionString, BamRegion& region, const SamSequenceDictionary & sequences)
 {
     // -------------------------------
     // parse region string
@@ -72,7 +72,7 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
         // store contents before colon as startChrom, after as startPos
         if ( foundRangeDots == string::npos ) {
             startPos   = atoi( regionString.substr(foundFirstColon+1).c_str() ); 
-            stopPos    = -1;
+            stopPos    = startPos;
         } 
         
         // ".." found, so we have some sort of range selected
@@ -96,12 +96,10 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
     
     // -------------------------------
     // validate reference IDs & genomic positions
-    
-    const RefVector references = getReferences();
-    
+
     int RefID = -1;
-    for(int i = 0; i < references.size(); i++) {
-        if(references[i].RefName == chrom)
+    for(int i = 0; i < sequences.Size(); i++) {
+        if(sequences[i].Name == chrom)
             RefID = i;
     }
     
@@ -112,21 +110,21 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region)
     }
     
     // startPos cannot be greater than or equal to reference length
-    const RefData& startReference = references.at(RefID);
-    if ( startPos >= startReference.RefLength ) {
-        cerr << "Start position (" << startPos << ") after end of the reference sequence (" << startReference.RefLength << ")" << endl;
+    const SamSequence startReference = sequences[RefID];
+    int sequence_length = atoi(startReference.Length.c_str());
+    if ( startPos >= sequence_length ) {
+        cerr << "Start position (" << startPos << ") after end of the reference sequence (" << sequence_length << ")" << endl;
         return false;
     }
     
     // stopPosition cannot be larger than reference length
-    const RefData& stopReference = references.at(RefID);
-    if ( stopPos > stopReference.RefLength ) {
-        cerr << "Start position (" << stopPos << ") after end of the reference sequence (" << stopReference.RefLength << ")" << endl;
+    if ( stopPos > sequence_length ) {
+        cerr << "Start position (" << stopPos << ") after end of the reference sequence (" << sequence_length << ")" << endl;
         return false;
     }
 
     // if no stopPosition specified, set to reference end
-    if ( stopPos == -1 ) stopPos = stopReference.RefLength;
+    if ( stopPos == -1 ) stopPos = sequence_length;
     
     // -------------------------------
     // set up Region struct & return
@@ -179,7 +177,18 @@ Filter::Filter()
 , mapq_limit(0)
 , min_length(0)
 , max_length(INT_MAX)
+, trim_begin_length(0)
+, trim_end_length(0)
 {}
+
+void Filter::trim(BamAlignment & al)
+{
+    if(trim_begin_length == 0 && trim_end_length == 0)
+        return;
+
+    al.setQueryBases(al.getQueryBases().substr(trim_begin_length, (al.getQueryBases().size() - trim_begin_length - trim_end_length)));
+    al.setQualities(al.getQualities().substr(trim_begin_length, (al.getQualities().size() - trim_begin_length - trim_end_length)));
+}
 
 int Filter::runInternal()
 {
@@ -189,8 +198,11 @@ int Filter::runInternal()
     if ( !has_region ) {
         BamAlignment * al = NULL;
         while (NULL != (al = getInputAlignment()) && count < count_limit) {
-            if(al->getMapQuality() >= mapq_limit 
-               && al->getLength() >= min_length && al->getLength() <= max_length) {
+            if(al->getMapQuality() >= mapq_limit
+               && al->getLength() >= min_length && al->getLength() <= max_length
+               && al->getLength() > (trim_begin_length + trim_end_length)) {
+                trim(*al);
+
                 putOutputAlignment(al);
                 count++;
             }
@@ -209,13 +221,15 @@ int Filter::runInternal()
         
         // if region string parses OK
         BamRegion region;
-        if (ParseRegionString(region_string, region) ) {
+        if (ParseRegionString(region_string, region, getHeader().Sequences) ) {
             BamAlignment * al;
             while ( NULL != (al = getInputAlignment())  && count < count_limit) {
                 if ( (al->getRefID() >= region.LeftRefID)  && ( (al->getPosition() + al->getLength()) >= region.LeftPosition ) &&
                     (al->getRefID() <= region.RightRefID) && ( al->getPosition() <= region.RightPosition) 
                     && (al->getMapQuality() >= mapq_limit)
-                    && al->getLength() >= min_length && al->getLength() <= max_length) {
+                    && al->getLength() >= min_length && al->getLength() <= max_length
+                    && al->getLength() > (trim_begin_length + trim_end_length)) {
+                    trim(*al);
                     putOutputAlignment(al);
                     count++;
                 } else {

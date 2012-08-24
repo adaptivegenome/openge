@@ -65,34 +65,15 @@ import org.broadinstitute.sting.utils.HasGenomeLocation;
 #include "GenomeLoc.h"
 #include "GenomeLocParser.h"
 
-class Feature 
-{
-public:
-    std::string chr;
-    int start;
-    int end;
-    
-    bool operator<(const Feature & o) const {
-        if(start != o.start)
-            return start < o.start;
-        if(end != o.end)
-            return end < o.end;
-        return chr < o.chr;
-    }
-    
-    bool operator==(const Feature & o) const {
-        return start == o.start && end == o.end && chr == o.chr;
-    }
-    bool operator!=(const Feature & o) const { return !(*this == o); }
-};
-
-//this is an abstract class- what actually implements it though?
 class GATKFeature { // implements Feature, HasGenomeLocation {
 protected:
     std::string name;
     const GenomeLocParser * genomeLocParser;
-    Feature feature;
     GenomeLoc * position;
+
+    std::string chr;
+    int start;
+    int end;
     
 protected:
     void setName(std::string name) {
@@ -106,10 +87,9 @@ public:
     , position(NULL)
     {}
     
-    GATKFeature(const GenomeLocParser * genomeLocParser,Feature f, std::string name) 
+    GATKFeature(const GenomeLocParser * genomeLocParser, std::string name) 
     : name(name)
     , genomeLocParser(genomeLocParser)
-    , feature(f)
     , position(NULL)
     { }
     
@@ -119,36 +99,35 @@ public:
     
     GenomeLoc getLocation() {
         if (position == NULL) 
-            position = new GenomeLoc(genomeLocParser->createGenomeLoc(feature.chr, feature.start, feature.end));
+            position = new GenomeLoc(genomeLocParser->createGenomeLoc(chr, start, end));
         return *position;
     }
     
     /** Return the features reference sequence name, e.g chromosome or contig */
-    std::string getChr() {
-        return feature.chr;
+    std::string getChr() const{
+        return chr;
     }
     
     /** Return the start position in 1-based coordinates (first base is 1) */
-    int getStart() {
-        return feature.start;
+    int getStart() const {
+        return start;
     }
     
     /**
      * Return the end position following 1-based fully closed conventions.  The length of a feature is
      * end - start + 1;
      */
-    int getEnd() {
-        return feature.end;
-    }
-    
-    // TODO: this should be a Feature, actually
-    Feature & getUnderlyingObject() {
-        return feature;
+    int getEnd() const {
+        return end;
     }
     
     bool operator<(const GATKFeature & o) const {
-        if(feature != o.feature)
-            return feature < feature;
+        if(chr != o.chr)
+            return chr < o.chr;
+        if(start != o.start)
+            return start < o.start;
+        if(end != o.end)
+            return end < o.end;
         if(*position != *(o.position))
             return *position < *position;
         return name < o.name;
