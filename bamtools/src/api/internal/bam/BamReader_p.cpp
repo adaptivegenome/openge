@@ -51,7 +51,7 @@ void * prefetch_start(void * reader_ptr)
           break;
 
         BamAlignment * al = new BamAlignment();
-        reader->prefetch_tell_fail.push(reader->m_stream.Tell());
+        //reader->prefetch_tell_fail.push(reader->m_stream.Tell());
         if(!reader->LoadNextAlignmentInternal(*al)) {
             delete al;
             al = NULL;
