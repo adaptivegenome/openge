@@ -335,7 +335,7 @@ bool MergeSortTool::MergeSortToolPrivate::RunMerge(void) {
   // if no region specified, store entire contents of file(s)
   if ( !m_settings->HasRegion ) {
     BamAlignment * al;
-    while ( NULL != (al = reader.GetNextAlignmentCore()) ) {
+    while ( NULL != (al = reader.GetNextAlignment()) ) {
         PostMergedAlignment(al);
     }
   }
@@ -366,7 +366,7 @@ bool MergeSortTool::MergeSortToolPrivate::RunMerge(void) {
 
         // everything checks out, just iterate through specified region, storing alignments
         BamAlignment * al;
-        while ( NULL != (al = reader.GetNextAlignmentCore()) ) {
+        while ( NULL != (al = reader.GetNextAlignment()) ) {
             PostMergedAlignment(al);
         }
       }
@@ -375,7 +375,7 @@ bool MergeSortTool::MergeSortToolPrivate::RunMerge(void) {
       // find overlapping alignments
       else {
         BamAlignment * al;
-        while ( NULL != (al = reader.GetNextAlignmentCore()) ) {
+        while ( NULL != (al = reader.GetNextAlignment()) ) {
           if ( (al->getRefID() >= region.LeftRefID)  && ( (al->getPosition() + al->getLength()) >= region.LeftPosition ) &&
               (al->getRefID() <= region.RightRefID) && ( al->getPosition() <= region.RightPosition) ) {
               PostMergedAlignment(al);
@@ -654,7 +654,7 @@ bool MergeSortTool::MergeSortToolPrivate::MergeSortedRuns(void) {
     // while data available in temp files
     BamAlignment al;
     int count = 0;
-    while ( multiReader.GetNextAlignmentCore(al) ) {
+    while ( multiReader.GetNextAlignment(al) ) {
       mergedWriter.SaveAlignment(al);
       if(count++ % 1000000 == 0)
           cerr << ".";  //progress indicator every 1M alignments written.

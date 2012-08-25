@@ -57,9 +57,7 @@ class BamReaderPrivate {
 
         // access alignment data
         bool GetNextAlignment(BamAlignment& alignment);
-        bool GetNextAlignmentCore(BamAlignment& alignment);
         BamAlignment * GetNextAlignment();
-        BamAlignment * GetNextAlignmentCore();
 
         // access auxiliary data
         std::string GetHeaderText(void) const;

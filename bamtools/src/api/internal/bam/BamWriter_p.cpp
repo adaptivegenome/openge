@@ -183,12 +183,13 @@ bool BamWriterPrivate::SaveAlignment(const BamAlignment& al) {
 
         // if BamAlignment contains only the core data and a raw char data buffer
         // (as a result of BamReader::GetNextAlignmentCore())
-        if ( al.getSupportData().HasCoreOnly )
-            WriteCoreAlignment(al);
+        //if ( al.getSupportData().HasCoreOnly )
+        //    WriteCoreAlignment(al);
 
         // otherwise, BamAlignment should contain character in the standard fields: Name, QueryBases, etc
         // (resulting from BamReader::GetNextAlignment() *OR* being generated directly by client code)
-        else WriteAlignment(al);
+        //else
+            WriteAlignment(al);
 
         // if we get here, everything OK
         return true;
@@ -268,14 +269,13 @@ void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
 
     // write the packed cigar
     if ( m_isBigEndian ) {
-        char* cigarData = new char[packedCigarLength]();
+        char* cigarData = (char *) alloca(packedCigarLength);
         memcpy(cigarData, packedCigar.data(), packedCigarLength);
         if ( m_isBigEndian ) {
             for ( size_t i = 0; i < packedCigarLength; ++i )
                 BamTools::SwapEndian_32p(&cigarData[i]);
         }
         m_stream.Write(cigarData, packedCigarLength);
-        delete[] cigarData; // TODO: cleanup on Write exception thrown?
     }
     else
         m_stream.Write(packedCigar.data(), packedCigarLength);
@@ -292,7 +292,7 @@ void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
     // write the tag data
     if ( m_isBigEndian ) {
 
-        char* tagData = new char[tagDataLength]();
+        char* tagData = (char *) alloca(tagDataLength);
         memcpy(tagData, al.getTagData().data(), tagDataLength);
 
         size_t i = 0;
@@ -375,14 +375,12 @@ void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
                 }
 
                 default :
-                    delete[] tagData;
                     const string message = string("invalid tag type: ") + type;
                     throw BamException("BamWriter::SaveAlignment", message);
             }
         }
 
         m_stream.Write(tagData, tagDataLength);
-        delete[] tagData; // TODO: cleanup on Write exception thrown?
     }
     else
         m_stream.Write(al.getTagData().data(), tagDataLength);

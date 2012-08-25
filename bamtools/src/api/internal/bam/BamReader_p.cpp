@@ -169,53 +169,11 @@ SamHeader BamReaderPrivate::GetSamHeader(void) const {
     return m_header.ToSamHeader();
 }
 
-// get next alignment (with character data fully parsed)
-bool BamReaderPrivate::GetNextAlignment(BamAlignment& alignment) {
-
-    // if valid alignment found
-    if ( GetNextAlignmentCore(alignment) ) {
-
-        // return success/failure of parsing char data
-        if ( alignment.BuildCharData() )
-            return true;
-        else {
-            const string alError = alignment.GetErrorString();
-            const string message = string("could not populate alignment data: \n\t") + alError;
-            SetErrorString("BamReader::GetNextAlignment", message);
-            return false;
-        }
-    }
-
-    // no valid alignment found
-    return false;
-}
-
-BamAlignment * BamReaderPrivate::GetNextAlignment() {
-    
-    // if valid alignment found
-    BamAlignment * alignment = GetNextAlignmentCore();
-    if ( alignment ) {
-        
-        // return success/failure of parsing char data
-        if ( alignment->BuildCharData() )
-            return alignment;
-        else {
-            const string alError = alignment->GetErrorString();
-            const string message = string("could not populate alignment data: \n\t") + alError;
-            SetErrorString("BamReader::GetNextAlignment", message);
-            return NULL;
-        }
-    }
-    
-    // no valid alignment found
-    return NULL;
-}
-
 // retrieves next available alignment core data (returns success/fail)
 // ** DOES NOT populate any character data fields (read name, bases, qualities, tag data, filename)
 //    these can be accessed, if necessary, from the supportData
 // useful for operations requiring ONLY positional or other alignment-related information
-bool BamReaderPrivate::GetNextAlignmentCore(BamAlignment& alignment) {
+bool BamReaderPrivate::GetNextAlignment(BamAlignment& alignment) {
 
     // skip if stream not opened
     if ( !m_stream.IsOpen() )
@@ -263,12 +221,12 @@ bool BamReaderPrivate::GetNextAlignmentCore(BamAlignment& alignment) {
     } catch ( BamException& e ) {
         const string streamError = e.what();
         const string message = string("encountered error reading BAM alignment: \n\t") + streamError;
-        SetErrorString("BamReader::GetNextAlignmentCore", message);
+        SetErrorString("BamReader::GetNextAlignment", message);
         return false;
     }
 }
 
-BamAlignment * BamReaderPrivate::GetNextAlignmentCore() {
+BamAlignment * BamReaderPrivate::GetNextAlignment() {
     
     // skip if stream not opened
     if ( !m_stream.IsOpen() )
@@ -315,7 +273,7 @@ BamAlignment * BamReaderPrivate::GetNextAlignmentCore() {
     } catch ( BamException& e ) {
         const string streamError = e.what();
         const string message = string("encountered error reading BAM alignment: \n\t") + streamError;
-        SetErrorString("BamReader::GetNextAlignmentCore", message);
+        SetErrorString("BamReader::GetNextAlignment", message);
         return NULL;
     }
 }
@@ -456,7 +414,7 @@ bool BamReaderPrivate::LoadNextAlignmentInternal(BamAlignment& alignment) {
 
         // save CIGAR ops
         // need to calculate this here so that  BamAlignment::GetEndPosition() performs correctly,
-        // even when GetNextAlignmentCore() is called
+        // even when GetNextAlignment() is called
         vector<CigarOp> CigarData;
         CigarData.reserve(SupportData.NumCigarOperations);
         const unsigned int cigarDataOffset = SupportData.QueryNameLength;

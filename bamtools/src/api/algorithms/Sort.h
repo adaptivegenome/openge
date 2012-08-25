@@ -293,7 +293,7 @@ struct API_EXPORT Sort {
         // iterate through region, grabbing alignments
         BamAlignment al;
         std::vector<BamAlignment> results;
-        while ( reader.GetNextAlignmentCore(al) )
+        while ( reader.GetNextAlignment(al) )
             results.push_back(al);
 
         // sort & return alignments
@@ -333,7 +333,7 @@ struct API_EXPORT Sort {
         // iterate through region, grabbing alignments
         BamAlignment al;
         std::vector<BamAlignment> results;
-        while ( reader.GetNextAlignmentCore(al) )
+        while ( reader.GetNextAlignment(al) )
             results.push_back(al);
 
         // sort & return alignments

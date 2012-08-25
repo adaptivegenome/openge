@@ -261,7 +261,7 @@ bool ReadSorter::MergeSortedRuns(void) {
     
     for(int ctr = 0; ctr < readers.size(); ctr++)
     {
-        BamAlignment * read = readers[ctr]->GetNextAlignmentCore();
+        BamAlignment * read = readers[ctr]->GetNextAlignment();
         
         if(!read) {
             continue;
@@ -278,7 +278,7 @@ bool ReadSorter::MergeSortedRuns(void) {
         
         putOutputAlignment(el.read);
         
-        el.read = el.source->GetNextAlignmentCore();
+        el.read = el.source->GetNextAlignment();
         if(!el.read) {
             continue;
         }

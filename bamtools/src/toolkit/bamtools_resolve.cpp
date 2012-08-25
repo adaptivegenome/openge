@@ -945,7 +945,7 @@ bool ResolveTool::ResolveToolPrivate::MakeStats(void) {
     string readGroup("");
     map<string, ReadGroupResolver>::iterator rgIter;
     map<string, bool>::iterator readNameIter;
-    while ( bamReader.GetNextAlignmentCore(al) ) {
+    while ( bamReader.GetNextAlignment(al) ) {
 
         // skip if alignment is not paired, mapped, nor mate is mapped
         if ( !al.IsPaired() || !al.IsMapped() || !al.IsMateMapped() )
@@ -953,9 +953,6 @@ bool ResolveTool::ResolveToolPrivate::MakeStats(void) {
 
         // skip if alignment & mate not on same reference sequence
         if ( al.getRefID() != al.getMateRefID() ) continue;
-
-        // flesh out the char data, so we can retrieve its read group ID
-        al.BuildCharData();
 
         // get read group from alignment (OK if empty)
         readGroup.clear();

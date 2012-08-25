@@ -106,7 +106,7 @@ bool MergeTool::MergeToolPrivate::Run(void) {
     // if no region specified, store entire contents of file(s)
     if ( !m_settings->HasRegion ) {
         BamAlignment al;
-        while ( reader.GetNextAlignmentCore(al) )
+        while ( reader.GetNextAlignment(al) )
             writer.SaveAlignment(al);
     }
 
@@ -137,7 +137,7 @@ bool MergeTool::MergeToolPrivate::Run(void) {
 
                 // everything checks out, just iterate through specified region, storing alignments
                 BamAlignment al;
-                while ( reader.GetNextAlignmentCore(al) )
+                while ( reader.GetNextAlignment(al) )
                     writer.SaveAlignment(al);
             }
 
@@ -145,7 +145,7 @@ bool MergeTool::MergeToolPrivate::Run(void) {
             // find overlapping alignments
             else {
                 BamAlignment al;
-                while ( reader.GetNextAlignmentCore(al) ) {
+                while ( reader.GetNextAlignment(al) ) {
                     if ( (al.getRefID() >= region.LeftRefID)  && ( (al.getPosition() + al.getLength()) >= region.LeftPosition ) &&
                          (al.getRefID() <= region.RightRefID) && ( al.getPosition() <= region.RightPosition) )
                     {

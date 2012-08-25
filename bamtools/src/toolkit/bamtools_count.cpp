@@ -81,7 +81,7 @@ bool CountTool::CountToolPrivate::Run(void) {
 
     // if no region specified, count entire file
     if ( !m_settings->HasRegion ) {
-        while ( reader.GetNextAlignmentCore(al) )
+        while ( reader.GetNextAlignment(al) )
             ++alignmentCount;
     }
 
@@ -106,14 +106,14 @@ bool CountTool::CountToolPrivate::Run(void) {
                 }
 
                 // everything checks out, just iterate through specified region, counting alignments
-                while ( reader.GetNextAlignmentCore(al) )
+                while ( reader.GetNextAlignment(al) )
                     ++alignmentCount;
             }
 
             // no index data available, we have to iterate through until we
             // find overlapping alignments
             else {
-                while ( reader.GetNextAlignmentCore(al) ) {
+                while ( reader.GetNextAlignment(al) ) {
                     if ( (al.getRefID() >= region.LeftRefID)  && ( (al.getPosition() + al.getLength()) >= region.LeftPosition ) &&
                           (al.getRefID() <= region.RightRefID) && ( al.getPosition() <= region.RightPosition) )
                     {

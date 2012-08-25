@@ -228,7 +228,7 @@ bool StatsTool::StatsToolPrivate::Run() {
     
     // plow through alignments, keeping track of stats
     BamAlignment al;
-    while ( reader.GetNextAlignmentCore(al) )
+    while ( reader.GetNextAlignment(al) )
         ProcessAlignment(al);
     reader.Close();
     

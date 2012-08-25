@@ -105,10 +105,7 @@ int FileReader::runInternal()
         
         while(true)
         {
-            if(load_string_data)
-                al = reader.GetNextAlignment();
-            else
-                al = reader.GetNextAlignmentCore();
+            al = reader.GetNextAlignment();
 
             if(!al)
                 break;

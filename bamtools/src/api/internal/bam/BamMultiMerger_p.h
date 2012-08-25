@@ -125,8 +125,6 @@ inline void MultiMerger<Compare>::Add(MergeItem item) {
     // N.B. - any future custom Compare types must define this method
     //        see algorithms/Sort.h
 
-    if ( CompareType::UsesCharData() )
-        item.Alignment->BuildCharData();
     m_data.insert(item);
 }
 

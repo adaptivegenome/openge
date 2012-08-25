@@ -150,26 +150,6 @@ BamAlignment * BamMultiReader::GetNextAlignment() {
     return d->GetNextAlignment();
 }
 
-/*! \fn bool BamMultiReader::GetNextAlignmentCore(BamAlignment& alignment)
-    \brief Retrieves next available alignment.
-
-    Equivalent to BamReader::GetNextAlignmentCore() with respect to what is a valid
-    overlapping alignment and what data gets populated.
-
-    This method takes care of determining which alignment actually is 'next'
-    across multiple files, depending on their sort order.
-
-    \param[out] alignment destination for alignment record data
-    \returns \c true if a valid alignment was found
-    \sa GetNextAlignment(), SetRegion(), BamReader::GetNextAlignmentCore()
-*/
-bool BamMultiReader::GetNextAlignmentCore(BamAlignment& nextAlignment) {
-    return d->GetNextAlignmentCore(nextAlignment);
-}
-BamAlignment * BamMultiReader::GetNextAlignmentCore() {
-    return d->GetNextAlignmentCore();
-}
-
 /*! \fn int BamMultiReader::GetReferenceCount(void) const
     \brief Returns number of reference sequences.
     \sa BamReader::GetReferenceCount()

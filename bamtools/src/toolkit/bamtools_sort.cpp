@@ -173,7 +173,7 @@ bool SortTool::SortToolPrivate::GenerateSortedRuns(void) {
     else {
 
         // iterate through file
-        while ( reader.GetNextAlignmentCore(al) ) {
+        while ( reader.GetNextAlignment(al) ) {
 
             // check buffer's usage
             bufferFull = ( buffer.size() >= m_settings->MaxBufferCount );
@@ -246,7 +246,7 @@ bool SortTool::SortToolPrivate::MergeSortedRuns(void) {
     
     // while data available in temp files
     BamAlignment al;
-    while ( multiReader.GetNextAlignmentCore(al) )
+    while ( multiReader.GetNextAlignment(al) )
         mergedWriter.SaveAlignment(al);
   
     // close files

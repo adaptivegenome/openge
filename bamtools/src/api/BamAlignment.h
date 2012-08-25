@@ -85,10 +85,16 @@ namespace BamTools {
         void RemoveTag(const std::string& tag);
         
         // additional methods
-    public:
+    protected:
         // populates alignment string fields
-        bool BuildCharData(void);
+        bool BuildAlignedBasesData(void) const;
+        bool BuildQualitiesData(void) const;
+        bool BuildQueryBasesData(void) const;
+        bool BuildTagData(void) const;
         
+        mutable bool hasAlignedBasesData, hasQualitiesData, hasQueryBasesData, hasTagData;
+        
+    public:
         // calculates alignment end position
         int GetEndPosition(bool usePadded = false, bool closedInterval = false) const;
         
@@ -106,10 +112,10 @@ namespace BamTools {
         std::string Name;               // read name
         //int32_t     Length;             // length of query sequence
         
-        std::string QueryBases;         // 'original' sequence (as reported from sequencing machine)
-        std::string AlignedBases;       // 'aligned' sequence (includes any indels, padding, clipping)
-        std::string Qualities;          // FASTQ qualities (ASCII characters, not numeric values)
-        std::string TagData;            // tag data (use provided methods to query/modify)
+        mutable std::string QueryBases;         // 'original' sequence (as reported from sequencing machine)
+        mutable std::string AlignedBases;       // 'aligned' sequence (includes any indels, padding, clipping)
+        mutable std::string Qualities;          // FASTQ qualities (ASCII characters, not numeric values)
+        mutable std::string TagData;            // tag data (use provided methods to query/modify)
         
         int32_t     RefID;              // ID number for reference sequence
         int32_t     Position;           // position (0-based) where alignment starts
@@ -125,10 +131,10 @@ namespace BamTools {
     public:
         const std::string & getName() const { return Name; }
         int32_t getLength() const { return QueryBases.size(); }
-        const std::string & getQueryBases() const { return QueryBases; }
-        const std::string & getAlignedBases() const { return AlignedBases; }
-        const std::string & getQualities() const { return Qualities; }
-        const std::string & getTagData() const { return TagData; }
+        const std::string & getQueryBases() const { BuildQueryBasesData(); return QueryBases; }
+        const std::string & getAlignedBases() const { BuildAlignedBasesData(); return AlignedBases; }
+        const std::string & getQualities() const { BuildQualitiesData(); return Qualities; }
+        const std::string & getTagData() const { BuildTagData(); return TagData; }
         int32_t getRefID() const { return RefID; }
         int32_t getPosition() const { return Position; }
         uint16_t getBin() const { return Bin; }
@@ -140,16 +146,16 @@ namespace BamTools {
         int32_t getInsertSize() const { return InsertSize; }
         
         void setName(const std::string & newName) { Name = newName; };
-        void setQueryBases(const std::string & newQueryBases) { QueryBases = newQueryBases; };
-        void setAlignedBases(const std::string & newAlignedBases) { AlignedBases = newAlignedBases; };
-        void setQualities(const std::string & newQualities) { Qualities = newQualities; };
-        void setTagData(const std::string & newTagData) { TagData = newTagData; };
+        void setQueryBases(const std::string & newQueryBases) { QueryBases = newQueryBases; hasTagData = true; };
+        void setAlignedBases(const std::string & newAlignedBases) { AlignedBases = newAlignedBases; hasTagData = true; };
+        void setQualities(const std::string & newQualities) { Qualities = newQualities; hasTagData = true; };
+        void setTagData(const std::string & newTagData) { TagData = newTagData; hasTagData = false; };
         void setRefID(int32_t newRefID) { RefID = newRefID; }
         void setPosition(int32_t newPosition) { Position = newPosition; }
         void setBin(uint16_t newBin) { Bin = newBin; }
         void setMapQuality(uint16_t newMapQuality) { MapQuality = newMapQuality; }
         void setAlignmentFlag(uint32_t newAlignmentFlag) { AlignmentFlag = newAlignmentFlag; }
-        void setCigarData(std::vector<CigarOp> newCigarData) { CigarData = newCigarData; }
+        void setCigarData(const std::vector<CigarOp> & newCigarData) { CigarData = newCigarData; }
         void setMateRefID(int32_t newMateRefID) { MateRefID = newMateRefID; }
         void setMatePosition(int32_t newMatePosition) { MatePosition = newMatePosition; }
         void setInsertSize(int32_t newInsertSize) { InsertSize = newInsertSize; }
@@ -219,9 +225,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::AddTag(const std::string& tag, const std::string& type, const T& value) {
         
-        // if char data not populated, do that first
-        if ( SupportData.HasCoreOnly )
-            BuildCharData();
+        BuildTagData();
         
         // check tag/type size
         if ( !IsValidSize(tag, type) ) {
@@ -281,10 +285,8 @@ namespace BamTools {
                                                   const std::string& type,
                                                   const std::string& value)
     {
-        // if char data not populated, do that first
-        if ( SupportData.HasCoreOnly )
-            BuildCharData();
-        
+        BuildTagData();
+
         // check tag/type size
         if ( !IsValidSize(tag, type) ) {
             // TODO: set error string?
@@ -343,10 +345,8 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::AddTag(const std::string& tag, const std::vector<T>& values) {
         
-        // if char data not populated, do that first
-        if ( SupportData.HasCoreOnly )
-            BuildCharData();
-        
+        BuildTagData();
+
         // check for valid tag name length
         if ( tag.size() != Constants::BAM_TAG_TAGSIZE )
             return false;
@@ -413,9 +413,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::EditTag(const std::string& tag, const std::string& type, const T& value) {
         
-        // if char data not populated, do that first
-        if ( SupportData.HasCoreOnly )
-            BuildCharData();
+        BuildTagData();
         
         // remove existing tag if present, then append tag with new value
         if ( HasTag(tag) )
@@ -437,9 +435,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::EditTag(const std::string& tag, const std::vector<T>& values) {
         
-        // if char data not populated, do that first
-        if ( SupportData.HasCoreOnly )
-            BuildCharData();
+        BuildTagData();
         
         // remove existing tag if present, then append tag with new values
         if ( HasTag(tag) )

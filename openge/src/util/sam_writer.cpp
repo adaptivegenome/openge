@@ -91,8 +91,6 @@ bool SamWriter::Close() {
 bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
     // tab-delimited
     // <QNAME> <FLAG> <RNAME> <POS> <MAPQ> <CIGAR> <MRNM> <MPOS> <ISIZE> <SEQ> <QUAL> [ <TAG>:<VTYPE>:<VALUE> [...] ]
-    
-    a.BuildCharData();
     assert(open);
     ostream & m_out = *output_stream;
     

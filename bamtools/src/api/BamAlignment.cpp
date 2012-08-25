@@ -83,7 +83,11 @@ using namespace std;
     \brief constructor
 */
 BamAlignment::BamAlignment(void)
-    : RefID(-1)
+    : hasAlignedBasesData(false)
+    , hasQualitiesData(false)
+    , hasQueryBasesData(false)
+    , hasTagData(false)
+    , RefID(-1)
     , Position(-1)
     , Bin(0)
     , MapQuality(0)
@@ -97,7 +101,11 @@ BamAlignment::BamAlignment(void)
     \brief copy constructor
 */
 BamAlignment::BamAlignment(const BamAlignment& other)
-    : Name(other.Name)
+    : hasAlignedBasesData(false)
+    , hasQualitiesData(false)
+    , hasQueryBasesData(false)
+    , hasTagData(false)
+    , Name(other.Name)
     , QueryBases(other.QueryBases)
     , AlignedBases(other.AlignedBases)
     , Qualities(other.Qualities)
@@ -119,42 +127,17 @@ BamAlignment::BamAlignment(const BamAlignment& other)
 */
 BamAlignment::~BamAlignment(void) { }
 
-/*! \fn bool BamAlignment::BuildCharData(void)
-    \brief Populates alignment string fields (read name, bases, qualities, tag data).
-
-    An alignment retrieved using BamReader::GetNextAlignmentCore() lacks this data.
-    Using that method makes parsing much quicker when only positional data is required.
-
-    However, if you later want to access the character data fields from such an alignment,
-    use this method to populate those fields. Provides ability to do 'lazy evaluation' of
-    alignment parsing.
-
-    \return \c true if character data populated successfully (or was already available to begin with)
-*/
-bool BamAlignment::BuildCharData(void) {
-
-    // skip if char data already parsed
-    if ( !SupportData.HasCoreOnly )
+bool BamAlignment::BuildQueryBasesData() const {
+    if(hasQueryBasesData)
         return true;
-
-    // check system endianness
-    bool IsBigEndian = BamTools::SystemIsBigEndian();
+    hasQueryBasesData = true;
 
     // calculate character lengths/offsets
-    const unsigned int dataLength     = SupportData.BlockLength - Constants::BAM_CORE_SIZE;
     const unsigned int seqDataOffset  = SupportData.QueryNameLength + (SupportData.NumCigarOperations*4);
     const unsigned int qualDataOffset = seqDataOffset + (SupportData.QuerySequenceLength+1)/2;
-    const unsigned int tagDataOffset  = qualDataOffset + SupportData.QuerySequenceLength;
-    const unsigned int tagDataLength  = dataLength - tagDataOffset;
-
+    
     // check offsets to see what char data exists
     const bool hasSeqData  = ( seqDataOffset  < qualDataOffset );
-    const bool hasQualData = ( qualDataOffset < tagDataOffset );
-    const bool hasTagData  = ( tagDataOffset  < dataLength );
-
-    // store alignment name (relies on null char in name as terminator)
-    Name.assign(SupportData.AllCharData.data());
-
     // save query sequence
     QueryBases.clear();
     if ( hasSeqData ) {
@@ -165,8 +148,22 @@ bool BamAlignment::BuildCharData(void) {
             QueryBases.append(1, singleBase);
         }
     }
+    
+    return true;
+}
 
-    // save qualities
+bool BamAlignment::BuildQualitiesData() const {
+    if(hasQualitiesData)
+        return true;
+    hasQualitiesData = true;
+
+    // calculate character lengths/offsets
+    const unsigned int seqDataOffset  = SupportData.QueryNameLength + (SupportData.NumCigarOperations*4);
+    const unsigned int qualDataOffset = seqDataOffset + (SupportData.QuerySequenceLength+1)/2;
+    const unsigned int tagDataOffset  = qualDataOffset + SupportData.QuerySequenceLength;
+    
+    // check offsets to see what char data exists
+    const bool hasQualData = ( qualDataOffset < tagDataOffset );
 
     Qualities.clear();
     if ( hasQualData ) {
@@ -183,6 +180,14 @@ bool BamAlignment::BuildCharData(void) {
                 Qualities.append(1, qualData[i]+33);
         }
     }
+    
+    return true;
+}
+
+bool BamAlignment::BuildAlignedBasesData() const {
+    if(hasAlignedBasesData)
+        return true;
+    hasAlignedBasesData = true;
 
     // clear previous AlignedBases
     AlignedBases.clear();
@@ -239,13 +244,31 @@ bool BamAlignment::BuildCharData(void) {
                 // invalid CIGAR op-code
                 default:
                     const string message = string("invalid CIGAR operation type: ") + op.Type;
-                    SetErrorString("BamAlignment::BuildCharData", message);
+                    SetErrorString("BamAlignment::BuildAlignedBasesData", message);
                     return false;
             }
         }
     }
+    return true;
+}
 
-    // save tag data
+bool BamAlignment::BuildTagData() const {
+    if(hasTagData)
+        return true;
+    hasTagData = true;
+
+    // check system endianness
+    bool IsBigEndian = BamTools::SystemIsBigEndian();
+
+    // calculate character lengths/offsets
+    const unsigned int dataLength     = SupportData.BlockLength - Constants::BAM_CORE_SIZE;
+    const unsigned int seqDataOffset  = SupportData.QueryNameLength + (SupportData.NumCigarOperations*4);
+    const unsigned int qualDataOffset = seqDataOffset + (SupportData.QuerySequenceLength+1)/2;
+    const unsigned int tagDataOffset  = qualDataOffset + SupportData.QuerySequenceLength;
+    const unsigned int tagDataLength  = dataLength - tagDataOffset;
+    
+    // check offsets to see what char data exists
+    const bool hasTagData  = ( tagDataOffset  < dataLength );
     TagData.clear();
     if ( hasTagData ) {
 
@@ -324,7 +347,7 @@ bool BamAlignment::BuildCharData(void) {
                                     break;
                                 default:
                                     const string message = string("invalid binary array type: ") + arrayType;
-                                    SetErrorString("BamAlignment::BuildCharData", message);
+                                    SetErrorString("BamAlignment::BuildTagData", message);
                                     return false;
                             }
                         }
@@ -335,7 +358,7 @@ bool BamAlignment::BuildCharData(void) {
                     // invalid tag type-code
                     default :
                         const string message = string("invalid tag type: ") + type;
-                        SetErrorString("BamAlignment::BuildCharData", message);
+                        SetErrorString("BamAlignment::BuildTagData", message);
                         return false;
                 }
             }
@@ -346,8 +369,6 @@ bool BamAlignment::BuildCharData(void) {
         memcpy((char*)(TagData.data()), tagData, tagDataLength);
     }
 
-    // clear core-only flag & return success
-    SupportData.HasCoreOnly = false;
     return true;
 }
 
@@ -728,9 +749,7 @@ bool BamAlignment::IsValidSize(const std::string& tag, const std::string& type) 
 */
 void BamAlignment::RemoveTag(const std::string& tag) {
   
-    // if char data not populated, do that first
-    if ( SupportData.HasCoreOnly )
-        BuildCharData();
+    BuildTagData();
 
     // skip if no tags available
     if ( TagData.empty() )

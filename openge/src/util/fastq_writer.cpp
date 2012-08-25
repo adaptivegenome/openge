@@ -99,8 +99,6 @@ void compliment(string & str)
 }
 
 bool FastqWriter::SaveAlignment(BamTools::BamAlignment & a) {
-    a.BuildCharData();
-    
     if(fwd_stream == rev_stream)
         *fwd_stream << "@" << a.getName() << endl << a.getQueryBases() << endl << "+" << a.getName() << endl << a.getQualities() << endl;
     else {
