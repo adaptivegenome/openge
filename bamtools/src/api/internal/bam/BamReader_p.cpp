@@ -68,17 +68,9 @@ void * prefetch_start(void * reader_ptr)
         // from disk- when using slower seeking disks (ie, non-SSD), the system can grind to a 
         // halt as a result of tons of threads causing reads trying to fill up their queues constantly.
         // This will send the load average through the roof.
-        if(count % 300 == 0)    //don't check often
-        {
-            double load;
-            getloadavg(&load, 1);
-            
-            if(load > BamParallelismSettings::availableCores() / 2 && reader->prefetch_alignments.size() > 400) {
-                 while(reader->prefetch_alignments.size() > 100) usleep(20000);
-            } else if( reader->prefetch_alignments.size() > 20000) {
-                while (reader->prefetch_alignments.size() > 5000) usleep(20000);
-            }
-        }
+        if(count % 300 == 0 && reader->prefetch_alignments.size() > 20000)    //don't check often
+            usleep(20000);
+
         count++;
     }
 

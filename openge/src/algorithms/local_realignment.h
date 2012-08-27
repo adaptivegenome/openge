@@ -331,7 +331,7 @@ private:
         std::string reference;
         GenomeLoc * loc;
         GenomeLocParser * loc_parser;
-        BamTools::SamSequenceDictionary sequences;
+        const BamTools::SamSequenceDictionary * sequences;
     public:
         ReadBin() 
         : loc(NULL)
@@ -342,7 +342,7 @@ private:
             clear();
         }
         
-        void initialize(GenomeLocParser * loc_parser, const BamTools::SamSequenceDictionary & sequence_dict) {
+        void initialize(GenomeLocParser * loc_parser, const BamTools::SamSequenceDictionary * sequence_dict) {
             this->loc_parser = loc_parser;
             sequences = sequence_dict;
         }
@@ -458,24 +458,20 @@ private:
             
     void pushToEmitQueue(Emittable * e)
     {
-        bool emit_queue_full = false;
-        while(emit_queue_full) {
-            if(0 != pthread_mutex_lock(&emit_mutex) ) {
-                perror("Error locking LR emit push mutex.");
-                exit(-1);
-            }
-            emit_queue_full = emit_queue.size() > 10000;
-            if(!emit_queue_full)
-                emit_queue.push(e);
-            
-            if(0 != pthread_mutex_unlock(&emit_mutex) ) {
-                perror("Error unlocking LR emit push mutex.");
-                exit(-1);
-            }
-            
-            if(emit_queue_full)
-                usleep(20000);
+        if(0 != pthread_mutex_lock(&emit_mutex) ) {
+            perror("Error locking LR emit push mutex.");
+            exit(-1);
         }
+        bool emit_queue_flush = emit_queue.size() > 10000 && (emit_queue.size() % 300 == 0);
+        emit_queue.push(e);
+
+        if(0 != pthread_mutex_unlock(&emit_mutex) ) {
+            perror("Error unlocking LR emit push mutex.");
+            exit(-1);
+        }
+
+        if(emit_queue_flush)
+            flushEmitQueue();
     }
     
 public:
