@@ -69,10 +69,7 @@ bool IndexTool::IndexToolPrivate::Run(void) {
         return false;
     }
 
-    // create index for BAM file
-    const BamIndex::IndexType type = ( m_settings->IsUsingBamtoolsIndex ? BamIndex::BAMTOOLS
-                                                                        : BamIndex::STANDARD );
-    reader.CreateIndex(type);
+    reader.CreateIndex(BamIndex::STANDARD);
 
     // clean & exit
     reader.Close();

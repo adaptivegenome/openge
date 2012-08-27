@@ -9,7 +9,6 @@
 
 #include "api/internal/index/BamIndexFactory_p.h"
 #include "api/internal/index/BamStandardIndex_p.h"
-#include "api/internal/index/BamToolsIndex_p.h"
 using namespace BamTools;
 using namespace BamTools::Internal;
 using namespace std;
@@ -19,12 +18,7 @@ using namespace std;
 const string BamIndexFactory::CreateIndexFilename(const string& bamFilename,
                                                   const BamIndex::IndexType& type)
 {
-    switch ( type ) {
-        case ( BamIndex::STANDARD ) : return ( bamFilename + BamStandardIndex::Extension() );
-        case ( BamIndex::BAMTOOLS ) : return ( bamFilename + BamToolsIndex::Extension() );
-        default :
-            return string();
-    }
+    return ( bamFilename + BamStandardIndex::Extension() );
 }
 
 // creates a new BamIndex object, depending on extension of @indexFilename
@@ -37,22 +31,14 @@ BamIndex* BamIndexFactory::CreateIndexFromFilename(const string& indexFilename, 
         return 0;
 
     // create index based on extension
-    if      ( extension == BamStandardIndex::Extension() ) return new BamStandardIndex(reader);
-    else if ( extension == BamToolsIndex::Extension()    ) return new BamToolsIndex(reader);
-    else
-        return 0;
+    return new BamStandardIndex(reader);
 }
 
 // creates a new BamIndex, object of requested @type
 BamIndex* BamIndexFactory::CreateIndexOfType(const BamIndex::IndexType& type,
                                              BamReaderPrivate* reader)
 {
-    switch ( type ) {
-        case ( BamIndex::STANDARD ) : return new BamStandardIndex(reader);
-        case ( BamIndex::BAMTOOLS ) : return new BamToolsIndex(reader);
-        default :
-            return 0;
-    }
+    return new BamStandardIndex(reader);
 }
 
 // retrieves file extension (including '.')
@@ -93,11 +79,6 @@ const string BamIndexFactory::FindIndexFilename(const string& bamFilename,
     // return index filename if found
     if ( preferredType != BamIndex::STANDARD ) {
         indexFilename = CreateIndexFilename(bamFilename, BamIndex::STANDARD);
-        if ( !indexFilename.empty() )
-            return indexFilename;
-    }
-    if ( preferredType != BamIndex::BAMTOOLS ) {
-        indexFilename = CreateIndexFilename(bamFilename, BamIndex::BAMTOOLS);
         if ( !indexFilename.empty() )
             return indexFilename;
     }

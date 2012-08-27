@@ -15,7 +15,6 @@
 #include "api/internal/bam/BamRandomAccessController_p.h"
 #include "api/internal/bam/BamReader_p.h"
 #include "api/internal/index/BamStandardIndex_p.h"
-#include "api/internal/index/BamToolsIndex_p.h"
 #include "api/internal/io/BamDeviceFactory_p.h"
 #include "api/internal/utils/BamException_p.h"
 using namespace BamTools;
