@@ -131,7 +131,7 @@ namespace BamTools {
         
     public:
         const std::string & getName() const { return Name; }
-        int32_t getLength() const { return QueryBases.size(); }
+        int32_t getLength() const { return SupportData.QuerySequenceLength; }
         const std::string & getQueryBases() const { BuildQueryBasesData(); return QueryBases; }
         const std::string & getAlignedBases() const { BuildAlignedBasesData(); return AlignedBases; }
         const std::string & getQualities() const { BuildQualitiesData(); return Qualities; }
@@ -198,7 +198,7 @@ namespace BamTools {
             { }
         };
         const BamAlignmentSupportData & getSupportData() const { return SupportData; }
-        void setSupportData(const BamAlignmentSupportData & supportData) { SupportData = supportData; }
+        void setSupportData(const BamAlignmentSupportData & supportData) { SupportData = supportData; setName(SupportData.AllCharData.c_str());}
     private:
         BamAlignmentSupportData SupportData;
         

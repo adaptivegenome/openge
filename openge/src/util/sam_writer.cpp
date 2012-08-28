@@ -98,8 +98,8 @@ bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
     m_out << a.getName() << "\t" << a.getAlignmentFlag() << "\t";
     
     // write reference name
-    if ( (a.getRefID() >= 0) && (a.getRefID() < (int)references.size()) ) 
-        m_out << references[a.getRefID()].RefName << "\t";
+    if ( (a.getRefID() >= 0) && (a.getRefID() < (int)header.Sequences.Size()) )
+        m_out << header.Sequences[a.getRefID()].Name << "\t";
     else 
         m_out << "*\t";
     
@@ -120,11 +120,11 @@ bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
     }
     
     // write mate reference name, mate position, & insert size
-    if ( a.IsPaired() && (a.getMateRefID() >= 0) && (a.getMateRefID() < (int)references.size()) ) {
+    if ( a.IsPaired() && (a.getMateRefID() >= 0) && (a.getMateRefID() < (int)header.Sequences.Size()) ) {
         if ( a.getMateRefID() == a.getRefID() )
             m_out << "=\t";
         else
-            m_out << references[a.getMateRefID()].RefName << "\t";
+            m_out << header.Sequences[a.getMateRefID()].Name << "\t";
         m_out << a.getMatePosition()+1 << "\t" << a.getInsertSize() << "\t";
     } 
     else
@@ -164,8 +164,11 @@ bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
                 break;
                 
             case (Constants::BAM_TAG_TYPE_INT8)  :
+                m_out << "i:" << (int)(char)tagData[index];
+                ++index;
+                break;
             case (Constants::BAM_TAG_TYPE_UINT8) :
-                m_out << "i:" << (int)tagData[index];
+                m_out << "i:" << (int)(unsigned char)tagData[index];
                 ++index;
                 break;
                 
