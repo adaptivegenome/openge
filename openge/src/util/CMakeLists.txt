@@ -1,6 +1,7 @@
 set(UTIL_DIR "util")
 
 set(OPENGE_UTIL_SOURCES 
+  ${UTIL_DIR}/bam_serializer.cpp
   ${UTIL_DIR}/fasta_reader.cpp
   ${UTIL_DIR}/fastq_writer.cpp
   ${UTIL_DIR}/picard_structures.cpp

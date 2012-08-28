@@ -23,8 +23,11 @@
 #include "file_writer.h"
 #include "openge_constants.h"
 
+#include <fstream>
+
 #include "../util/sam_writer.h"
 #include "../util/fastq_writer.h"
+#include "../util/bam_serializer.h"
 
 #include "api/BamWriter.h"
 using namespace BamTools;
@@ -172,6 +175,30 @@ int FileWriter::runInternal()
                 
                 writer.Close();
             }
+            break;
+        case FORMAT_RAWBAM:
+        {
+            BamSerializer<ofstream> writer;
+            
+            if(!writer.open(filename, header)) {
+                cerr << "Error opening RAWBAM file to write." << endl;
+                exit(-1);
+            }
+            
+            BamAlignment * al;
+            
+            while(true)
+            {
+                al = getInputAlignment();
+                if(!al)
+                    break;
+                
+                writer.write(*al);
+                putOutputAlignment(al);
+            }
+            
+            writer.close();
+        }
             break;
         default:
             cerr << "Unsupported output file format selected. Aborting." << endl;
