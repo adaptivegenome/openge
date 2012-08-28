@@ -410,29 +410,6 @@ bool BamReaderPrivate::LoadNextAlignmentInternal(BamAlignment& alignment) {
 
         // set success flag
         readCharDataOK = true;
-
-        // save CIGAR ops
-        // need to calculate this here so that  BamAlignment::GetEndPosition() performs correctly,
-        // even when GetNextAlignment() is called
-        vector<CigarOp> CigarData;
-        CigarData.reserve(SupportData.NumCigarOperations);
-        const unsigned int cigarDataOffset = SupportData.QueryNameLength;
-        uint32_t* cigarData = (uint32_t*)(allCharData.Buffer + cigarDataOffset);
-        for ( unsigned int i = 0; i < SupportData.NumCigarOperations; ++i ) {
-
-            // swap endian-ness if necessary
-            if ( m_isBigEndian ) BamTools::SwapEndian_32(cigarData[i]);
-
-            // build CigarOp structure
-            CigarOp op;
-            op.Length = (cigarData[i] >> Constants::BAM_CIGAR_SHIFT);
-            op.Type   = Constants::BAM_CIGAR_LOOKUP[ (cigarData[i] & Constants::BAM_CIGAR_MASK) ];
-
-            // save CigarOp
-            CigarData.push_back(op);
-        }
-        
-        alignment.setCigarData(CigarData);
     } else {
         cerr << "Expected more bytes reading BAM char data. Is this file truncated or corrupted?" << endl;
         return false;

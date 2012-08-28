@@ -91,8 +91,9 @@ namespace BamTools {
         bool BuildQualitiesData(void) const;
         bool BuildQueryBasesData(void) const;
         bool BuildTagData(void) const;
+        bool BuildCigarData(void) const;
         
-        mutable bool hasAlignedBasesData, hasQualitiesData, hasQueryBasesData, hasTagData;
+        mutable bool hasAlignedBasesData, hasQualitiesData, hasQueryBasesData, hasTagData, hasCigarData;
         
     public:
         // calculates alignment end position
@@ -123,7 +124,7 @@ namespace BamTools {
         uint16_t    MapQuality;         // mapping quality score
         uint32_t    AlignmentFlag;      // alignment bit-flag (use provided methods to query/modify)
         
-        std::vector<CigarOp> CigarData; // CIGAR operations for this alignment
+        mutable std::vector<CigarOp> CigarData; // CIGAR operations for this alignment
         int32_t     MateRefID;          // ID number for reference sequence where alignment's mate was aligned
         int32_t     MatePosition;       // position (0-based) where alignment's mate starts
         int32_t     InsertSize;         // mate-pair insert size
@@ -140,7 +141,7 @@ namespace BamTools {
         uint16_t getBin() const { return Bin; }
         uint16_t getMapQuality() const { return MapQuality; }
         uint32_t getAlignmentFlag() const { return AlignmentFlag; }
-        const std::vector<CigarOp> & getCigarData() const { return CigarData; }
+        const std::vector<CigarOp> & getCigarData() const { BuildCigarData(); return CigarData; }
         int32_t getMateRefID() const { return MateRefID; }
         int32_t getMatePosition() const { return MatePosition; }
         int32_t getInsertSize() const { return InsertSize; }
@@ -155,7 +156,7 @@ namespace BamTools {
         void setBin(uint16_t newBin) { Bin = newBin; }
         void setMapQuality(uint16_t newMapQuality) { MapQuality = newMapQuality; }
         void setAlignmentFlag(uint32_t newAlignmentFlag) { AlignmentFlag = newAlignmentFlag; }
-        void setCigarData(const std::vector<CigarOp> & newCigarData) { CigarData = newCigarData; }
+        void setCigarData(const std::vector<CigarOp> & newCigarData) { CigarData = newCigarData; hasCigarData = true; }
         void setMateRefID(int32_t newMateRefID) { MateRefID = newMateRefID; }
         void setMatePosition(int32_t newMatePosition) { MatePosition = newMatePosition; }
         void setInsertSize(int32_t newInsertSize) { InsertSize = newInsertSize; }

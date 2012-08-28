@@ -372,6 +372,36 @@ bool BamAlignment::BuildTagData() const {
     return true;
 }
 
+bool BamAlignment::BuildCigarData() const {
+    
+    if(hasCigarData) return true;
+    hasCigarData = true;
+    
+    bool IsBigEndian = BamTools::SystemIsBigEndian();
+
+    // save CIGAR ops
+    // need to calculate this here so that  BamAlignment::GetEndPosition() performs correctly,
+    // even when GetNextAlignment() is called
+    CigarData.reserve(SupportData.NumCigarOperations);
+    const unsigned int cigarDataOffset = SupportData.QueryNameLength;
+    uint32_t* cigarData = (uint32_t*)(&SupportData.AllCharData[0] + cigarDataOffset);
+    for ( unsigned int i = 0; i < SupportData.NumCigarOperations; ++i ) {
+        
+        // swap endian-ness if necessary
+        if ( IsBigEndian ) BamTools::SwapEndian_32(cigarData[i]);
+        
+        // build CigarOp structure
+        CigarOp op;
+        op.Length = (cigarData[i] >> Constants::BAM_CIGAR_SHIFT);
+        op.Type   = Constants::BAM_CIGAR_LOOKUP[ (cigarData[i] & Constants::BAM_CIGAR_MASK) ];
+        
+        // save CigarOp
+        CigarData.push_back(op);
+    }
+    
+    return true;
+}
+
 /*! \fn bool BamAlignment::FindTag(const std::string& tag, char*& pTagData, const unsigned int& tagDataLength, unsigned int& numBytesParsed) const
     \internal
 
