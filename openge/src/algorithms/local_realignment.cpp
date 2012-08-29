@@ -500,7 +500,8 @@ public:
         c->clean_done = true;
         
         c->lr.flushEmitQueue();
-        //delete interval_data;
+
+        delete this;
     }
 };
 

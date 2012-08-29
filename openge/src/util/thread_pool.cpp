@@ -204,7 +204,6 @@ void * ThreadPool::thread_start(void * thread_pool)
 			return NULL;
 		job->runJob();
 		pool->stopJob(job);
-        delete job;
 	}
 	
 }
