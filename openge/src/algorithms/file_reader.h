@@ -33,7 +33,7 @@ class FileReader : public AlgorithmModule
 public:
     typedef enum
     {
-        FORMAT_BAM, FORMAT_SAM, FORMAT_CRAM, FORMAT_UNKNOWN
+        FORMAT_BAM, FORMAT_RAWBAM, FORMAT_SAM, FORMAT_CRAM, FORMAT_UNKNOWN
     } file_format_t;
     
 protected:
@@ -41,12 +41,10 @@ protected:
     std::vector<std::string> filenames;
     bool open;
     BamTools::SamHeader header;
-    BamTools::RefVector references;
     file_format_t format;
     bool format_specified;
     bool load_string_data;
     
-    virtual BamTools::RefVector getReferences() { while (!open) usleep(10000); return references; }
     virtual BamTools::SamHeader getHeader() { while (!open) usleep(10000); return header; }
     
 public:

@@ -24,6 +24,7 @@
 
 #include "api/BamMultiReader.h"
 #include "../util/sam_reader.h"
+#include "../util/bam_deserializer.h"
 using namespace BamTools;
 using namespace std;
 
@@ -63,7 +64,9 @@ FileReader::file_format_t FileReader::deduceFileFormat()
             this_file_format = FORMAT_SAM;
         else if(data[0] == 31 && data[1] == 139)
             this_file_format = FORMAT_BAM;
-        else 
+        else if(data[0] == 'B' && data[1] == 'A')
+            this_file_format = FORMAT_RAWBAM;
+        else
             this_file_format = FORMAT_UNKNOWN;
 
         if(i == 0)
@@ -98,7 +101,6 @@ int FileReader::runInternal()
         }
         
         header = reader.GetHeader();
-        references = reader.GetReferenceData();
         open = true;
         
         BamAlignment * al;
@@ -106,7 +108,7 @@ int FileReader::runInternal()
         while(true)
         {
             al = reader.GetNextAlignment();
-
+            
             if(!al)
                 break;
             
@@ -114,6 +116,37 @@ int FileReader::runInternal()
         }
         
         reader.Close();
+    } else if(format == FORMAT_RAWBAM)
+    {
+        BamDeserializer<ifstream> reader;
+        
+        if(filenames.size() != 1) {
+            cerr << "RAWBAM only supports reading a single input file at this time. You supplied " << filenames.size() << ". Aborting." << endl;
+            exit(-1);
+        }
+        
+        if(!reader.open(filenames[0])) {
+            cerr << "Error opening RAWBAM file." << endl;
+            reader.close();
+            exit(-1);
+        }
+        
+        header = reader.getHeader();
+        open = true;
+        
+        BamAlignment * al;
+        
+        while(true)
+        {
+            al = reader.read();
+            
+            if(!al)
+                break;
+            
+            putOutputAlignment(al);
+        }
+        
+        reader.close();
     } else if(format == FORMAT_SAM) {
         
         vector<SamReader> readers;
