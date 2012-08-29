@@ -166,8 +166,11 @@ bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
                 break;
                 
             case (Constants::BAM_TAG_TYPE_INT8)  :
+                m_out << "i:" << (int)(char)tagData[index];
+                ++index;
+                break;
             case (Constants::BAM_TAG_TYPE_UINT8) :
-                m_out << "i:" << (int)tagData[index];
+                m_out << "i:" << (int)(unsigned char)tagData[index];
                 ++index;
                 break;
                 
