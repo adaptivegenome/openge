@@ -13,6 +13,7 @@
 #include "api/api_global.h"
 #include "api/BamAux.h"
 #include "api/BamConstants.h"
+#include "api/BamParallelismSettings.h"
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -113,6 +114,8 @@ namespace BamTools {
         std::string Name;               // read name
         //int32_t     Length;             // length of query sequence
         
+        mutable BamSpinlock lazy_load_lock;
+
         mutable std::string QueryBases;         // 'original' sequence (as reported from sequencing machine)
         mutable std::string AlignedBases;       // 'aligned' sequence (includes any indels, padding, clipping)
         mutable std::string Qualities;          // FASTQ qualities (ASCII characters, not numeric values)

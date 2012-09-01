@@ -128,8 +128,12 @@ BamAlignment::BamAlignment(const BamAlignment& other)
 BamAlignment::~BamAlignment(void) { }
 
 bool BamAlignment::BuildQueryBasesData() const {
-    if(hasQueryBasesData)
+    lazy_load_lock.lock();
+    if(hasQueryBasesData) {
+        lazy_load_lock.unlock();
         return true;
+    }
+
     hasQueryBasesData = true;
 
     // calculate character lengths/offsets
@@ -148,13 +152,19 @@ bool BamAlignment::BuildQueryBasesData() const {
             QueryBases.append(1, singleBase);
         }
     }
-    
+
+    lazy_load_lock.unlock();
+
     return true;
 }
 
 bool BamAlignment::BuildQualitiesData() const {
-    if(hasQualitiesData)
+    lazy_load_lock.lock();
+    if(hasQualitiesData) {
+        lazy_load_lock.unlock();
         return true;
+    }
+
     hasQualitiesData = true;
 
     // calculate character lengths/offsets
@@ -181,12 +191,18 @@ bool BamAlignment::BuildQualitiesData() const {
         }
     }
     
+    lazy_load_lock.unlock();
+    
     return true;
 }
 
 bool BamAlignment::BuildAlignedBasesData() const {
-    if(hasAlignedBasesData)
+    lazy_load_lock.lock();
+    if(hasAlignedBasesData) {
+        lazy_load_lock.unlock();
         return true;
+    }
+
     hasAlignedBasesData = true;
 
     // clear previous AlignedBases
@@ -249,16 +265,20 @@ bool BamAlignment::BuildAlignedBasesData() const {
             }
         }
     }
+
+    lazy_load_lock.unlock();
+
     return true;
 }
 
 bool BamAlignment::BuildTagData() const {
-    if(hasTagData)
+    lazy_load_lock.lock();
+    if(hasTagData) {
+        lazy_load_lock.unlock();
         return true;
-    hasTagData = true;
+    }
 
-    // check system endianness
-    bool IsBigEndian = BamTools::SystemIsBigEndian();
+    hasTagData = true;
 
     // calculate character lengths/offsets
     const unsigned int dataLength     = SupportData.BlockLength - Constants::BAM_CORE_SIZE;
@@ -274,110 +294,26 @@ bool BamAlignment::BuildTagData() const {
 
         char* tagData = (((char*)SupportData.AllCharData.data()) + tagDataOffset);
 
-        if ( IsBigEndian ) {
-            size_t i = 0;
-            while ( i < tagDataLength ) {
-
-                i += Constants::BAM_TAG_TAGSIZE;  // skip tag chars (e.g. "RG", "NM", etc.)
-                const char type = tagData[i];     // get tag type at position i
-                ++i;                              // move i past tag type
-
-                switch (type) {
-
-                    case(Constants::BAM_TAG_TYPE_ASCII) :
-                    case(Constants::BAM_TAG_TYPE_INT8)  :
-                    case(Constants::BAM_TAG_TYPE_UINT8) :
-                        // no endian swapping necessary for single-byte data
-                        ++i;
-                        break;
-
-                    case(Constants::BAM_TAG_TYPE_INT16)  :
-                    case(Constants::BAM_TAG_TYPE_UINT16) :
-                        BamTools::SwapEndian_16p(&tagData[i]);
-                        i += sizeof(uint16_t);
-                        break;
-
-                    case(Constants::BAM_TAG_TYPE_FLOAT)  :
-                    case(Constants::BAM_TAG_TYPE_INT32)  :
-                    case(Constants::BAM_TAG_TYPE_UINT32) :
-                        BamTools::SwapEndian_32p(&tagData[i]);
-                        i += sizeof(uint32_t);
-                        break;
-
-                    case(Constants::BAM_TAG_TYPE_HEX) :
-                    case(Constants::BAM_TAG_TYPE_STRING) :
-                        // no endian swapping necessary for hex-string/string data
-                        while ( tagData[i] )
-                            ++i;
-                        // increment one more for null terminator
-                        ++i;
-                        break;
-
-                    case(Constants::BAM_TAG_TYPE_ARRAY) :
-
-                    {
-                        // read array type
-                        const char arrayType = tagData[i];
-                        ++i;
-
-                        // swap endian-ness of number of elements in place, then retrieve for loop
-                        BamTools::SwapEndian_32p(&tagData[i]);
-                        uint32_t numElements;
-                        memcpy(&numElements, &tagData[i], sizeof(uint32_t));
-                        i += sizeof(uint32_t);
-
-                        // swap endian-ness of array elements
-                        for ( size_t j = 0; j < numElements; ++j ) {
-                            switch (arrayType) {
-                                case (Constants::BAM_TAG_TYPE_INT8)  :
-                                case (Constants::BAM_TAG_TYPE_UINT8) :
-                                    // no endian-swapping necessary
-                                    ++i;
-                                    break;
-                                case (Constants::BAM_TAG_TYPE_INT16)  :
-                                case (Constants::BAM_TAG_TYPE_UINT16) :
-                                    BamTools::SwapEndian_16p(&tagData[i]);
-                                    i += sizeof(uint16_t);
-                                    break;
-                                case (Constants::BAM_TAG_TYPE_FLOAT)  :
-                                case (Constants::BAM_TAG_TYPE_INT32)  :
-                                case (Constants::BAM_TAG_TYPE_UINT32) :
-                                    BamTools::SwapEndian_32p(&tagData[i]);
-                                    i += sizeof(uint32_t);
-                                    break;
-                                default:
-                                    const string message = string("invalid binary array type: ") + arrayType;
-                                    SetErrorString("BamAlignment::BuildTagData", message);
-                                    return false;
-                            }
-                        }
-
-                        break;
-                    }
-
-                    // invalid tag type-code
-                    default :
-                        const string message = string("invalid tag type: ") + type;
-                        SetErrorString("BamAlignment::BuildTagData", message);
-                        return false;
-                }
-            }
-        }
-
         // store tagData in alignment
         TagData.resize(tagDataLength);
         memcpy((char*)(TagData.data()), tagData, tagDataLength);
     }
+    
+    lazy_load_lock.unlock();
 
     return true;
 }
 
 bool BamAlignment::BuildCigarData() const {
     
-    if(hasCigarData) return true;
+    lazy_load_lock.lock();
+
+    if(hasCigarData) {
+        lazy_load_lock.unlock();
+        return true;
+    }
+
     hasCigarData = true;
-    
-    bool IsBigEndian = BamTools::SystemIsBigEndian();
 
     // save CIGAR ops
     // need to calculate this here so that  BamAlignment::GetEndPosition() performs correctly,
@@ -386,10 +322,7 @@ bool BamAlignment::BuildCigarData() const {
     const unsigned int cigarDataOffset = SupportData.QueryNameLength;
     uint32_t* cigarData = (uint32_t*)(&SupportData.AllCharData[0] + cigarDataOffset);
     for ( unsigned int i = 0; i < SupportData.NumCigarOperations; ++i ) {
-        
-        // swap endian-ness if necessary
-        if ( IsBigEndian ) BamTools::SwapEndian_32(cigarData[i]);
-        
+
         // build CigarOp structure
         CigarOp op;
         op.Length = (cigarData[i] >> Constants::BAM_CIGAR_SHIFT);
@@ -398,6 +331,8 @@ bool BamAlignment::BuildCigarData() const {
         // save CigarOp
         CigarData.push_back(op);
     }
+    
+    lazy_load_lock.unlock();
     
     return true;
 }
