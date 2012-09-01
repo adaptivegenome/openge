@@ -53,7 +53,7 @@ bool BamSerializer<output_stream_t>::open(const std::string & filename, const Ba
     
     //header text
     std::string header_txt = header.ToString();
-    int header_size = header_txt.size() + 1;
+    int header_size = header_txt.size();
     char zero = 0;
     output_stream.write((char *)&header_size, 4);
     output_stream.write(header_txt.c_str(), header_size);
@@ -239,9 +239,10 @@ bool BamSerializer<output_stream_t>::write(const BamTools::BamAlignment & al) {
     
     // write the base qualities
     char* pBaseQualities = (char*)al.getQualities().data();
+    char * qualities = (char *) alloca(al.getQualities().size());
     for ( size_t i = 0; i < queryLength; ++i )
-        pBaseQualities[i] -= 33; // FASTQ conversion
-    output_stream.write(pBaseQualities, queryLength);
+        qualities[i] = pBaseQualities[i] - 33; // FASTQ conversion
+    output_stream.write(qualities, queryLength);
     
     output_stream.write(al.getTagData().data(), tagDataLength);
 
