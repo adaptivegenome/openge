@@ -112,7 +112,6 @@ bool BgzfInputStream::requestNextBlock() {
     }
 
     size_t start_offset = input_stream->tellg();
-    size_t asdf = start_offset;
     new_block->file_position = start_offset;
     
     //read the block header to get actual block size
