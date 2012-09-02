@@ -17,17 +17,16 @@
  *
  *********************************************************************/
 
-#include <api/SamHeader.h>
-#include <api/BamAlignment.h>
+#include "read_stream_writer.h"
 
 template <class output_stream_t>
-class BamSerializer {
+class BamSerializer : public ReadStreamWriter {
 public:
-    bool open(const std::string & filename, const BamTools::SamHeader & header);
-    void close();
-    bool is_open() { return output_stream.is_open(); }
+    virtual bool open(const std::string & filename, const BamTools::SamHeader & header);
+    virtual void close();
+    virtual bool is_open() const { return output_stream.is_open(); }
 
-    bool write(const BamTools::BamAlignment & alignment);
+    virtual bool write(const BamTools::BamAlignment & alignment);
     
     // access the real output stream object, in case we need to change some setting,
     // like compression level for bgzfstream.

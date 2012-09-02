@@ -17,8 +17,7 @@
  *
  *********************************************************************/
 
-#include <api/SamHeader.h>
-#include <api/BamAlignment.h>
+#include "read_stream_reader.h"
 
 template <class input_stream_t>
 class BamDeserializer {

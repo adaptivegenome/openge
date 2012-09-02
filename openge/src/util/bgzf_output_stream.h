@@ -42,7 +42,7 @@ public:
     bool open(std::string filename);
     void write(const char * data, size_t len);
     void close();
-    bool is_open() { return output_stream.is_open(); }
+    bool is_open() const { return output_stream.is_open(); }
     bool fail() { return output_stream.fail(); }
     void setCompressionLevel(int level) { compression_level = level; }
     void flushQueue();
