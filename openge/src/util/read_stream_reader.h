@@ -21,33 +21,84 @@
 #include <api/BamAlignment.h>
 #include <api/algorithms/Sort.h>
 
+#include <iostream>
+
+#include <set>
+
 class ReadStreamReader {
 public:
+    typedef enum
+    {
+        FORMAT_BAM, FORMAT_RAWBAM, FORMAT_SAM, FORMAT_CRAM, FORMAT_UNKNOWN
+    } file_format_t;
+
     virtual bool open(const std::string & filename) = 0;
     virtual const BamTools::SamHeader & getHeader() const = 0;
     virtual void close() = 0;
     virtual BamTools::BamAlignment * read() = 0;
+    
+    static inline file_format_t detectFileFormat(std::string filename);
 };
 
-template <class T>
+ReadStreamReader::file_format_t ReadStreamReader::detectFileFormat(std::string filename) {
+    file_format_t this_file_format = FORMAT_UNKNOWN;
+    FILE * fp = NULL;
+    if(filename == "stdin")
+        fp = stdin;
+    else {
+        fp = fopen(filename.c_str(), "rb");
+        
+        if(!fp) {
+            std::cerr << "Couldn't open file " << filename << std::endl;
+            return FORMAT_UNKNOWN;
+        }
+    }
+    
+    unsigned char data[2];
+    if(2 != fread(data, 1,2, fp)) {
+        std::cerr << "Couldn't read from file " << filename << std::endl;
+        return FORMAT_UNKNOWN;
+    }
+    
+    if(filename != "stdin")
+        fclose(fp);
+    else {
+        int ret = ungetc(data[1], fp);
+        assert(ret != EOF);
+        ret = ungetc(data[0], fp);
+        assert(ret != EOF);
+    }
+    
+    if(data[0] == '@')
+        this_file_format = FORMAT_SAM;
+    else if(data[0] == 31 && data[1] == 139)
+        this_file_format = FORMAT_BAM;
+    else if(data[0] == 'B' && data[1] == 'A')
+        this_file_format = FORMAT_RAWBAM;
+    else
+        this_file_format = FORMAT_UNKNOWN;
+    
+    return this_file_format;
+}
+
 class MultiReader : public ReadStreamReader {
 
     class SortedMergeElement{
     public:
         BamTools::BamAlignment * read;
-        T * source;
+        ReadStreamReader * source;
         bool operator<(const SortedMergeElement & t) const {
             BamTools::Algorithms::Sort::ByPosition cmp = BamTools::Algorithms::Sort::ByPosition();
             return cmp(this->read, t.read);
         }
 
-        SortedMergeElement(BamTools::BamAlignment * read, T * source)
+        SortedMergeElement(BamTools::BamAlignment * read, ReadStreamReader * source)
         : read(read)
         , source(source)
         {}
     };
 
-    std::vector<T *> readers;
+    std::vector<ReadStreamReader *> readers;
     std::multiset<SortedMergeElement> reads;
 public:
     virtual bool open(const std::string & filename) {
@@ -56,34 +107,11 @@ public:
         return open(fn);
     }
 
-    virtual bool open(const std::vector<std::string> & filenames) {
-        for(std::vector<std::string>::const_iterator i = filenames.begin(); i != filenames.end(); i++) {
-            readers.push_back(new T());
-            bool ret = readers.back()->open(*i);
-            if(!ret) {
-                close();
-                return false;
-            }
-        }
-
-        // first, get one read from each queue
-        // make sure and deal with the case where one chain will never have any reads. TODO LCB
-        
-        for(typename std::vector<T *>::iterator i = readers.begin(); i != readers.end(); i++)
-        {
-            BamTools::BamAlignment * read = (*i)->read();
-            
-            if(!read)
-                continue;
-
-            reads.insert(SortedMergeElement(read, (*i)));
-        }
-        return true;
-    }
+    virtual bool open(const std::vector<std::string> & filenames);
 
     virtual const BamTools::SamHeader & getHeader() const {
         BamTools::SamSequenceDictionary s = readers.front()->getHeader().Sequences;
-        for(typename std::vector<T *>::const_iterator i = readers.begin(); i != readers.end(); i++) {
+        for( std::vector<ReadStreamReader *>::const_iterator i = readers.begin(); i != readers.end(); i++) {
             if(s != (*i)->getHeader().Sequences) {
                 std::cerr << "Warning; sequence headers vary between files. Data may be corrupt." << std::endl;
             }
@@ -92,7 +120,7 @@ public:
     }
 
     virtual void close() {
-        for(typename std::vector<T *>::iterator i = readers.begin(); i != readers.end(); i++) {
+        for( std::vector<ReadStreamReader *>::iterator i = readers.begin(); i != readers.end(); i++) {
             (*i)->close();
         }
     }

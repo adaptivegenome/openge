@@ -47,14 +47,4 @@ inline file_format_t detectFileFormatFromFilename(std::string filename) {
     return FORMAT_UNKNOWN;
 }
 
-class FileWriterClass {
-public:
-    virtual bool Open(const std::string& filename, const BamTools::SamHeader & samHeader) = 0;
-    virtual bool SaveAlignment(BamTools::BamAlignment & a) = 0;
-};
-
-class FileReaderClass {
-    
-};
-
 #endif

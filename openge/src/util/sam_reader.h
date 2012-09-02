@@ -23,8 +23,7 @@
 #include <iostream>
 #include <queue>
 #include "thread_pool.h"
-
-class BamThreadPool;
+#include "read_stream_reader.h"
 
 class SamReader;
 
@@ -40,22 +39,20 @@ public:
 // SamReader is capable of sequentially reading a SAM file. It doesn't support
 // most of the features that BamReader does, only enough to support converting SAM
 // files to the BAM format.
-class SamReader
+class SamReader : public ReadStreamReader
 {
 public:
     SamReader();
-    bool Open(const std::string & filename);
-    bool Close();
+    virtual bool open(const std::string & filename);
+    virtual void close();
     // retrieves next available alignment
-    bool GetNextAlignment(BamTools::BamAlignment& alignment);
-    BamTools::BamAlignment * GetNextAlignment();
-    
+    virtual BamTools::BamAlignment * read();
+
     // returns the current file's header data
-    const BamTools::SamHeader & GetHeader(void) const;
-    // get reference data
-    const BamTools::RefVector & GetReferenceData(void);
+    virtual const BamTools::SamHeader & getHeader(void) const;
+
     //read a single line of a SAM file
-    BamTools::BamAlignment * ParseAlignment(const char * line_s);
+    BamTools::BamAlignment * ParseAlignment(const char * line_s) const;
 protected:
     // retrieves BAM alignment under file pointer
     // (does no overlap checking or character data parsing)

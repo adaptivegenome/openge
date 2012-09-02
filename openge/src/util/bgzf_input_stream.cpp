@@ -99,7 +99,7 @@ void BgzfInputStream::BgzfCacheElement::runJob() {
 
 bool BgzfInputStream::requestNextBlock() {
 
-    if(input_stream.eof())
+    if(input_stream->eof())
         return false;
 
     //find last element from file, so we can get the address for the next one.
@@ -111,17 +111,21 @@ bool BgzfInputStream::requestNextBlock() {
             last_el = i->second;
     }
 
-    size_t start_offset = input_stream.tellg();
-    cache[start_offset] = new_block;
+    size_t start_offset = input_stream->tellg();
+    size_t asdf = start_offset;
     new_block->file_position = start_offset;
     
     //read the block header to get actual block size
     new_block->compressed_data.resize(18);
-    input_stream.read(&new_block->compressed_data[0], 18);
+    input_stream->read(&new_block->compressed_data[0], 18);
     
-    if(input_stream.eof() || input_stream.fail()) {
+    //if we fail at reads, and have read at least part of a block
+    if(input_stream->fail()) {
         delete new_block;
-        cache.erase(start_offset);
+        if(input_stream->gcount() != 0) {
+            cerr << "BGZF file seems to be truncated. Is this file corrupt?" << endl;
+            exit(-1);
+        }
         return false;
     }
 
@@ -129,25 +133,33 @@ bool BgzfInputStream::requestNextBlock() {
 
     new_block->file_position = last_el ? last_el->file_position + last_el->compressed_data.size() : 0;
     new_block->compressed_data.resize(size);
-    input_stream.read(&new_block->compressed_data[18], size-18);
+    input_stream->read(&new_block->compressed_data[18], size-18);
     
-    if(input_stream.eof() || input_stream.fail()) {
+    if( input_stream->fail()) {
         delete new_block;
-        cache.erase(start_offset);
+        cerr << "BGZF file seems to be truncated. Is this file corrupt?" << endl;
+        exit(-1);
         return false;
     }
 
+    cache[new_block->file_position] = new_block;
     ThreadPool::sharedPool()->addJob(new_block);
     return true;
 }
 
 bool BgzfInputStream::open(string filename) {
+    if(filename == "stdin") {
+        input_stream = &cin;
+    } else {
+        input_stream = &input_stream_real;
+        input_stream_real.open(filename.c_str());
     
-    input_stream.open(filename.c_str());
-    
-    if(input_stream.fail())
-        return false;
-    
+        if(input_stream->fail()) {
+            cerr << "BGZF open() failed for " << filename << endl;
+            return false;
+        }
+    }
+
     for(int i = 0; i < NUM_BLOCKS_IN_CACHE; i++)
         requestNextBlock();
     
@@ -195,9 +207,9 @@ void BgzfInputStream::read(char * data, size_t len) {
 }
 
 void BgzfInputStream::close() {
-    input_stream.close();
-    
-    
+    if(input_stream_real.is_open())
+        input_stream_real.close();
+
     for(map<size_t, BgzfCacheElement *>::const_iterator i = cache.begin(); i != cache.end(); i++)
         delete i->second;
 }

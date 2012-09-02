@@ -20,12 +20,13 @@
 #include "read_stream_reader.h"
 
 template <class input_stream_t>
-class BamDeserializer {
+class BamDeserializer : public ReadStreamReader {
 public:
-    bool open(const std::string & filename);
-    const BamTools::SamHeader & getHeader() const { return header; };
-    void close();
-    BamTools::BamAlignment * read();
+    virtual bool open(const std::string & filename);
+    virtual const BamTools::SamHeader & getHeader() const { return header; };
+    virtual void close();
+    virtual BamTools::BamAlignment * read();
+    virtual bool is_open() { return input_stream.is_open(); }
 protected:
     input_stream_t input_stream;
     BamTools::SamHeader header;
@@ -35,8 +36,10 @@ template <class input_stream_t>
 bool BamDeserializer<input_stream_t>::open(const std::string & filename) {
     input_stream.open(filename.c_str());
     
-    if(input_stream.fail())
+    if(input_stream.fail()) {
+        std::cerr << "Open failed." << std::endl;
         return false;
+    }
     
     //check magic values
     char magic[4];
@@ -84,7 +87,6 @@ bool BamDeserializer<input_stream_t>::open(const std::string & filename) {
 
     if(header.Sequences.Size() != reference_ct) {
         std::cerr << "WARNING: BAM header text sequence data count doesn't match reference sequence list. Is this file corrupted?" << std::endl;
-        exit(-1);
     }
 
     
@@ -134,7 +136,7 @@ void BamDeserializer<input_stream_t>::close() {
 template <class input_stream_t>
 BamTools::BamAlignment * BamDeserializer<input_stream_t>::read() {
     BamTools::BamAlignment * al = new BamTools::BamAlignment();
-    
+
     // read in the 'block length' value, make sure it's not zero
     char buffer[sizeof(uint32_t)];
 
@@ -185,7 +187,7 @@ BamTools::BamAlignment * BamDeserializer<input_stream_t>::read() {
     // read in character data - make sure proper data size was read
     bool readCharDataOK = false;
     const unsigned int dataLength = SupportData.BlockLength - 32;
-    SupportData.AllCharData = std::string(dataLength, (char)0);
+    SupportData.AllCharData.insert(SupportData.AllCharData.end(), dataLength, (char)0);
     input_stream.read(&SupportData.AllCharData[0], dataLength);
     if ( !input_stream.fail() ) {
         // set success flag

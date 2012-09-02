@@ -28,6 +28,7 @@
 #include "../util/sam_writer.h"
 #include "../util/fastq_writer.h"
 #include "../util/bam_serializer.h"
+#include "../util/bgzf_output_stream.h"
 
 #include "api/BamWriter.h"
 using namespace BamTools;
@@ -94,7 +95,7 @@ int FileWriter::runInternal()
             {
                 SamWriter writer;
                 
-                if(!writer.Open(filename, header)) {
+                if(!writer.open(filename, header)) {
                     cerr << "Error opening BAM file to write." << endl;
                     exit(-1);
                 }
@@ -107,11 +108,11 @@ int FileWriter::runInternal()
                     if(!al)
                         break;
                     
-                    writer.SaveAlignment(*al);
+                    writer.write(*al);
                     putOutputAlignment(al);
                 }
                 
-                writer.Close();
+                writer.close();
                 
             }
             break;
@@ -119,7 +120,7 @@ int FileWriter::runInternal()
             {
                 FastqWriter writer;
                 
-                if(!writer.Open(filename, header)) {
+                if(!writer.open(filename, header)) {
                     cerr << "Error opening FASTQ file to write." << endl;
                     exit(-1);
                 }
@@ -132,31 +133,21 @@ int FileWriter::runInternal()
                     if(!al)
                         break;
                     
-                    writer.SaveAlignment(*al);
+                    writer.write(*al);
                     putOutputAlignment(al);
                 }
                 
-                writer.Close();
+                writer.close();
                 
             }
             break;
         case FORMAT_BAM:
             {
-                BamWriter writer;
+                BamSerializer<BgzfOutputStream> writer;
 
-                writer.SetCompressionMode(BamWriter::Compressed);
-                writer.SetCompressionLevel(compression_level);
-                
-                RefVector references;
-                
-                for(SamSequenceConstIterator i = header.Sequences.Begin(); i != header.Sequences.End(); i++) {
-                    RefData d;
-                    d.RefName = i->Name;
-                    d.RefLength = atoi(i->Length.c_str());
-                    references.push_back(d);
-                }
+                writer.getOutputStream().setCompressionLevel(compression_level);
 
-                if(!writer.Open(filename, header, references)) {
+                if(!writer.open(filename, header)) {
                     cerr << "Error opening BAM file to write." << endl;
                     exit(-1);
                 }
@@ -168,12 +159,12 @@ int FileWriter::runInternal()
                     al = getInputAlignment();
                     if(!al)
                         break;
-                    
-                    writer.SaveAlignment(*al);
+
+                    writer.write(*al);
                     putOutputAlignment(al);
                 }
                 
-                writer.Close();
+                writer.close();
             }
             break;
         case FORMAT_RAWBAM:

@@ -68,7 +68,7 @@ class API_EXPORT SamSequenceDictionary {
         SamSequence& operator[](const int sequenceNumber);
         const SamSequence& operator[](const int sequenceNumber) const;
 
-        int IndexOfString(const std::string & sequenceName);
+        int IndexOfString(const std::string & sequenceName) const;
     
         bool operator==(const SamSequenceDictionary &d) const { return m_data == d.m_data; }
         bool operator!=(const SamSequenceDictionary &d) const { return m_data != d.m_data; }
@@ -85,7 +85,7 @@ class API_EXPORT SamSequenceDictionary {
     // data members
     private:
         SamSequenceContainer m_data;
-        std::map<std::string, size_t> m_lookupData;
+        mutable std::map<std::string, size_t> m_lookupData;
 };
 
 } // namespace BamTools

@@ -22,17 +22,19 @@
 #include <iostream>
 #include <api/BamAlignment.h>
 #include <api/SamHeader.h>
+#include "read_stream_writer.h"
 
 #include <map>
 #include <string>
 
-class FastqWriter : public FileWriterClass
+class FastqWriter : public ReadStreamWriter
 {
 public:
     FastqWriter();
-    bool Open(const std::string& filename, const BamTools::SamHeader & samHeader);
-    bool Close();
-    bool SaveAlignment( BamTools::BamAlignment & al);
+    virtual bool open(const std::string& filename, const BamTools::SamHeader & samHeader);
+    virtual void close();
+    virtual bool write( const BamTools::BamAlignment & al);
+    virtual bool is_open() const { return m_open; }
 protected:
     typedef struct {
         std::string qual, seq;
@@ -45,7 +47,7 @@ protected:
     std::string filename;
     std::map<std::string, fastq_record_t> potential_pairs;
 
-    bool open;
+    bool m_open;
 };
 
 #endif

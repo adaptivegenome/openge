@@ -20,26 +20,27 @@
 #include <iostream>
 #include <api/BamAlignment.h>
 #include <api/SamHeader.h>
-#include "file_io.h"
+#include "read_stream_writer.h"
 
 // SamReader is capable of sequentially reading a SAM file. It doesn't support
 // most of the features that BamReader does, only enough to support converting SAM
 // files to the BAM format.
-class SamWriter : public FileWriterClass
+class SamWriter : public ReadStreamWriter
 {
 public:
     SamWriter();
-    bool Open(const std::string& filename,
+    bool open(const std::string& filename,
               const BamTools::SamHeader & samHeader);
-    bool Close();
-    bool SaveAlignment( BamTools::BamAlignment & al);
+    void close();
+    bool write( const BamTools::BamAlignment & al);
+    bool is_open() const { return m_open; }
 protected:
     std::ofstream file;
     std::ostream * output_stream;
     BamTools::SamHeader header;
     std::string filename;
 
-    bool open;
+    bool m_open;
 };
 
 #endif

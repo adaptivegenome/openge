@@ -223,7 +223,7 @@ void * SamReader::LineGenerationThread(void * data)
 }
 #endif
 
-bool SamReader::Open(const string & filename)
+bool SamReader::open(const string & filename)
 {
     this->filename = filename;
     
@@ -254,7 +254,7 @@ bool SamReader::Open(const string & filename)
     return true;
 }
 
-bool SamReader::Close()
+void SamReader::close()
 {
 #ifdef SAM_READER_MT
     workers_finished = true;
@@ -271,10 +271,9 @@ bool SamReader::Close()
 	if(0 != sem_unlink(sam_worker_sem_name))
         perror("Error unlinking sam_worker semaphore");
 #endif
-    return true;
 }
 
-const SamHeader & SamReader::GetHeader() const
+const SamHeader & SamReader::getHeader() const
 {
     while (!loaded)
         usleep(20000);
@@ -323,7 +322,7 @@ BamAlignment * SamReader::LoadNextAlignment()
 #endif
 }
 
-BamAlignment * SamReader::ParseAlignment(const char * line_s)
+BamAlignment * SamReader::ParseAlignment(const char * line_s) const
 {
     BamAlignment * al = new BamAlignment();
     BamAlignment & alignment = *al;
@@ -528,22 +527,7 @@ bool AddHeaderAttributeArray(BamAlignment & alignment, const string & tag,const 
     }
 }
 
-const RefVector & SamReader::GetReferenceData(void)
-{
-    return m_refData;
-}
-
-// retrieves next available alignment
-bool SamReader::GetNextAlignment(BamAlignment& alignment)
-{
-    BamAlignment * ret = LoadNextAlignment();
-    
-    if(!ret)
-        return false;
-    alignment = *ret;
-    return true;
-}
-BamAlignment * SamReader::GetNextAlignment()
+BamAlignment * SamReader::read()
 {
     return LoadNextAlignment();
 }

@@ -23,114 +23,24 @@
 #include "file_reader.h"
 
 #include "api/BamMultiReader.h"
-#include "../util/sam_reader.h"
-#include "../util/bam_deserializer.h"
+#include "../util/read_stream_reader.h"
+
 using namespace BamTools;
 using namespace std;
-
-FileReader::file_format_t FileReader::deduceFileFormat()
-{
-    file_format_t ret_format = FORMAT_UNKNOWN;
-    for(int i = 0; i < filenames.size(); i++) {
-        file_format_t this_file_format = FORMAT_UNKNOWN;
-        FILE * fp = NULL;
-        if(filenames[i] == "stdin")
-            fp = stdin;
-        else {
-            fp = fopen(filenames[i].c_str(), "rb");
-
-            if(!fp) {
-                cerr << "Couldn't open file " << filenames[i] << endl;
-                return FORMAT_UNKNOWN;
-            }
-        }
-
-        unsigned char data[2];
-        if(2 != fread(data, 1,2, fp)) {
-            cerr << "Couldn't read from file " << filenames[i] << endl;
-            return FORMAT_UNKNOWN;
-        }
-        
-        if(filenames[i] != "stdin")
-            fclose(fp);
-        else {
-            int ret = ungetc(data[1], fp);
-            assert(ret != EOF);
-            ret = ungetc(data[0], fp);
-            assert(ret != EOF);
-        }
-        
-        if(data[0] == '@')
-            this_file_format = FORMAT_SAM;
-        else if(data[0] == 31 && data[1] == 139)
-            this_file_format = FORMAT_BAM;
-        else if(data[0] == 'B' && data[1] == 'A')
-            this_file_format = FORMAT_RAWBAM;
-        else
-            this_file_format = FORMAT_UNKNOWN;
-
-        if(i == 0)
-            ret_format = this_file_format;
-        
-        //check to make sure for multiple files, they are all same format.
-        if(i != 0 && ret_format != this_file_format) {
-            cerr << "Error: loading files with different file formats is not supported." << endl;
-            exit(-1);
-        }
-            
-    }
-    
-    return ret_format;
-}
 
 int FileReader::runInternal()
 {
     ogeNameThread("am_FileReader");
 
-    if(!format_specified)
-        format = deduceFileFormat();
+    {
+        MultiReader reader;
 
-    if(format == FORMAT_BAM)
-    {
-        BamMultiReader reader;
-        
-        if(!reader.Open(filenames)) {
-            cerr << "Error opening BAM files." << endl;
-            reader.Close();
-            exit(-1);
-        }
-        
-        header = reader.GetHeader();
-        open = true;
-        
-        BamAlignment * al;
-        
-        while(true)
-        {
-            al = reader.GetNextAlignment();
-            
-            if(!al)
-                break;
-            
-            putOutputAlignment(al);
-        }
-        
-        reader.Close();
-    } else if(format == FORMAT_RAWBAM)
-    {
-        BamDeserializer<ifstream> reader;
-        
-        if(filenames.size() != 1) {
-            cerr << "RAWBAM only supports reading a single input file at this time. You supplied " << filenames.size() << ". Aborting." << endl;
-            exit(-1);
-        }
-        
-        if(!reader.open(filenames[0])) {
-            cerr << "Error opening RAWBAM file." << endl;
+        if(!reader.open(filenames)) {
+            cerr << "Error opening one or more files." << endl;
             reader.close();
             exit(-1);
         }
-        
+
         header = reader.getHeader();
         open = true;
         
@@ -147,58 +57,6 @@ int FileReader::runInternal()
         }
         
         reader.close();
-    } else if(format == FORMAT_SAM) {
-        
-        vector<SamReader> readers;
-        
-        SamHeader first_header;
-        
-        for(int i = 0; i < filenames.size(); i++)   
-            readers.push_back(SamReader());
-
-        // before doing any reading, open the files to
-        // verify they are the right format, etc.
-        for(int i = 0; i < filenames.size(); i++) {   
-            SamReader & reader = readers[i];
-            
-            if(!reader.Open(filenames[i])) {
-                cerr << "Error opening SAM file: " << filenames[i] << endl;
-                exit(-1);
-            }
-
-            SamHeader header = reader.GetHeader();
-            if( i == 0)
-                first_header = header;
-            
-            // TODO: We can probably find a better way to deal with multiple SAM file headers,
-            // but for now we should disallow different headers to avoid issues.
-            if(i > 0 && header.ToString() != first_header.ToString())
-                cerr << "Warning! SAM input files have different headers." << endl;
-        }
-        
-        this->header = first_header;
-
-        for(vector<SamReader>::iterator i = readers.begin(); i != readers.end(); i++) {
-            SamReader & reader = *i;
-            open = true;
-
-            BamAlignment * al = NULL;
-            while(true)
-            {
-                al = reader.GetNextAlignment();
-                
-                if(NULL == al)
-                    break;
-                
-                putOutputAlignment(al);
-            }
-
-            reader.Close();
-        }
-    } else {
-        cerr << "FileReader couldn't detect file format. Aborting." << endl;
-        exit(-1);
-        return -1;
     }
 
     return 0;

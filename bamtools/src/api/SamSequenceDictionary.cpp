@@ -202,7 +202,7 @@ SamSequenceConstIterator SamSequenceDictionary::End(void) const {
     the operator[].
  \brief Returns -1 if the dictionary contains no sequences.
  */
-int SamSequenceDictionary::IndexOfString(const std::string & sequenceName)
+int SamSequenceDictionary::IndexOfString(const std::string & sequenceName) const
 {
   if ( !Contains(sequenceName) )
     return -1;

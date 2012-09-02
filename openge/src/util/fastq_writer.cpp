@@ -26,12 +26,12 @@ FastqWriter::FastqWriter()
 : fwd_stream(&cout)
 , rev_stream(&cout)
 , orphan_stream(&cout)
-, open(false)
+, m_open(false)
 {
     
 }
 
-bool FastqWriter::Open(const string& filename, const SamHeader & samHeader) {
+bool FastqWriter::open(const string& filename, const SamHeader & samHeader) {
     this->filename = filename;
     
     if(filename != "stdout") {
@@ -60,25 +60,23 @@ bool FastqWriter::Open(const string& filename, const SamHeader & samHeader) {
         orphan_stream = &orphan_file;
     }
 
-    open = true;
+    m_open = true;
     
     return true;
 }
 
-bool FastqWriter::Close() {
+void FastqWriter::close() {
     
     for(map<string, fastq_record_t>::iterator i = potential_pairs.begin(); i != potential_pairs.end(); i++)
         *orphan_stream << "@" << i->first << endl << i->second.seq << endl << "+" << i->first << endl << i->second.qual << endl;
 
-    if(open) {
+    if(m_open) {
         fwd_file.close();
         rev_file.close();
         orphan_file.close();
     }
 
-    open = false;
-    
-    return true;
+    m_open = false;
 }
 
 void compliment(string & str)
@@ -98,7 +96,7 @@ void compliment(string & str)
     }
 }
 
-bool FastqWriter::SaveAlignment(BamTools::BamAlignment & a) {
+bool FastqWriter::write(const BamTools::BamAlignment & a) {
     if(fwd_stream == rev_stream)
         *fwd_stream << "@" << a.getName() << endl << a.getQueryBases() << endl << "+" << a.getName() << endl << a.getQualities() << endl;
     else {

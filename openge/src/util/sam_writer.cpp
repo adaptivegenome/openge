@@ -53,12 +53,12 @@ using namespace BamTools;
 
 SamWriter::SamWriter() 
 : output_stream(&cout)
-, open(false)
+, m_open(false)
 {
     
 }
 
-bool SamWriter::Open(const string& filename,
+bool SamWriter::open(const string& filename,
                      const SamHeader & samHeader) {
     this->filename = filename;
 
@@ -74,24 +74,22 @@ bool SamWriter::Open(const string& filename,
     this->header = samHeader;
     *output_stream << header.ToString();
     
-    open = true;
+    m_open = true;
     
     return true;
 }
 
-bool SamWriter::Close() {
+void SamWriter::close() {
     if(file.is_open())
         file.close();
     
-    open = false;
-    
-    return true;
+    m_open = false;
 }
 
-bool SamWriter::SaveAlignment(BamTools::BamAlignment & a) {
+bool SamWriter::write(const BamTools::BamAlignment & a) {
     // tab-delimited
     // <QNAME> <FLAG> <RNAME> <POS> <MAPQ> <CIGAR> <MRNM> <MPOS> <ISIZE> <SEQ> <QUAL> [ <TAG>:<VTYPE>:<VALUE> [...] ]
-    assert(open);
+    assert(m_open);
     ostream & m_out = *output_stream;
     
     // write name & alignment flag

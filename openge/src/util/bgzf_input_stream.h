@@ -21,6 +21,8 @@
 #include <vector>
 #include "thread_pool.h"
 
+#include <iostream>
+
 class BgzfInputStream
 {
     
@@ -41,13 +43,14 @@ public:
     bool open(std::string filename);
     void read(char * data, size_t len);
     void close();
-    bool is_open() { return input_stream.is_open(); }
-    bool fail() { return cache.empty() && input_stream.fail(); }
-    bool eof() { return cache.empty() && input_stream.eof(); }
+    bool is_open() { return *input_stream == std::cin || input_stream_real.is_open(); }
+    bool fail() { return cache.empty() && input_stream->fail(); }
+    bool eof() { return cache.empty() && input_stream->eof(); }
 protected:
     size_t current_block;
     size_t current_offset;
-    std::ifstream input_stream;
+    std::istream * input_stream;
+    std::ifstream input_stream_real;
     std::map<size_t, BgzfCacheElement *> cache;
 
     bool requestNextBlock();
