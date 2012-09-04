@@ -19,6 +19,8 @@
 
 #include <iostream>
 #include <cassert>
+#include <cstring>
+#include <stdint.h>
 
 using namespace std;
 
@@ -26,6 +28,7 @@ const int NUM_BLOCKS_IN_CACHE = 4;
 const int BGZF_BLOCK_SIZE = 65536;
 
 void BgzfInputStream::BgzfCacheElement::runJob() {
+    ogeNameThread("ogeBgzfInflate");
     if(compressed_data[0] != 31 || compressed_data[1] != (char)139) {
         cerr << "Error- BGZF block has invalid start block. Is this file corrupted?" << endl;
         exit(-1);

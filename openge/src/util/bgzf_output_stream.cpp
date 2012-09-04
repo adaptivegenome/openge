@@ -18,6 +18,8 @@
 #include "thread_pool.h"
 #include <zlib.h>
 #include <iostream>
+#include <stdint.h>
+#include <cstring>
 
 using namespace std;
 
@@ -30,6 +32,7 @@ const uint8_t  BGZF_BLOCK_FOOTER_LENGTH  = 8;
 
 void BgzfOutputStream::BgzfCompressJob::runJob() {
     
+    ogeNameThread("ogeBgzfDeflate");
     compressed_data.resize(BGZF_BLOCK_SIZE);
 
     // initialize the gzip header
