@@ -27,7 +27,7 @@ int BlackHoleModule::runInternal()
         BamTools::BamAlignment * r = getInputAlignment();
         if(!r)
             return 0;
-        delete r;
+        BamAlignment::deallocate(r);
     }
 }
 
@@ -143,8 +143,11 @@ void AlgorithmModule::putOutputAlignment(BamAlignment * read)
     for(vector<AlgorithmModule *>::iterator i = sinks.begin(); i != sinks.end(); i++) {
         if(sinks.begin() == i)
             (*i)->putInputAlignment(read);
-        else
-            (*i)->putInputAlignment(new BamAlignment(*read));
+        else {
+            BamAlignment * al = BamAlignment::allocate();
+            *al = *read;
+            (*i)->putInputAlignment(al);
+        }
     }
 }
 

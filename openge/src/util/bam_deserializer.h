@@ -135,7 +135,7 @@ void BamDeserializer<input_stream_t>::close() {
 
 template <class input_stream_t>
 BamTools::BamAlignment * BamDeserializer<input_stream_t>::read() {
-    BamTools::BamAlignment * al = new BamTools::BamAlignment();
+    BamTools::BamAlignment * al = BamTools::BamAlignment::allocate();
 
     // read in the 'block length' value, make sure it's not zero
     char buffer[sizeof(uint32_t)];

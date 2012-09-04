@@ -127,6 +127,28 @@ BamAlignment::BamAlignment(const BamAlignment& other)
 */
 BamAlignment::~BamAlignment(void) { }
 
+void BamAlignment::clear() {
+    hasAlignedBasesData = false;
+    hasQualitiesData = false;
+    hasQueryBasesData = false;
+    hasTagData = false;
+    RefID = -1;
+    Position = -1;
+    Bin = 0;
+    MapQuality = 0;
+    AlignmentFlag = 0;
+    MateRefID = -1;
+    MatePosition = -1;
+    InsertSize = 0;
+    
+    AlignedBases.clear();
+    CigarData.clear();
+    Name.clear();
+    Qualities.clear();
+    QueryBases.clear();
+    TagData.clear();
+}
+
 bool BamAlignment::BuildQueryBasesData() const {
     lazy_load_lock.lock();
     if(hasQueryBasesData) {
@@ -969,3 +991,42 @@ string cigarToString(const vector<CigarOp> cigar)
 
     return string(ss.str());
 }
+
+//////////////
+// cache allocations for performance
+
+BamAlignment * BamAlignment::allocate() {
+    BamAlignment * ret = NULL;
+    allocator_spinlock.lock();
+
+    if(!cached_allocations.empty()) {
+        ret = cached_allocations.back();
+        cached_allocations.pop_back();
+    }
+
+    allocator_spinlock.unlock();
+    if(!ret) ret = new BamAlignment();
+    else ret->clear();
+
+    return ret;
+}
+
+void BamAlignment::deallocate(BamAlignment * al) {
+    allocator_spinlock.lock();
+    cached_allocations.push_back(al);
+    allocator_spinlock.unlock();
+}
+
+void BamAlignment::clearCachedAllocations() {
+    
+    allocator_spinlock.lock();
+    while(!cached_allocations.empty()) {
+        BamAlignment * al = cached_allocations.back();
+        delete(al);
+        cached_allocations.pop_back();
+    }
+    allocator_spinlock.unlock();
+}
+
+BamSpinlock BamAlignment::allocator_spinlock;
+std::vector<BamAlignment *> BamAlignment::cached_allocations;

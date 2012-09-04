@@ -49,7 +49,7 @@ void * prefetch_start(void * reader_ptr)
         if(!reader->do_prefetch)
           break;
 
-        BamAlignment * al = new BamAlignment();
+        BamAlignment * al = BamAlignment::allocate();
         reader->prefetch_tell_fail.push(reader->m_stream.Tell());
         if(!reader->LoadNextAlignmentInternal(*al)) {
             delete al;
@@ -347,7 +347,7 @@ BamAlignment * BamReaderPrivate::LoadNextAlignment() {
         
         return al;
     } else {
-        BamAlignment * al = new BamAlignment;
+        BamAlignment * al = BamAlignment::allocate();
         bool ok = LoadNextAlignmentInternal(*al);
         return ok ? al : NULL;
     }

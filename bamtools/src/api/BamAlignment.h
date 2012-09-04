@@ -32,6 +32,7 @@ namespace BamTools {
         BamAlignment(void);
         BamAlignment(const BamAlignment& other);
         ~BamAlignment(void);
+        void clear();    //go back to a freshly constructed state
         
         // queries against alignment flags
     public:

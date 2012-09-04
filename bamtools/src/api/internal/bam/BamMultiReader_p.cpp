@@ -445,7 +445,7 @@ bool BamMultiReaderPrivate::Open(const vector<string>& filenames) {
 
         // if opened OK, store it
         if ( readerOpened )
-            m_readers.push_back( MergeItem(reader, new BamAlignment) );
+            m_readers.push_back( MergeItem(reader, BamAlignment::allocate()) );
 
         // otherwise store error & clean up invalid reader
         else {

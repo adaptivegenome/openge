@@ -324,7 +324,7 @@ BamAlignment * SamReader::LoadNextAlignment()
 
 BamAlignment * SamReader::ParseAlignment(const char * line_s) const
 {
-    BamAlignment * al = new BamAlignment();
+    BamAlignment * al = BamAlignment::allocate();
     BamAlignment & alignment = *al;
 
     size_t line_length = strlen(line_s);
