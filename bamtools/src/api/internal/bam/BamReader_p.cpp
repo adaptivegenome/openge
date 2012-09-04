@@ -414,8 +414,7 @@ bool BamReaderPrivate::LoadNextAlignmentInternal(BamAlignment& alignment) {
         cerr << "Expected more bytes reading BAM char data. Is this file truncated or corrupted?" << endl;
         return false;
     }
-    
-    SupportData.HasCoreOnly = true;
+
     alignment.setSupportData(SupportData);
 
     // return success/failure

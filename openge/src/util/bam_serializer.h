@@ -33,11 +33,6 @@ public:
     output_stream_t & getOutputStream() { return output_stream; }
 protected:
     output_stream_t output_stream;
-    
-    
-    void CreatePackedCigar(const std::vector<BamTools::CigarOp>& cigarOperations, std::string & packedCigar);
-    void EncodeQuerySequence(const std::string& query, std::string& encodedQuery);
-
 };
 
 template <class output_stream_t>
@@ -92,98 +87,6 @@ uint32_t inline CalculateMinimumBin(const int begin, int end) {
 // The implementation of this function is originally from BamWriter_p.cpp from bamtools.
 // Bamtools is released under the BSD license.
 template <class output_stream_t>
-void BamSerializer<output_stream_t>::CreatePackedCigar(const std::vector<BamTools::CigarOp>& cigarOperations, std::string& packedCigar) {
-    
-    // initialize
-    const size_t numCigarOperations = cigarOperations.size();
-    packedCigar.resize(numCigarOperations * 4);
-    
-    // pack the cigar data into the string
-    unsigned int* pPackedCigar = (unsigned int*)packedCigar.data();
-    
-    // iterate over cigar operations
-    std::vector<BamTools::CigarOp>::const_iterator coIter = cigarOperations.begin();
-    std::vector<BamTools::CigarOp>::const_iterator coEnd  = cigarOperations.end();
-    for ( ; coIter != coEnd; ++coIter ) {
-        
-        // store op in packedCigar ("MIDNSHP=X")
-        uint8_t cigarOp;
-        switch ( coIter->Type ) {
-            case 'M': cigarOp = 0; break;
-            case 'I': cigarOp = 1; break;
-            case 'D': cigarOp = 2; break;
-            case 'N': cigarOp = 3; break;
-            case 'S': cigarOp = 4; break;
-            case 'H': cigarOp = 5; break;
-            case 'P': cigarOp = 6; break;
-            case '=': cigarOp = 7; break;
-            case 'X': cigarOp = 8; break;
-            default:
-                std::cerr << std::string("BamSerializer: invalid CIGAR operation type ") << coIter->Type << " . Aborting." << std::endl;
-                exit(-1);
-        }
-        
-        *pPackedCigar = coIter->Length << 4 | cigarOp;
-        pPackedCigar++;
-    }
-}
-
-// The implementation of this function is originally from BamWriter_p.cpp from bamtools.
-// Bamtools is released under the BSD license.
-template <class output_stream_t>
-void BamSerializer<output_stream_t>::EncodeQuerySequence(const std::string& query, std::string& encodedQuery) {
-    
-    // prepare the encoded query string
-    const size_t queryLength = query.size();
-    const size_t encodedQueryLength = static_cast<size_t>((queryLength+1)/2);
-    encodedQuery.resize(encodedQueryLength);
-    char* pEncodedQuery = (char*)encodedQuery.data();
-    const char* pQuery = (const char*)query.data();
-    
-    // walk through original query sequence, encoding its bases (letter to position) "=ACMGRSVTWYHKDBN"
-    unsigned char nucleotideCode;
-    bool useHighWord = true;
-    while ( *pQuery ) {
-        switch ( *pQuery ) {
-            case '=': nucleotideCode =  0; break;
-            case 'A': nucleotideCode =  1; break;
-            case 'C': nucleotideCode =  2; break;
-            case 'M': nucleotideCode =  3; break;
-            case 'G': nucleotideCode =  4; break;
-            case 'R': nucleotideCode =  5; break;
-            case 'S': nucleotideCode =  6; break;
-            case 'V': nucleotideCode =  7; break;
-            case 'T': nucleotideCode =  8; break;
-            case 'W': nucleotideCode =  9; break;
-            case 'Y': nucleotideCode = 10; break;
-            case 'H': nucleotideCode = 11; break;
-            case 'K': nucleotideCode = 12; break;
-            case 'D': nucleotideCode = 13; break;
-            case 'B': nucleotideCode = 14; break;
-            case 'N': nucleotideCode = 15; break;
-            default:
-                std::cerr << std::string("BamSerializer: invalid sequence base: ") << *pQuery << ". Aborting." << std::endl;
-                exit(-1);
-        }
-        
-        // pack the nucleotide code
-        if ( useHighWord ) {
-            *pEncodedQuery = nucleotideCode << 4;
-            useHighWord = false;
-        } else {
-            *pEncodedQuery |= nucleotideCode;
-            ++pEncodedQuery;
-            useHighWord = true;
-        }
-        
-        // increment the query position
-        ++pQuery;
-    }
-}
-
-// The implementation of this function is originally from BamWriter_p.cpp from bamtools.
-// Bamtools is released under the BSD license.
-template <class output_stream_t>
 bool BamSerializer<output_stream_t>::write(const BamTools::BamAlignment & al) {
     // calculate char lengths
     const unsigned int nameLength         = al.getName().size() + 1;
@@ -195,15 +98,13 @@ bool BamSerializer<output_stream_t>::write(const BamTools::BamAlignment & al) {
     // so we'll go ahead calculate its bin ID before storing
     const uint32_t alignmentBin = CalculateMinimumBin(al.getPosition(), al.GetEndPosition());
     
+    const BamTools::BamAlignment::BamAlignmentSupportData & sd = al.getSupportData();
+
     // create our packed cigar string
-    std::string packedCigar;
-    CreatePackedCigar(al.getCigarData(), packedCigar);
-    const unsigned int packedCigarLength = packedCigar.size();
+    const unsigned int packedCigarLength = sd.NumCigarOperations;
     
     // encode the query
-    std::string encodedQuery;
-    EncodeQuerySequence(al.getQueryBases(), encodedQuery);
-    const unsigned int encodedQueryLength = encodedQuery.size();
+    const unsigned int encodedQueryLength = sd.QuerySequenceLength;
     
     // write the block size
     const unsigned int dataBlockSize = nameLength +
@@ -227,7 +128,14 @@ bool BamSerializer<output_stream_t>::write(const BamTools::BamAlignment & al) {
     
     // write the BAM core
     output_stream.write((char*)&buffer, 32);
+
+    output_stream.write(&sd.AllCharData[0] , sd.AllCharData.size());
     
+    /*
+    
+    
+    ouput_stream.write(sd.AllCharData.c_str(), sd.AllCharData.size());
+
     // write the query name
     output_stream.write(al.getName().c_str(), nameLength);
     
@@ -244,6 +152,7 @@ bool BamSerializer<output_stream_t>::write(const BamTools::BamAlignment & al) {
     output_stream.write(qualities, queryLength);
     
     output_stream.write(al.getTagData().data(), tagDataLength);
+     */
 
     return true;
 }

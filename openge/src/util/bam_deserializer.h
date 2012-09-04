@@ -150,7 +150,7 @@ BamTools::BamAlignment * BamDeserializer<input_stream_t>::read() {
         return NULL;
     }
 
-    BamTools::BamAlignment::BamAlignmentSupportData SupportData;
+    BamTools::BamAlignment::BamAlignmentSupportData & SupportData = al->getSupportData();
     SupportData.BlockLength = BamTools::UnpackUnsignedInt(buffer);
 
     if ( SupportData.BlockLength == 0 )
@@ -187,7 +187,7 @@ BamTools::BamAlignment * BamDeserializer<input_stream_t>::read() {
     // read in character data - make sure proper data size was read
     bool readCharDataOK = false;
     const unsigned int dataLength = SupportData.BlockLength - 32;
-    SupportData.AllCharData.insert(SupportData.AllCharData.end(), dataLength, (char)0);
+    SupportData.AllCharData.resize(dataLength);
     input_stream.read(&SupportData.AllCharData[0], dataLength);
     if ( !input_stream.fail() ) {
         // set success flag
@@ -197,10 +197,7 @@ BamTools::BamAlignment * BamDeserializer<input_stream_t>::read() {
         delete al;
         return NULL;
     }
-    
-    SupportData.HasCoreOnly = true;
-    al->setSupportData(SupportData);
-    
+
     // return success/failure
     return al;
 }

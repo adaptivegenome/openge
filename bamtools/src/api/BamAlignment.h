@@ -20,6 +20,8 @@
 #include <vector>
 #include <iostream>
 
+template <class> class BamDeserializer;
+
 std::string cigarToString(const std::vector<BamTools::CigarOp> cigar);
 
 namespace BamTools {
@@ -95,6 +97,8 @@ namespace BamTools {
         bool BuildTagData(void) const;
         bool BuildCigarData(void) const;
         
+        void FlushCharData(void);
+
         mutable bool hasAlignedBasesData, hasQualitiesData, hasQueryBasesData, hasTagData, hasCigarData;
         
     public:
@@ -113,7 +117,6 @@ namespace BamTools {
         // public data fields
     protected:
         std::string Name;               // read name
-        //int32_t     Length;             // length of query sequence
         
         mutable BamSpinlock lazy_load_lock;
 
@@ -150,17 +153,17 @@ namespace BamTools {
         int32_t getMatePosition() const { return MatePosition; }
         int32_t getInsertSize() const { return InsertSize; }
         
-        void setName(const std::string & newName) { Name = newName; };
-        void setQueryBases(const std::string & newQueryBases) { QueryBases = newQueryBases; hasTagData = true; };
-        void setAlignedBases(const std::string & newAlignedBases) { AlignedBases = newAlignedBases; hasTagData = true; };
-        void setQualities(const std::string & newQualities) { Qualities = newQualities; hasTagData = true; };
+        void setName(const std::string & newName) { Name = newName; FlushCharData(); };
+        void setQueryBases(const std::string & newQueryBases) { QueryBases = newQueryBases; hasTagData = true; FlushCharData(); };
+        void setAlignedBases(const std::string & newAlignedBases) { AlignedBases = newAlignedBases; hasTagData = true; FlushCharData(); };
+        void setQualities(const std::string & newQualities) { Qualities = newQualities; hasTagData = true; FlushCharData(); };
         void setTagData(const std::string & newTagData) { TagData = newTagData; hasTagData = false; };
         void setRefID(int32_t newRefID) { RefID = newRefID; }
         void setPosition(int32_t newPosition) { Position = newPosition; }
         void setBin(uint16_t newBin) { Bin = newBin; }
         void setMapQuality(uint16_t newMapQuality) { MapQuality = newMapQuality; }
         void setAlignmentFlag(uint32_t newAlignmentFlag) { AlignmentFlag = newAlignmentFlag; }
-        void setCigarData(const std::vector<CigarOp> & newCigarData) { CigarData = newCigarData; hasCigarData = true; }
+        void setCigarData(const std::vector<CigarOp> & newCigarData) { CigarData = newCigarData; hasCigarData = true; FlushCharData(); }
         void setMateRefID(int32_t newMateRefID) { MateRefID = newMateRefID; }
         void setMatePosition(int32_t newMatePosition) { MatePosition = newMatePosition; }
         void setInsertSize(int32_t newInsertSize) { InsertSize = newInsertSize; }
@@ -190,19 +193,21 @@ namespace BamTools {
             uint32_t    NumCigarOperations;
             uint32_t    QueryNameLength;
             uint32_t    QuerySequenceLength;
-            bool        HasCoreOnly;
-            
+
             // constructor
             BamAlignmentSupportData(void)
             : BlockLength(0)
             , NumCigarOperations(0)
             , QueryNameLength(0)
             , QuerySequenceLength(0)
-            , HasCoreOnly(false)
             { }
         };
         const BamAlignmentSupportData & getSupportData() const { return SupportData; }
-        void setSupportData(const BamAlignmentSupportData & supportData) { SupportData = supportData; setName(SupportData.AllCharData.c_str());}
+        void setSupportData(const BamAlignmentSupportData & supportData) { SupportData = supportData; Name = std::string(SupportData.AllCharData.c_str());}
+    protected:
+        template <class> friend class BamDeserializer;
+    public: //FIXME!!! this is unnecessarily public, and should only be available to friends (see above).
+        BamAlignmentSupportData & getSupportData() { return SupportData; }
     private:
         BamAlignmentSupportData SupportData;
         
@@ -211,6 +216,14 @@ namespace BamTools {
         
     public:
         std::string cigarString() const { return cigarToString(CigarData); }
+        
+        
+        // cached allocator
+        static BamAlignment * allocate();
+        static void deallocate(BamAlignment * al);
+        static void clearCachedAllocations();
+        static BamSpinlock allocator_spinlock;
+        static std::vector<BamAlignment *> cached_allocations;
     };
     
     // ---------------------------------------------------------
@@ -459,11 +472,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::GetTag(const std::string& tag, T& destination) const {
         
-        // skip if alignment is core-only
-        if ( SupportData.HasCoreOnly ) {
-            // TODO: set error string?
-            return false;
-        }
+        BuildTagData();
         
         // skip if no tags present
         if ( TagData.empty() ) {
@@ -540,11 +549,7 @@ namespace BamTools {
     inline bool BamAlignment::GetTag<std::string>(const std::string& tag,
                                                   std::string& destination) const
     {
-        // skip if alignment is core-only
-        if ( SupportData.HasCoreOnly ) {
-            // TODO: set error string?
-            return false;
-        }
+        BuildTagData();
         
         // skip if no tags present
         if ( TagData.empty() ) {
@@ -583,11 +588,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::GetTag(const std::string& tag, std::vector<T>& destination) const {
         
-        // skip if alignment is core-only
-        if ( SupportData.HasCoreOnly ) {
-            // TODO: set error string?
-            return false;
-        }
+        BuildTagData();
         
         // skip if no tags present
         if ( TagData.empty() ) {

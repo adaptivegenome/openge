@@ -359,6 +359,172 @@ bool BamAlignment::BuildCigarData() const {
     return true;
 }
 
+// The implementation of this function is originally from BamWriter_p.cpp from bamtools.
+// Bamtools is released under the BSD license.
+void CreatePackedCigar(const std::vector<BamTools::CigarOp>& cigarOperations, std::string& packedCigar) {
+    
+    // initialize
+    const size_t numCigarOperations = cigarOperations.size();
+    packedCigar.resize(numCigarOperations * 4);
+    
+    // pack the cigar data into the string
+    unsigned int* pPackedCigar = (unsigned int*)packedCigar.data();
+    
+    // iterate over cigar operations
+    std::vector<BamTools::CigarOp>::const_iterator coIter = cigarOperations.begin();
+    std::vector<BamTools::CigarOp>::const_iterator coEnd  = cigarOperations.end();
+    for ( ; coIter != coEnd; ++coIter ) {
+        
+        // store op in packedCigar ("MIDNSHP=X")
+        uint8_t cigarOp;
+        switch ( coIter->Type ) {
+            case 'M': cigarOp = 0; break;
+            case 'I': cigarOp = 1; break;
+            case 'D': cigarOp = 2; break;
+            case 'N': cigarOp = 3; break;
+            case 'S': cigarOp = 4; break;
+            case 'H': cigarOp = 5; break;
+            case 'P': cigarOp = 6; break;
+            case '=': cigarOp = 7; break;
+            case 'X': cigarOp = 8; break;
+            default:
+                std::cerr << std::string("BamSerializer: invalid CIGAR operation type ") << coIter->Type << " . Aborting." << std::endl;
+                exit(-1);
+        }
+        
+        *pPackedCigar = coIter->Length << 4 | cigarOp;
+        pPackedCigar++;
+    }
+}
+
+// The implementation of this function is originally from BamWriter_p.cpp from bamtools.
+// Bamtools is released under the BSD license.
+void EncodeQuerySequence(const std::string& query, std::string& encodedQuery) {
+    
+    // prepare the encoded query string
+    const size_t queryLength = query.size();
+    const size_t encodedQueryLength = static_cast<size_t>((queryLength+1)/2);
+    encodedQuery.resize(encodedQueryLength);
+    char* pEncodedQuery = (char*)encodedQuery.data();
+    const char* pQuery = (const char*)query.data();
+    
+    // walk through original query sequence, encoding its bases (letter to position) "=ACMGRSVTWYHKDBN"
+    unsigned char nucleotideCode;
+    bool useHighWord = true;
+    while ( *pQuery ) {
+        switch ( *pQuery ) {
+            case '=': nucleotideCode =  0; break;
+            case 'A': nucleotideCode =  1; break;
+            case 'C': nucleotideCode =  2; break;
+            case 'M': nucleotideCode =  3; break;
+            case 'G': nucleotideCode =  4; break;
+            case 'R': nucleotideCode =  5; break;
+            case 'S': nucleotideCode =  6; break;
+            case 'V': nucleotideCode =  7; break;
+            case 'T': nucleotideCode =  8; break;
+            case 'W': nucleotideCode =  9; break;
+            case 'Y': nucleotideCode = 10; break;
+            case 'H': nucleotideCode = 11; break;
+            case 'K': nucleotideCode = 12; break;
+            case 'D': nucleotideCode = 13; break;
+            case 'B': nucleotideCode = 14; break;
+            case 'N': nucleotideCode = 15; break;
+            default:
+                std::cerr << std::string("BamSerializer: invalid sequence base: ") << *pQuery << ". Aborting." << std::endl;
+                exit(-1);
+        }
+        
+        // pack the nucleotide code
+        if ( useHighWord ) {
+            *pEncodedQuery = nucleotideCode << 4;
+            useHighWord = false;
+        } else {
+            *pEncodedQuery |= nucleotideCode;
+            ++pEncodedQuery;
+            useHighWord = true;
+        }
+        
+        // increment the query position
+        ++pQuery;
+    }
+}
+
+// calculates minimum bin for a BAM alignment interval [begin, end)
+// Taken from BAM specification.
+uint32_t inline CalculateMinimumBin(const int begin, int end) {
+    --end;
+    if ( (begin >> 14) == (end >> 14) ) return 4681 + (begin >> 14);
+    if ( (begin >> 17) == (end >> 17) ) return  585 + (begin >> 17);
+    if ( (begin >> 20) == (end >> 20) ) return   73 + (begin >> 20);
+    if ( (begin >> 23) == (end >> 23) ) return    9 + (begin >> 23);
+    if ( (begin >> 26) == (end >> 26) ) return    1 + (begin >> 26);
+    return 0;
+}
+
+void BamAlignment::FlushCharData(void) {
+    // calculate char lengths
+    const unsigned int nameLength         = getName().size() + 1;
+    const unsigned int numCigarOperations = getCigarData().size();
+    const unsigned int queryLength        = getQueryBases().size();
+    const unsigned int tagDataLength      = getTagData().size();
+    
+    // no way to tell if alignment's bin is already defined (there is no default, invalid value)
+    // so we'll go ahead calculate its bin ID before storing
+    const uint32_t alignmentBin = CalculateMinimumBin(getPosition(), GetEndPosition());
+    
+    // create our packed cigar string
+    std::string packedCigar;
+    CreatePackedCigar(getCigarData(), packedCigar);
+    const unsigned int packedCigarLength = packedCigar.size();
+    
+    stringstream output_stream;
+    
+    // encode the query
+    std::string encodedQuery;
+    EncodeQuerySequence(getQueryBases(), encodedQuery);
+    const unsigned int encodedQueryLength = encodedQuery.size();
+    
+    // write the block size
+    const unsigned int dataBlockSize = nameLength +
+    packedCigarLength +
+    encodedQueryLength +
+    queryLength +
+    tagDataLength;
+    unsigned int blockSize = 32 + dataBlockSize;
+    output_stream.write((char*)&blockSize, 4);
+    
+    // assign the BAM core data
+    uint32_t buffer[8];
+    buffer[0] = getRefID();
+    buffer[1] = getPosition();
+    buffer[2] = (alignmentBin << 16) | (getMapQuality() << 8) | nameLength;
+    buffer[3] = (getAlignmentFlag() << 16) | numCigarOperations;
+    buffer[4] = queryLength;
+    buffer[5] = getMateRefID();
+    buffer[6] = getMatePosition();
+    buffer[7] = getInsertSize();
+    
+    // write the BAM core
+    output_stream.write((char*)&buffer, 32);
+    
+    // write the query name
+    output_stream.write(getName().c_str(), nameLength);
+    
+    output_stream.write(packedCigar.data(), packedCigarLength);
+    
+    // write the encoded query sequence
+    output_stream.write(encodedQuery.data(), encodedQueryLength);
+    
+    // write the base qualities
+    char* pBaseQualities = (char*)getQualities().data();
+    char * qualities = (char *) alloca(getQualities().size());
+    for ( size_t i = 0; i < queryLength; ++i )
+        qualities[i] = pBaseQualities[i] - 33; // FASTQ conversion
+    output_stream.write(qualities, queryLength);
+    
+    output_stream.write(getTagData().data(), tagDataLength);
+}
+
 /*! \fn bool BamAlignment::FindTag(const std::string& tag, char*& pTagData, const unsigned int& tagDataLength, unsigned int& numBytesParsed) const
     \internal
 
@@ -570,11 +736,7 @@ bool BamAlignment::GetSoftClips(vector<int>& clipSizes,
 */
 bool BamAlignment::GetTagType(const std::string& tag, char& type) const {
   
-    // skip if alignment is core-only
-    if ( SupportData.HasCoreOnly ) {
-        // TODO: set error string?
-        return false;
-    }
+    BuildTagData();
 
     // skip if no tags present
     if ( TagData.empty() ) {
@@ -625,8 +787,10 @@ bool BamAlignment::GetTagType(const std::string& tag, char& type) const {
 */
 bool BamAlignment::HasTag(const std::string& tag) const {
 
+    BuildTagData();
+
     // return false if no tag data present
-    if ( SupportData.HasCoreOnly || TagData.empty() )
+    if ( TagData.empty() )
         return false;
 
     // localize the tag data for lookup
