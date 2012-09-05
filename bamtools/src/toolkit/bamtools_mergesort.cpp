@@ -154,7 +154,6 @@ public:
   // data members
 private:
     BamAlignment * GetMergedAlignment();
-    void PostMergedAlignment(const BamAlignment & al);
     void PostMergedAlignment(BamAlignment * al);
   
   string m_tempFilenameStub;
@@ -416,21 +415,6 @@ void MergeSortTool::MergeSortToolPrivate::PostMergedAlignment( BamAlignment * al
         if(0 != sem_post(alignment_available))
             perror("Error posting alignment_available");
     
-    //if the queue gets too big, our memory usage may get out of control.
-    if(alignment_available_spinlock % 4000 == 0)    //don't check often
-        if(merged_alignment_queue.size() > 40000)
-            usleep(20000);
-}
-
-void MergeSortTool::MergeSortToolPrivate::PostMergedAlignment(const BamAlignment & al)
-{
-    merged_alignment_queue.push(new BamAlignment(al));
-    if(use_spinlocks)
-        alignment_available_spinlock++;
-    else
-        if(0 != sem_post(alignment_available))
-            perror("Error posting alignment_available");
-        
     //if the queue gets too big, our memory usage may get out of control.
     if(alignment_available_spinlock % 4000 == 0)    //don't check often
         if(merged_alignment_queue.size() > 40000)
