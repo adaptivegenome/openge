@@ -22,7 +22,6 @@
 
 #include "file_reader.h"
 
-#include "api/BamMultiReader.h"
 #include "../util/read_stream_reader.h"
 
 using namespace BamTools;
