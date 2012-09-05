@@ -224,6 +224,8 @@ namespace BamTools {
         static void clearCachedAllocations();
         static BamSpinlock allocator_spinlock;
         static std::vector<BamAlignment *> cached_allocations;
+        static std::vector<BamAlignment *> cached_allocations_cleared;
+        static bool clean_thread_running;
     };
     
     // ---------------------------------------------------------
