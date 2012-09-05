@@ -148,6 +148,27 @@ protected:
         
 };
 
+class OGEParallelismSettings
+{
+public:
+    // return the number of cores availble in the current system
+    static int availableCores();
+    
+    // Configure the number of threads to use for each thread pool. Set
+    // 0 to use all threads on the system.
+    static void setNumberThreads(int threads);
+    static int getNumberThreads();
+    
+    // Enable or disable the use of multithreading
+    static void disableMultithreading();
+    static void enableMultithreading();
+    static bool isMultithreadingEnabled() { return m_multithreading_enabled; }
+    
+protected:
+    static int m_configured_threads;
+    static bool m_multithreading_enabled;
+};
+
 // The shared thread pool should only be used for non-blocking tasks!
 
 class ThreadPool
@@ -161,7 +182,7 @@ public:
 	int numJobs();
 	static int availableCores();
 	void waitForJobCompletion();
-    static ThreadPool * sharedPool() { if(!_sharedPool) _sharedPool = new ThreadPool(); return _sharedPool; }
+    static ThreadPool * sharedPool() { if(!_sharedPool) _sharedPool = new ThreadPool(OGEParallelismSettings::getNumberThreads()); return _sharedPool; }
     static void closeSharedPool() {  _sharedPool->waitForJobCompletion(); delete _sharedPool; }
 	
 protected:
@@ -245,27 +266,6 @@ ogeSortMt(_RandomAccessIterator __first, _RandomAccessIterator __last,
             inplace_merge(__first, __first + i * job_size, __first + (i+1) * job_size, __comp);
     }
 }
-
-class OGEParallelismSettings
-{
-public:
-    // return the number of cores availble in the current system
-    static int availableCores();
-    
-    // Configure the number of threads to use for each thread pool. Set
-    // 0 to use all threads on the system.
-    static void setNumberThreads(int threads);
-    static int getNumberThreads();
-    
-    // Enable or disable the use of multithreading
-    static void disableMultithreading();
-    static void enableMultithreading();
-    static bool isMultithreadingEnabled() { return m_multithreading_enabled; }
-    
-protected:
-    static int m_configured_threads;
-    static bool m_multithreading_enabled;
-};
 
 
 #endif
