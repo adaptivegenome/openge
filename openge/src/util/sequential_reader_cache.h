@@ -67,7 +67,7 @@ BamTools::BamAlignment * SequentialReaderCache<reader_t>::read() {
 
 template <class reader_t>
 void SequentialReaderCache<reader_t>::PrefetchJob::runJob() {
-    for(int i = 0; i < 10000 && (cache->read_queue.empty() || cache->read_queue.back() != NULL); i++) {
+    while(cache->read_queue.size() < 10000 && (cache->read_queue.empty() || cache->read_queue.back() != NULL)) {
         BamTools::BamAlignment * al = cache->reader.read();
         cache->read_queue.push(al);
     }
