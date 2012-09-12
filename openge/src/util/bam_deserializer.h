@@ -197,6 +197,7 @@ BamTools::BamAlignment * BamDeserializer<input_stream_t>::read() {
         delete al;
         return NULL;
     }
+    al->setName(SupportData.AllCharData.c_str());
 
     // return success/failure
     return al;

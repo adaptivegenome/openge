@@ -88,6 +88,8 @@ BamAlignment::BamAlignment(void)
     , hasQualitiesData(false)
     , hasQueryBasesData(false)
     , hasTagData(false)
+    , hasCigarData(false)
+    , stringDataDirty(false)
     , RefID(-1)
     , Position(-1)
     , Bin(0)
@@ -106,6 +108,8 @@ BamAlignment::BamAlignment(const BamAlignment& other)
     , hasQualitiesData(false)
     , hasQueryBasesData(false)
     , hasTagData(false)
+    , hasCigarData(false)
+    , stringDataDirty(false)
     , Name(other.Name)
     , QueryBases(other.QueryBases)
     , AlignedBases(other.AlignedBases)
@@ -133,6 +137,8 @@ void BamAlignment::clear() {
     hasQualitiesData = false;
     hasQueryBasesData = false;
     hasTagData = false;
+    hasCigarData = false;
+    stringDataDirty = false;
     RefID = -1;
     Position = -1;
     Bin = 0;
@@ -462,12 +468,26 @@ uint32_t inline CalculateMinimumBin(const int begin, int end) {
     return 0;
 }
 
-void BamAlignment::FlushCharData(void) {
+void BamAlignment::FlushCharData(void) const {
+    
+    BuildTagData();
+    BuildQueryBasesData();
+    BuildCigarData();
+    BuildQualitiesData();
+
+    lazy_load_lock.lock();
+    if(!stringDataDirty) {
+        lazy_load_lock.unlock();
+        return;
+    }
+
+    stringDataDirty = false;
+
     // calculate char lengths
-    const unsigned int nameLength         = getName().size() + 1;
-    const unsigned int numCigarOperations = getCigarData().size();
-    const unsigned int queryLength        = getQueryBases().size();
-    const unsigned int tagDataLength      = getTagData().size();
+    const unsigned int nameLength         = Name.size() + 1;
+    const unsigned int numCigarOperations = CigarData.size();
+    const unsigned int queryLength        = QueryBases.size();
+    const unsigned int tagDataLength      = TagData.size();
     
     // no way to tell if alignment's bin is already defined (there is no default, invalid value)
     // so we'll go ahead calculate its bin ID before storing
@@ -475,14 +495,14 @@ void BamAlignment::FlushCharData(void) {
     
     // create our packed cigar string
     std::string packedCigar;
-    CreatePackedCigar(getCigarData(), packedCigar);
+    CreatePackedCigar(CigarData, packedCigar);
     const unsigned int packedCigarLength = packedCigar.size();
     
     stringstream output_stream;
     
     // encode the query
     std::string encodedQuery;
-    EncodeQuerySequence(getQueryBases(), encodedQuery);
+    EncodeQuerySequence(QueryBases, encodedQuery);
     const unsigned int encodedQueryLength = encodedQuery.size();
     
     // write the block size
@@ -509,7 +529,7 @@ void BamAlignment::FlushCharData(void) {
     output_stream.write((char*)&buffer, 32);
     
     // write the query name
-    output_stream.write(getName().c_str(), nameLength);
+    output_stream.write(Name.c_str(), nameLength);
     
     output_stream.write(packedCigar.data(), packedCigarLength);
     
@@ -517,13 +537,16 @@ void BamAlignment::FlushCharData(void) {
     output_stream.write(encodedQuery.data(), encodedQueryLength);
     
     // write the base qualities
-    char* pBaseQualities = (char*)getQualities().data();
-    char * qualities = (char *) alloca(getQualities().size());
+    char* pBaseQualities = (char*)Qualities.data();
+    char * qualities = (char *) alloca(Qualities.size());
     for ( size_t i = 0; i < queryLength; ++i )
         qualities[i] = pBaseQualities[i] - 33; // FASTQ conversion
     output_stream.write(qualities, queryLength);
     
-    output_stream.write(getTagData().data(), tagDataLength);
+    output_stream.write(TagData.data(), tagDataLength);
+    
+    SupportData.AllCharData = output_stream.str();
+    lazy_load_lock.unlock();
 }
 
 /*! \fn bool BamAlignment::FindTag(const std::string& tag, char*& pTagData, const unsigned int& tagDataLength, unsigned int& numBytesParsed) const

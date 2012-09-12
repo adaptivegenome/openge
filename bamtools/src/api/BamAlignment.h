@@ -97,9 +97,10 @@ namespace BamTools {
         bool BuildTagData(void) const;
         bool BuildCigarData(void) const;
         
-        void FlushCharData(void);
-
+        void FlushCharData(void) const;
+        
         mutable bool hasAlignedBasesData, hasQualitiesData, hasQueryBasesData, hasTagData, hasCigarData;
+        mutable bool stringDataDirty;
         
     public:
         // calculates alignment end position
@@ -138,7 +139,7 @@ namespace BamTools {
         
     public:
         const std::string & getName() const { return Name; }
-        int32_t getLength() const { return SupportData.QuerySequenceLength; }
+        int32_t getLength() const { return hasQueryBasesData ? QueryBases.size() : SupportData.QuerySequenceLength; }
         const std::string & getQueryBases() const { BuildQueryBasesData(); return QueryBases; }
         const std::string & getAlignedBases() const { BuildAlignedBasesData(); return AlignedBases; }
         const std::string & getQualities() const { BuildQualitiesData(); return Qualities; }
@@ -153,17 +154,17 @@ namespace BamTools {
         int32_t getMatePosition() const { return MatePosition; }
         int32_t getInsertSize() const { return InsertSize; }
         
-        void setName(const std::string & newName) { Name = newName; FlushCharData(); };
-        void setQueryBases(const std::string & newQueryBases) { QueryBases = newQueryBases; hasTagData = true; FlushCharData(); };
-        void setAlignedBases(const std::string & newAlignedBases) { AlignedBases = newAlignedBases; hasTagData = true; FlushCharData(); };
-        void setQualities(const std::string & newQualities) { Qualities = newQualities; hasTagData = true; FlushCharData(); };
-        void setTagData(const std::string & newTagData) { TagData = newTagData; hasTagData = false; };
+        void setName(const std::string & newName) { Name = newName;  stringDataDirty = true; };
+        void setQueryBases(const std::string & newQueryBases) { QueryBases = newQueryBases; hasQueryBasesData = true; stringDataDirty = true; };
+        void setAlignedBases(const std::string & newAlignedBases) { AlignedBases = newAlignedBases; hasAlignedBasesData = true; stringDataDirty = true; };
+        void setQualities(const std::string & newQualities) { Qualities = newQualities; hasQualitiesData = true; stringDataDirty = true; };
+        void setTagData(const std::string & newTagData) { TagData = newTagData; hasTagData = false;  stringDataDirty = false;};
         void setRefID(int32_t newRefID) { RefID = newRefID; }
         void setPosition(int32_t newPosition) { Position = newPosition; }
         void setBin(uint16_t newBin) { Bin = newBin; }
         void setMapQuality(uint16_t newMapQuality) { MapQuality = newMapQuality; }
         void setAlignmentFlag(uint32_t newAlignmentFlag) { AlignmentFlag = newAlignmentFlag; }
-        void setCigarData(const std::vector<CigarOp> & newCigarData) { CigarData = newCigarData; hasCigarData = true; FlushCharData(); }
+        void setCigarData(const std::vector<CigarOp> & newCigarData) { CigarData = newCigarData; hasCigarData = true;  stringDataDirty = true; }
         void setMateRefID(int32_t newMateRefID) { MateRefID = newMateRefID; }
         void setMatePosition(int32_t newMatePosition) { MatePosition = newMatePosition; }
         void setInsertSize(int32_t newInsertSize) { InsertSize = newInsertSize; }
@@ -196,20 +197,20 @@ namespace BamTools {
 
             // constructor
             BamAlignmentSupportData(void)
-            : BlockLength(0)
+            : BlockLength(32)   // iniitalize block length to at least the length of the core.
             , NumCigarOperations(0)
             , QueryNameLength(0)
             , QuerySequenceLength(0)
             { }
         };
-        const BamAlignmentSupportData & getSupportData() const { return SupportData; }
-        void setSupportData(const BamAlignmentSupportData & supportData) { SupportData = supportData; Name = std::string(SupportData.AllCharData.c_str());}
+        const BamAlignmentSupportData & getSupportData() const { FlushCharData(); return SupportData; }
+        void setSupportData(const BamAlignmentSupportData & supportData) {  stringDataDirty = false; SupportData = supportData; Name = std::string(SupportData.AllCharData.c_str());}
     protected:
         template <class> friend class BamDeserializer;
     public: //FIXME!!! this is unnecessarily public, and should only be available to friends (see above).
-        BamAlignmentSupportData & getSupportData() { return SupportData; }
+        BamAlignmentSupportData & getSupportData() { FlushCharData(); return SupportData; }
     private:
-        BamAlignmentSupportData SupportData;
+        mutable BamAlignmentSupportData SupportData;
         
         mutable std::string ErrorString; // mutable to allow updates even in logically const methods
         //! \endinternal
