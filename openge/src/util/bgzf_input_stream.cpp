@@ -14,13 +14,13 @@
  *
  *********************************************************************/
 
+#include "api/api_global.h"
 #include "bgzf_input_stream.h"
 #include <zlib.h>
 
 #include <iostream>
 #include <cassert>
 #include <cstring>
-#include <stdint.h>
 
 using namespace std;
 
