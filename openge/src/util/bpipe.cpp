@@ -194,7 +194,7 @@ struct BpipeParser : qi::grammar<Iterator, vector<stage>(), ascii::space_type>
 
         stage_reference = unquoted_string [_val = new_<StageReference>(_1, ref(stages))];
         stage_serial_queue = stage_reference[_val = _1] >> -(('+' >> stage_queue)[_val = new_<SerialStageQueue>(_val, _1)]);
-        stage_parallel_queue = '[' >> (stage_queue >> ',' >> stage_queue)[_val = new_<ParallelStageQueue>(_1, _2)] >> ']';
+        stage_parallel_queue = '[' >> stage_queue[_val = _1] >> *((',' >> stage_queue)[_val = new_<ParallelStageQueue>(_val, _1)]) >> ']';
         stage_queue %= (stage_serial_queue | stage_parallel_queue | stage_reference)[_val = _1];
         run_block = (lit("Bpipe.run") >> '{' >> stage_queue >> '}')[ref(run_task) = _1] ;
         bpipe_file %= *(stage_definition) >> run_block;
@@ -240,18 +240,29 @@ bool BPipe::load(const string & filename) {
     //read in script
     string line;
     while(getline(file, line))
-        script_text += line;
+        script_text += line + "\n";
 
     file.close();
     
-    //remove comments
     
+    //remove  /**/ comments
     while(true) {
         size_t cstart = script_text.find("/*");
         size_t cend = script_text.find("*/");
         
         if(cstart != string::npos && cend != string::npos)
             script_text.erase(cstart, cend - cstart +2);
+        else
+            break;
+    }
+    
+    // remove // comments
+    while(true) {
+        size_t cstart = script_text.find("//");
+        size_t cend = script_text.find("\n", cstart);
+        
+        if(cstart != string::npos && cend != string::npos)
+            script_text.erase(cstart, cend - cstart);
         else
             break;
     }
