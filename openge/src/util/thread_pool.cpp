@@ -50,7 +50,8 @@ jobs_current(0)
     int32_t sem_id = 0xffffffff & (int64_t) this;
     
     sprintf(sem_name, "oge_tp_%x",sem_id);
-    sem_unlink(sem_name);
+    if(0 != sem_unlink(sem_name))
+        perror("Error unlinking threadpool semaphore sem_name");
     job_semaphore = sem_open(sem_name, O_CREAT | O_EXCL,0700,0);
     
 	if(job_semaphore == SEM_FAILED &&  0 != errno) {
@@ -59,7 +60,8 @@ jobs_current(0)
 	}
 
     sprintf(sem_submission_name, "oge_tpjs_%x",sem_id);
-    sem_unlink(sem_submission_name);
+    if(0 != sem_unlink(sem_submission_name))
+        perror("Error unlinking threadpool semaphore sem_name");
     job_submission_semaphore = sem_open(sem_submission_name, O_CREAT | O_EXCL,0700,THREADPOOL_MAX_JOBS_IN_QUEUE);
     
 	if(job_submission_semaphore == SEM_FAILED &&  0 != errno) {
