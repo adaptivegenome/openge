@@ -208,7 +208,7 @@ namespace BamTools {
     protected:
         template <class> friend class BamDeserializer;
     public: //FIXME!!! this is unnecessarily public, and should only be available to friends (see above).
-        BamAlignmentSupportData & getSupportData() { FlushCharData(); return SupportData; }
+        BamAlignmentSupportData & getSupportData() { return SupportData; }
     private:
         mutable BamAlignmentSupportData SupportData;
         
