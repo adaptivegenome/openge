@@ -15,8 +15,11 @@
  *********************************************************************/
 
 #include "mark_duplicates.h"
-#include <api/BamReader.h>
-#include <api/BamWriter.h>
+
+#include "../util/bam_serializer.h"
+#include "../util/bgzf_output_stream.h"
+
+#include "../util/read_stream_reader.h"
 
 #include <algorithm>
 using namespace BamTools;
@@ -181,19 +184,9 @@ void MarkDuplicates::buildSortedReadEndLists() {
     long index = 0;
 
     SamHeader header = source->getHeader();
-    
-    BamWriter writer;
 
-    RefVector references;
-    
-    for(SamSequenceConstIterator i = header.Sequences.Begin(); i != header.Sequences.End(); i++) {
-        RefData d;
-        d.RefName = i->Name;
-        d.RefLength = atoi(i->Length.c_str());
-    }
-    
-    writer.SetCompressionMode(BamWriter::Uncompressed);
-    writer.Open(getBufferFileName(), header, references);
+    BamSerializer<ofstream> writer;
+    writer.open(getBufferFileName(), header);
     
     while (true) {
         BamAlignment * prec = getInputAlignment();
@@ -254,11 +247,11 @@ void MarkDuplicates::buildSortedReadEndLists() {
             cerr << "\rRead " << index << " records. Tracking " << tmp.size() << " as yet unmatched pairs. Last sequence index: " << rec.getPosition() << std::flush;
         }
         
-        writer.SaveAlignment(rec);
+        writer.write(rec);
         delete prec;
     }
 
-    writer.Close();
+    writer.close();
     
     if(verbose)
         cerr << "Read " << index << " records. " << tmp.size() << " pairs never matched." << endl << "Sorting pairs..." << flush;
@@ -369,6 +362,7 @@ void MarkDuplicates::generateDuplicateIndexes() {
     
     bool containsPairs = false;
     bool containsFrags = false;
+    firstOfNextChunk = NULL;
     
     for (int i = 0;i < fragSort.size(); i++) {
         ReadEnds * next = fragSort[i];
@@ -434,16 +428,16 @@ int MarkDuplicates::runInternal() {
     if(verbose)
         cerr << "Marking " << numDuplicateIndices << " records as duplicates." << endl;
     
-    BamReader in;
+    MultiReader in;
 
-    in.Open(getBufferFileName());
+    in.open(getBufferFileName());
 
     // Now copy over the file while marking all the necessary indexes as duplicates
     long recordInFileIndex = 0;
     
     long written = 0;
     while (true) {
-        BamAlignment * prec = in.GetNextAlignment();
+        BamAlignment * prec = in.read();
         if(!prec)
             break;
         
@@ -469,7 +463,7 @@ int MarkDuplicates::runInternal() {
     if (verbose && read_count)
         cerr << "\rWritten " << written << " records (" << written * 100 / read_count <<"%)." << endl;
 
-    in.Close();
+    in.close();
 
     remove(getBufferFileName().c_str());
     

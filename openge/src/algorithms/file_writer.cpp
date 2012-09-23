@@ -30,7 +30,6 @@
 #include "../util/bam_serializer.h"
 #include "../util/bgzf_output_stream.h"
 
-#include "api/BamWriter.h"
 using namespace BamTools;
 using namespace std;
 
