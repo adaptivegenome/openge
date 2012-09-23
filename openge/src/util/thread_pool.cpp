@@ -47,33 +47,15 @@ jobs_current(0)
 		num_threads = availableCores();
     
 	jobs_in_process = 0;
-    int32_t sem_id = 0xffffffff & (int64_t) this;
     
-    sprintf(sem_name, "oge_tp_%x",sem_id);
-    if(0 != sem_unlink(sem_name))
-        perror("Error unlinking threadpool semaphore sem_name");
-    job_semaphore = sem_open(sem_name, O_CREAT | O_EXCL,0700,0);
+    if(0 != pthread_cond_init(&job_queue_cond, NULL))
+        perror("Error creating job queue cond variable");
     
-	if(job_semaphore == SEM_FAILED &&  0 != errno) {
-		perror("Error opening threadpool semaphore");
-		assert(0);
-	}
+    if(0 != pthread_mutex_init(&job_queue_mutex, NULL))
+        perror("Error creating job queue cond variable");
 
-    sprintf(sem_submission_name, "oge_tpjs_%x",sem_id);
-    if(0 != sem_unlink(sem_submission_name))
-        perror("Error unlinking threadpool semaphore sem_name");
-    job_submission_semaphore = sem_open(sem_submission_name, O_CREAT | O_EXCL,0700,THREADPOOL_MAX_JOBS_IN_QUEUE);
-    
-	if(job_submission_semaphore == SEM_FAILED &&  0 != errno) {
-		perror("Error opening threadpool job submission semaphore");
-		assert(0);
-	}
-
-	int retval = pthread_mutex_init(&busy_mutex,NULL);
-    
-	if(0 != retval)
-		perror("Error opening threadpool busy mutex");
-	assert(0 == retval);
+	if(0 != pthread_mutex_init(&busy_mutex,NULL))
+		perror("Error creating threadpool busy mutex");
     
 	for(int thread_ctr = 0; thread_ctr < num_threads; thread_ctr++)
 	{
@@ -92,26 +74,21 @@ ThreadPool::~ThreadPool()
 	threads_exit = true;
 	
 	//now make the threads check for return signal
-	if(0 != sem_post(job_semaphore))
-        perror("Error posting job semaphore");
+	if(0 != pthread_cond_broadcast(&job_queue_cond))
+        perror("Error sending threadpool end signal");
 	
 	//wait for threads to return
 	for(size_t thread_ctr = 0; thread_ctr < threads.size(); thread_ctr++)
 		pthread_join(threads[thread_ctr], NULL);
     
 	if(0 != pthread_mutex_destroy(&busy_mutex))
-    {
         perror("Error destroying busy mutex");
-        assert(0);
-    }
-    if(0 != sem_close(job_semaphore))
-        perror("Error closing job_semaphore");
-	if(0 != sem_unlink(sem_name))
-        perror("Error unlinking sem_name");
-    if(0 != sem_close(job_submission_semaphore))
-        perror("Error closing job_submission_semaphore");
-	if(0 != sem_unlink(sem_submission_name))
-        perror("Error unlinking sem_submission_name");
+
+    if(0 !=pthread_cond_destroy(&job_queue_cond))
+        perror("Error destroying jobpool condition var");
+
+    if(0 != pthread_mutex_destroy(&job_queue_mutex))
+        perror("Error destroying threadpool job queue mutex");
 }
 
 int ThreadPool::availableCores()
@@ -122,9 +99,6 @@ int ThreadPool::availableCores()
 //add a job to the queue to be 
 bool ThreadPool::addJob(ThreadJob * job)
 {
-    if(0 != sem_wait(job_submission_semaphore))
-        perror("Error waiting for job submission semaphore (OGE addjob)");
-    
     jobs_mutex.lock();
 
     if(jobs_current == 0)
@@ -134,8 +108,8 @@ bool ThreadPool::addJob(ThreadJob * job)
 	jobs.push(job);
     jobs_mutex.unlock();
 
-	if(0 != sem_post(job_semaphore))
-        perror("Error posting job semaphore");
+    if(0 != pthread_cond_signal(&job_queue_cond))
+        perror("Error signalling job threads on new job.");
 	return true;
 }
 
@@ -144,21 +118,31 @@ bool ThreadPool::addJob(ThreadJob * job)
 // @return A pointer to the task to start, or NULL if the thread should exit.
 ThreadJob * ThreadPool::startJob()
 {
-    if(0 != sem_wait(job_semaphore))
-        perror("Error waiting for job submission semaphore (OGE start job)");
+    ThreadJob * job = NULL;
     
+    struct timespec wait_time = {0};
+    wait_time.tv_nsec = 1e9;
+
+    if(0 != pthread_mutex_lock(&job_queue_mutex))
+        perror("Error locking job queue mutex in startJob()");
+    while(!threads_exit && jobs.empty()) {
+        if(0 != pthread_cond_timedwait(&job_queue_cond, &job_queue_mutex, &wait_time) && errno != 0)
+            perror("Error waiting for job in startJob()");
+    }
+    
+    if(!threads_exit) {
+        jobs_mutex.lock();
+        job = jobs.front();
+        jobs.pop();
+        jobs_in_process++;
+        jobs_mutex.unlock();
+    }
+        
+    if(0 != pthread_mutex_unlock(&job_queue_mutex))
+        perror("Error unlocking job queue mutex in startJob()");
+
 	if(threads_exit)
-	{
-        if(0 != sem_post(job_semaphore))
-            perror("Error posting job semaphore");
 		return NULL;
-	}
-	
-	jobs_mutex.lock();
-	ThreadJob * job = jobs.front();
-	jobs.pop();
-	jobs_in_process++;
-    jobs_mutex.unlock();
 	
 	return job;
 }
@@ -172,8 +156,6 @@ void ThreadPool::stopJob(ThreadJob * job)
 	if(jobs_current == 0)
 		pthread_mutex_unlock(&busy_mutex);
 	jobs_mutex.unlock();
-    if(0 != sem_post(job_submission_semaphore))
-        perror("Error posting job_submission_semaphore");
 }
 
 void ThreadPool::waitForJobCompletion()

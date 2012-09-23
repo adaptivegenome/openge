@@ -37,7 +37,7 @@ jobs_current(0)
 
   sprintf(sem_name, "bam_tp_%x",sem_id);
 
-    if(0 != sem_unlink(sem_name))
+    if(0 != sem_unlink(sem_name) && errno != ENOENT && errno != EINVAL)
        perror("Error unlinking BT sem_name");
   job_semaphore = sem_open(sem_name, O_CREAT | O_EXCL,0700,0);
 
@@ -47,7 +47,7 @@ jobs_current(0)
 	}
 
   sprintf(sem_submission_name, "bam_tpjs_%x",sem_id);
-  if(0 != sem_unlink(sem_submission_name))
+  if(0 != sem_unlink(sem_submission_name) && errno != ENOENT && errno != EINVAL)
     perror("Error unlinking sem_submission_name");
   job_submission_semaphore = sem_open(sem_submission_name, O_CREAT | O_EXCL,0700,THREADPOOL_MAX_JOBS_IN_QUEUE);
 
@@ -109,7 +109,7 @@ BamThreadPool::~BamThreadPool()
     perror("Error unlinking sem_name");
   if(0 != sem_close(job_submission_semaphore))
     perror("Error closing job_submission_semaphore");
-	if(0 != sem_unlink(sem_submission_name))
+  if(0 != sem_unlink(sem_submission_name) && errno != EINVAL)
     perror("Error unlinking sem_submission_name");
 }
 

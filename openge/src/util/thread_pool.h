@@ -190,17 +190,16 @@ protected:
 	static void * thread_start(void * thread_pool);
 	ThreadJob * startJob();
 	void stopJob(ThreadJob * job);
+    
+    pthread_cond_t job_queue_cond;
+    pthread_mutex_t job_queue_mutex;
 	
     std::queue<ThreadJob *> jobs;	//protected by jobs_mutex
 	std::vector<pthread_t> threads;
 	bool threads_exit;
 	int jobs_in_process;	//protected by jobs_mutex
-	sem_t * job_semaphore;
-    sem_t * job_submission_semaphore;
 	Spinlock jobs_mutex;
 	pthread_mutex_t busy_mutex;
-	char sem_name[48];
-	char sem_submission_name[48];
     int jobs_current;
 };
 
