@@ -24,7 +24,7 @@ class BPipe {
 public:
     BPipe();
     bool load(const std::string & filename);
-    bool check();
+    bool check(const std::string & input_filename);
     bool execute();
     void print();
 protected:
