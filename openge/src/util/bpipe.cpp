@@ -43,7 +43,7 @@ namespace phoenix = boost::phoenix;
 struct stage {
     string name;
     vector<string> exec_lines;
-    string filter;
+    string filter, from, transform, produce;
     bool forward_input;
 
     void setName(const string & name) { this->name = name; }
@@ -51,6 +51,11 @@ struct stage {
     stage(const stage & s)
     : name(s.name)
     , exec_lines(s.exec_lines)
+    , filter(s.filter)
+    , from(s.from)
+    , transform(s.transform)
+    , produce(s.produce)
+    , forward_input(s.forward_input)
     {}
     stage() {}
 };
@@ -90,7 +95,7 @@ public:
 };
 
 class StageReference : public StageQueue {
-    string name, filter;
+    string name;
     vector<stage> & stages;
     vector<string> commands;
     stage * s;
@@ -118,6 +123,25 @@ bool is_not_var_name_char(const int c) {
     return ! is_var_name_char(c);
 }
 
+bool str_has_suffix (std::string const &fullString, std::string const &ending)
+{
+    if (fullString.length() >= ending.length()) {
+        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+    } else {
+        return false;
+    }
+}
+
+void str_replace(std::string& str, const std::string& oldStr, const std::string& newStr)
+{
+    size_t pos = 0;
+    while((pos = str.find(oldStr, pos)) != std::string::npos)
+    {
+        str.replace(pos, oldStr.length(), newStr);
+        pos += newStr.length();
+    }
+}
+
 bool StageReference::check(variable_storage_t & variables) {
     for(vector<stage>::iterator si = stages.begin(); si != stages.end(); si++)
         if(si->name == name) {
@@ -136,6 +160,23 @@ bool StageReference::check(variable_storage_t & variables) {
         // replace $input and $output
         if(variables.count("input") != 0) {
             variables["output"] = variables["input"] + "." + name;
+            if(!s->from.empty()) {
+                if(!str_has_suffix(variables["input"], s->from)) {
+                    cerr << "Stage " << name << " input " << variables["input"] << " should have extension " << s->from << endl;
+                    exit(-1);
+                }
+            }
+            if(!s->produce.empty())
+                variables["output"] = s->produce;
+            if(!s->transform.empty()) {
+                size_t ext_start = variables["input"].rfind(".");
+                variables["output"] = variables["input"].substr(0,ext_start) + "." + s->transform;
+            }
+            if(!s->filter.empty()) {
+                size_t ext_start = variables["input"].rfind(".");
+                variables["output"] = variables["input"];
+                variables["output"] = variables["output"].insert(ext_start, "." + s->filter);
+            }
         }
 
         //find variables and substitute in values
@@ -151,6 +192,16 @@ bool StageReference::check(variable_storage_t & variables) {
             if(*(dollar + 1) != '{') {
                 var_end = find_if(dollar+1, command.end(), is_not_var_name_char);
                 var_name = string(dollar + 1, var_end);
+                
+                //now find extensions that may be present after the var name.
+                if(var_name == "input") {
+                    string::iterator ext_end = find_if(var_end, command.end(), is_space);
+                    string exts(var_end, ext_end);
+                    if(!str_has_suffix(variables["input"], exts)) {
+                        cerr << "Error: Stage " << name << " expected input to have extension '" << exts << "'." << endl;
+                        exit(-1);
+                    }
+                }
             } else {
                 var_end = find(dollar+2, command.end(), '}') + 1;
                 var_name = string(dollar + 2, var_end-1);
@@ -182,8 +233,11 @@ bool StageReference::execute() {
     time_str[24] = 0;
     cerr << "=== Stage " << name << " " << time_str << " ===" << endl;
     int ret = 0;
-    for(vector<string>::const_iterator i = commands.begin(); i != commands.end() && ret == 0; i++)
+    for(vector<string>::const_iterator i = commands.begin(); i != commands.end() && ret == 0; i++) {
+        
+        cerr << "Command: " << *i << endl;
         ret = system(i->c_str());
+    }
     
     if(0 != ret)
         cerr << "Execution of stage failed (" << ret << ")." << endl;
@@ -203,8 +257,20 @@ struct BpipeParser : qi::grammar<Iterator, vector<stage>(), ascii::space_type>
         s.name = name;
         return s;
     }
-    static stage & setFilter(string name, stage & s) {
-        s.filter = name;
+    static stage & setStageAttribute(string attribute, string val, stage & s) {
+        if(attribute == "filter")
+            s.filter = val;
+        else if(attribute == "transform")
+            s.transform = val;
+        //else if(attribute == "from")
+        //    s.from = val;
+        //else if(attribute == "produce")
+        //    s.produce = val;
+        else {
+            cerr << "Error: attribute " << attribute << ") isn't supported." << endl;
+            exit(-1);
+        }
+
         return s;
     }
     
@@ -226,6 +292,7 @@ struct BpipeParser : qi::grammar<Iterator, vector<stage>(), ascii::space_type>
         using qi::_val;
         using qi::_1;
         using qi::_2;
+        using qi::_3;
         using qi::space;
         using qi::alnum;
         using phoenix::ref;
@@ -241,6 +308,8 @@ struct BpipeParser : qi::grammar<Iterator, vector<stage>(), ascii::space_type>
         quoted_string.name("quoted_string");
         unquoted_string.name("unquoted_string");
         stage_block.name("stage_block");
+        stage_filter.name("stage_filter");
+        stage_generator.name("stage_generator");
         run_block.name("run_block");
         bpipe_file.name("bpipe_file");
 
@@ -253,9 +322,10 @@ struct BpipeParser : qi::grammar<Iterator, vector<stage>(), ascii::space_type>
         exec_statement = lit("exec") >> quoted_string >> -lit(";");
         msg_statement = lit("msg") >> quoted_string >> -lit(";");
         stage_block = (lit('{')[_val = construct<stage>()]) >> +(doc_statement | msg_statement | exec_statement[_val = bind(&addExecLine, _1, _val)]) >> -(lit("forward") >> lit("input") >> -lit(";"))[_val = bind(&setForwardInput,_val)] >> '}' ;
-        stage_filter = (("{" >> lit("filter(") >> quoted_string >> lit(")") >> stage_generator >> "}")[_val = bind(&setFilter, _1, _2)] | ("@Filter(" >> quoted_string >> lit(")") >> stage_generator) [_val = bind(&setFilter, _1, _2)]);
+
+        stage_filter = ("{" >> unquoted_string >> lit("(") >> quoted_string >> lit(")") >> stage_generator >> "}")[_val = bind(&setStageAttribute, _1, _2, _3)];
         stage_assignment = (unquoted_string >> lit("=") >> stage_generator)[_val = bind(&setStageName, _1, _2)];
-        stage_generator %=  stage_block | stage_assignment;
+        stage_generator =  stage_filter | stage_block | stage_assignment;
         stage_definition = stage_generator[push_back(ref(stages), _1)];
         var_assignment %= (unquoted_string >> lit("=") >> quoted_string)[insert(ref(global_vars),construct<pair<string,string> >(_1,_2))];
         
