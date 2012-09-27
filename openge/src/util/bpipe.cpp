@@ -201,6 +201,7 @@ bool StageReference::check(variable_storage_t & variables) {
                         cerr << "Error: Stage " << name << " expected input to have extension '" << exts << "'." << endl;
                         exit(-1);
                     }
+                    var_end = ext_end;
                 }
             } else {
                 var_end = find(dollar+2, command.end(), '}') + 1;
