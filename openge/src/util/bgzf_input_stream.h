@@ -52,6 +52,7 @@ protected:
     std::istream * input_stream;
     std::ifstream input_stream_real;
     std::map<size_t, BgzfCacheElement *> cache;
+    int cached_blocks_read, cache_misses;
 
     bool requestNextBlock();
 };

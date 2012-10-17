@@ -24,7 +24,7 @@
 
 using namespace std;
 
-const int NUM_BLOCKS_IN_CACHE = 4;
+const int NUM_BLOCKS_IN_CACHE = 200;    //tune this parameter to balance RAM usage vs. speed. one block is 64k of RAM
 const int BGZF_BLOCK_SIZE = 65536;
 
 void BgzfInputStream::BgzfCacheElement::runJob() {
@@ -167,6 +167,8 @@ bool BgzfInputStream::open(string filename) {
     
     current_offset = 0;
     current_block = 0;
+    cached_blocks_read = 0;
+    cache_misses = 0;
 
     return true;
 }
@@ -175,7 +177,11 @@ void BgzfInputStream::read(char * data, size_t len) {
     size_t copied_data_len = 0;
     while(copied_data_len != len) {
         BgzfCacheElement * current_block_element = cache[current_block];
+        cached_blocks_read++;
         
+        if(!current_block_element->loaded)
+            cache_misses++;
+
         //wait for element to be loaded if it isn't
         while(!current_block_element->loaded)
             usleep(10000);
@@ -211,6 +217,10 @@ void BgzfInputStream::read(char * data, size_t len) {
 void BgzfInputStream::close() {
     if(input_stream_real.is_open())
         input_stream_real.close();
+    
+    // use this line to see if NUM_BLOCKS_IN_CACHE is too small.
+    //if(cache_misses)
+    //    cerr << cache_misses << " cache misses in reading file (of " << cached_blocks_read << " blocks read)." << endl;
 
     for(map<size_t, BgzfCacheElement *>::const_iterator i = cache.begin(); i != cache.end(); i++)
         delete i->second;
