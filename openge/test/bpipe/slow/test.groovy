@@ -4,12 +4,12 @@
  */
 hello = {
 	exec "echo hello > test.txt"
-  exec "sleep 60"
+  exec "sleep 6"
 }
 
 world = {
 	exec "echo world > test.world.txt"
-  exec "sleep 60"
+  exec "sleep 6"
 }
 
 Bpipe.run {
