@@ -91,16 +91,11 @@ namespace BamTools {
         // additional methods
     protected:
         // populates alignment string fields
-        bool BuildAlignedBasesData(void) const;
         bool BuildQualitiesData(void) const;
         bool BuildQueryBasesData(void) const;
         bool BuildTagData(void) const;
         bool BuildCigarData(void) const;
-        
-        void FlushCharData(void) const;
-        
-        mutable bool hasAlignedBasesData, hasQualitiesData, hasQueryBasesData, hasTagData, hasCigarData;
-        mutable bool stringDataDirty;
+        bool BuildName(void) const;
         
     public:
         // calculates alignment end position
@@ -108,21 +103,14 @@ namespace BamTools {
         
         // returns a description of the last error that occurred
         std::string GetErrorString(void) const;
-        
-        // retrieves the size, read locations and reference locations of soft-clip operations
-        bool GetSoftClips(std::vector<int>& clipSizes,
-                          std::vector<int>& readPositions,
-                          std::vector<int>& genomePositions,
-                          bool usePadded = false) const;
-        
+
         // public data fields
     protected:
-        std::string Name;               // read name
+        mutable std::string Name;               // read name
         
         mutable BamSpinlock lazy_load_lock;
-
+        
         mutable std::string QueryBases;         // 'original' sequence (as reported from sequencing machine)
-        mutable std::string AlignedBases;       // 'aligned' sequence (includes any indels, padding, clipping)
         mutable std::string Qualities;          // FASTQ qualities (ASCII characters, not numeric values)
         mutable std::string TagData;            // tag data (use provided methods to query/modify)
         
@@ -138,10 +126,11 @@ namespace BamTools {
         int32_t     InsertSize;         // mate-pair insert size
         
     public:
-        const std::string & getName() const { return Name; }
-        int32_t getLength() const { return hasQueryBasesData ? QueryBases.size() : SupportData.QuerySequenceLength; }
+        const std::string & getName() const { BuildName(); return Name; }
+        uint32_t getNameLength() const { return SupportData.getQueryNameLength(); }
+        int32_t getLength() const { return SupportData.getQuerySequenceLength(); }
         const std::string & getQueryBases() const { BuildQueryBasesData(); return QueryBases; }
-        const std::string & getAlignedBases() const { BuildAlignedBasesData(); return AlignedBases; }
+        uint32_t getQueryBasesLength() const { return SupportData.getQuerySequenceLength(); }
         const std::string & getQualities() const { BuildQualitiesData(); return Qualities; }
         const std::string & getTagData() const { BuildTagData(); return TagData; }
         int32_t getRefID() const { return RefID; }
@@ -150,21 +139,21 @@ namespace BamTools {
         uint16_t getMapQuality() const { return MapQuality; }
         uint32_t getAlignmentFlag() const { return AlignmentFlag; }
         const std::vector<CigarOp> & getCigarData() const { BuildCigarData(); return CigarData; }
+        uint32_t getCigarDataLength() const { return SupportData.getNumCigarOperations(); }
         int32_t getMateRefID() const { return MateRefID; }
         int32_t getMatePosition() const { return MatePosition; }
         int32_t getInsertSize() const { return InsertSize; }
         
-        void setName(const std::string & newName) { Name = newName;  stringDataDirty = true; };
-        void setQueryBases(const std::string & newQueryBases) { QueryBases = newQueryBases; hasQueryBasesData = true; stringDataDirty = true; };
-        void setAlignedBases(const std::string & newAlignedBases) { AlignedBases = newAlignedBases; hasAlignedBasesData = true; stringDataDirty = true; };
-        void setQualities(const std::string & newQualities) { Qualities = newQualities; hasQualitiesData = true; stringDataDirty = true; };
-        void setTagData(const std::string & newTagData) { TagData = newTagData; hasTagData = false;  stringDataDirty = false;};
+        void setName(const std::string & newName) { Name = newName;  SupportData.setName(Name); };
+        void setQueryBases(const std::string & newQueryBases) { QueryBases = newQueryBases; SupportData.setSeq(QueryBases); };
+        void setQualities(const std::string & newQualities) { Qualities = newQualities; SupportData.setQual(Qualities); };
+        void setTagData(const std::string & newTagData) { TagData = newTagData; SupportData.setTagData(TagData); };
         void setRefID(int32_t newRefID) { RefID = newRefID; }
         void setPosition(int32_t newPosition) { Position = newPosition; }
         void setBin(uint16_t newBin) { Bin = newBin; }
         void setMapQuality(uint16_t newMapQuality) { MapQuality = newMapQuality; }
         void setAlignmentFlag(uint32_t newAlignmentFlag) { AlignmentFlag = newAlignmentFlag; }
-        void setCigarData(const std::vector<CigarOp> & newCigarData) { CigarData = newCigarData; hasCigarData = true;  stringDataDirty = true; }
+        void setCigarData(const std::vector<CigarOp> & newCigarData) { CigarData = newCigarData; SupportData.setCigar(CigarData); }
         void setMateRefID(int32_t newMateRefID) { MateRefID = newMateRefID; }
         void setMatePosition(int32_t newMatePosition) { MatePosition = newMatePosition; }
         void setInsertSize(int32_t newInsertSize) { InsertSize = newInsertSize; }
@@ -186,29 +175,86 @@ namespace BamTools {
         // internal data
     public:
         
-        struct BamAlignmentSupportData {
-            
+        class BamAlignmentSupportData {
+        protected:
             // data members
             std::string AllCharData;
-            uint32_t    BlockLength;
             uint32_t    NumCigarOperations;
             uint32_t    QueryNameLength;
             uint32_t    QuerySequenceLength;
-
+        public:
             // constructor
             BamAlignmentSupportData(void)
-            : BlockLength(32)   // iniitalize block length to at least the length of the core.
-            , NumCigarOperations(0)
+            : NumCigarOperations(0)
             , QueryNameLength(0)
             , QuerySequenceLength(0)
-            { }
+            {
+                //put a null character in the string. This way, we recognize
+                AllCharData = " ";
+                AllCharData[0] = 0;
+            }
+            uint32_t getBlockLength() const { return AllCharData.size() + 32; }
+            
+        protected:
+            // convenience
+            std::string::iterator beginName() { return AllCharData.begin(); }
+            std::string::iterator endName() { return AllCharData.begin() + QueryNameLength + 1; }
+            std::string::iterator beginCigar() { return endName(); }
+            std::string::iterator endCigar() { return beginCigar() + (NumCigarOperations * 4); }
+            std::string::iterator beginSeq() { return endCigar(); }
+            std::string::iterator endSeq() { return beginSeq() + ((QuerySequenceLength + 1)/2); }
+            std::string::iterator beginQual() { return endSeq(); }
+            std::string::iterator endQual() { return beginQual() + QuerySequenceLength; }
+            std::string::iterator beginTagData() { return endQual(); }
+            std::string::iterator endTagData() { return AllCharData.end(); }
+
+            std::string::const_iterator beginName() const { return AllCharData.begin(); }
+            std::string::const_iterator endName() const { return AllCharData.begin() + QueryNameLength; }
+            std::string::const_iterator beginCigar() const { return endName() + 1; }
+            std::string::const_iterator endCigar() const { return beginCigar() + (NumCigarOperations * 4); }
+            std::string::const_iterator beginSeq() const { return endCigar(); }
+            std::string::const_iterator endSeq() const { return beginSeq() + ((QuerySequenceLength + 1)/2); }
+            std::string::const_iterator beginQual() const { return endSeq(); }
+            std::string::const_iterator endQual() const { return beginQual() + QuerySequenceLength; }
+            std::string::const_iterator beginTagData() const { return endQual(); }
+            std::string::const_iterator endTagData() const { return AllCharData.end(); }
+        public:
+            //accessors (with encoding)
+            void setName(const std::string & name) { AllCharData.replace(beginName(), endName(), name.c_str(), name.size() + 1);  QueryNameLength = name.size(); }
+            const std::string getName() const { return std::string(beginName(), endName()); }
+            
+            void setCigar(const std::vector<CigarOp> & cigar);
+            const std::vector<CigarOp> getCigar() const;
+            
+            void setSeq(const std::string & seq);
+            const std::string getSeq() const;
+            
+            void setQual(const std::string & qual);
+            const std::string getQual() const;
+            
+            void setTagData(const std::string & data) { AllCharData.replace(beginTagData(), endTagData(), data); }
+            const std::string getTagData() const { return std::string(beginTagData(), endTagData()); }
+            
+            uint32_t getQueryNameLength() const { return QueryNameLength; }
+            uint32_t getQuerySequenceLength() const { return QuerySequenceLength; }
+            uint32_t getNumCigarOperations() const { return NumCigarOperations; }
+            
+            void setData(const char * data, size_t data_len, uint32_t num_cigar, uint32_t seq_len, uint32_t name_len) { AllCharData.assign(data, data_len); NumCigarOperations = num_cigar; QuerySequenceLength = seq_len; QueryNameLength = name_len; }
+            
+            const std::string & getAllCharData() const { return AllCharData;}
         };
-        const BamAlignmentSupportData & getSupportData() const { FlushCharData(); return SupportData; }
-        void setSupportData(const BamAlignmentSupportData & supportData) {  stringDataDirty = false; SupportData = supportData; Name = std::string(SupportData.AllCharData.c_str());}
+        const std::string & getBamEncodedStringData() const { return SupportData.getAllCharData(); }
+
+        void setBamStringData(const char * data, size_t data_len, uint32_t num_cigar, uint32_t seq_len, uint32_t name_len) {
+            //when setting the string data, we need to clear all of this alignments cached fields.
+            Name.clear(); QueryBases.clear(); Qualities.clear(); TagData.clear(); CigarData.clear();
+            
+            SupportData.setData(data, data_len, num_cigar, seq_len, name_len);
+        }
     protected:
         template <class> friend class BamDeserializer;
     public: //FIXME!!! this is unnecessarily public, and should only be available to friends (see above).
-        BamAlignmentSupportData & getSupportData() { return SupportData; }
+        const BamAlignmentSupportData & getSupportData() const { return SupportData; }
     private:
         mutable BamAlignmentSupportData SupportData;
         
@@ -297,7 +343,7 @@ namespace BamTools {
                                                   const std::string& value)
     {
         BuildTagData();
-
+        
         // check tag/type size
         if ( !IsValidSize(tag, type) ) {
             // TODO: set error string?
@@ -357,7 +403,7 @@ namespace BamTools {
     inline bool BamAlignment::AddTag(const std::string& tag, const std::vector<T>& values) {
         
         BuildTagData();
-
+        
         // check for valid tag name length
         if ( tag.size() != Constants::BAM_TAG_TAGSIZE )
             return false;

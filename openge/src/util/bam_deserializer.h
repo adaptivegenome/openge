@@ -150,11 +150,10 @@ OGERead * BamDeserializer<input_stream_t>::read() {
         return NULL;
     }
 
-    BamTools::BamAlignment::BamAlignmentSupportData & SupportData = al->getSupportData();
-    SupportData.BlockLength = BamTools::UnpackUnsignedInt(buffer);
+    uint32_t BlockLength = BamTools::UnpackUnsignedInt(buffer);
 
-    if ( SupportData.BlockLength == 0 )
-        if ( SupportData.BlockLength == 0 )
+    if ( BlockLength == 0 )
+        if ( BlockLength == 0 )
             return NULL;
     
     // read in core alignment data, make sure the right size of data was read
@@ -173,22 +172,22 @@ OGERead * BamDeserializer<input_stream_t>::read() {
     unsigned int tempValue = BamTools::UnpackUnsignedInt(&x[8]);
     al->setBin(tempValue >> 16);
     al->setMapQuality(tempValue >> 8 & 0xff);
-    SupportData.QueryNameLength = tempValue & 0xff;
+    uint32_t QueryNameLength = tempValue & 0xff;
     
     tempValue = BamTools::UnpackUnsignedInt(&x[12]);
     al->setAlignmentFlag(tempValue >> 16);
-    SupportData.NumCigarOperations = tempValue & 0xffff;
+    uint32_t NumCigarOperations = tempValue & 0xffff;
     
-    SupportData.QuerySequenceLength = BamTools::UnpackUnsignedInt(&x[16]);
+    uint32_t QuerySequenceLength = BamTools::UnpackUnsignedInt(&x[16]);
     al->setMateRefID(BamTools::UnpackSignedInt(&x[20]));
     al->setMatePosition(BamTools::UnpackSignedInt(&x[24]));
     al->setInsertSize(BamTools::UnpackSignedInt(&x[28]));
     
     // read in character data - make sure proper data size was read
     bool readCharDataOK = false;
-    const unsigned int dataLength = SupportData.BlockLength - 32;
-    SupportData.AllCharData.resize(dataLength);
-    input_stream.read(&SupportData.AllCharData[0], dataLength);
+    const unsigned int dataLength = BlockLength - 32;
+    char * char_buffer = (char *) alloca(dataLength);
+    input_stream.read(char_buffer, dataLength);
     if ( !input_stream.fail() ) {
         // set success flag
         readCharDataOK = true;
@@ -197,7 +196,11 @@ OGERead * BamDeserializer<input_stream_t>::read() {
         delete al;
         return NULL;
     }
-    al->setName(SupportData.AllCharData.c_str());
+
+    al->setBamStringData(char_buffer, BlockLength - 32, NumCigarOperations, QuerySequenceLength, QueryNameLength);
+    int len = al->getNameLength();
+    assert(QueryNameLength == al->getNameLength());
+    assert(al->getSupportData().getBlockLength() == BlockLength);
 
     // return success/failure
     return al;

@@ -32,12 +32,6 @@ using namespace std;
     \note Setting this field to "*" indicates that the sequence is not to be stored on output.
     In this case, the contents of the Qualities field should be invalidated as well (cleared or marked as "*").
 */
-/*! \var BamAlignment::AlignedBases
-    \brief 'aligned' sequence (includes any indels, padding, clipping)
-
-    This field will be completely empty after reading from BamReader/BamMultiReader when
-    QueryBases is empty.
-*/
 /*! \var BamAlignment::Qualities
     \brief FASTQ qualities (ASCII characters, not numeric values)
 
@@ -83,13 +77,7 @@ using namespace std;
     \brief constructor
 */
 BamAlignment::BamAlignment(void)
-    : hasAlignedBasesData(false)
-    , hasQualitiesData(false)
-    , hasQueryBasesData(false)
-    , hasTagData(false)
-    , hasCigarData(false)
-    , stringDataDirty(false)
-    , RefID(-1)
+    : RefID(-1)
     , Position(-1)
     , Bin(0)
     , MapQuality(0)
@@ -103,15 +91,8 @@ BamAlignment::BamAlignment(void)
     \brief copy constructor
 */
 BamAlignment::BamAlignment(const BamAlignment& other)
-    : hasAlignedBasesData(false)
-    , hasQualitiesData(false)
-    , hasQueryBasesData(false)
-    , hasTagData(false)
-    , hasCigarData(false)
-    , stringDataDirty(false)
-    , Name(other.Name)
+    : Name(other.Name)
     , QueryBases(other.QueryBases)
-    , AlignedBases(other.AlignedBases)
     , Qualities(other.Qualities)
     , TagData(other.TagData)
     , RefID(other.RefID)
@@ -132,12 +113,6 @@ BamAlignment::BamAlignment(const BamAlignment& other)
 BamAlignment::~BamAlignment(void) { }
 
 void BamAlignment::clear() {
-    hasAlignedBasesData = false;
-    hasQualitiesData = false;
-    hasQueryBasesData = false;
-    hasTagData = false;
-    hasCigarData = false;
-    stringDataDirty = false;
     RefID = -1;
     Position = -1;
     Bin = 0;
@@ -146,8 +121,7 @@ void BamAlignment::clear() {
     MateRefID = -1;
     MatePosition = -1;
     InsertSize = 0;
-    
-    AlignedBases.clear();
+
     CigarData.clear();
     Name.clear();
     Qualities.clear();
@@ -155,214 +129,13 @@ void BamAlignment::clear() {
     TagData.clear();
 }
 
-bool BamAlignment::BuildQueryBasesData() const {
-    lazy_load_lock.lock();
-    if(hasQueryBasesData) {
-        lazy_load_lock.unlock();
-        return true;
-    }
-
-    hasQueryBasesData = true;
-
-    // calculate character lengths/offsets
-    const unsigned int seqDataOffset  = SupportData.QueryNameLength + (SupportData.NumCigarOperations*4);
-    const unsigned int qualDataOffset = seqDataOffset + (SupportData.QuerySequenceLength+1)/2;
+void DecodeSequenceData(const string & encoded_sequence, string & decoded_sequence, size_t size) {
     
-    // check offsets to see what char data exists
-    const bool hasSeqData  = ( seqDataOffset  < qualDataOffset );
-    // save query sequence
-    QueryBases.clear();
-    if ( hasSeqData ) {
-        const char* seqData = SupportData.AllCharData.data() + seqDataOffset;
-        QueryBases.reserve(SupportData.QuerySequenceLength);
-        for ( size_t i = 0; i < SupportData.QuerySequenceLength; ++i ) {
-            const char singleBase = Constants::BAM_DNA_LOOKUP[ ( (seqData[(i/2)] >> (4*(1-(i%2)))) & 0xf ) ];
-            QueryBases.append(1, singleBase);
-        }
+    decoded_sequence.resize(size);
+    for ( size_t i = 0; i < size; ++i ) {
+        const char singleBase = Constants::BAM_DNA_LOOKUP[ ( (encoded_sequence[(i/2)] >> (4*(1-(i%2)))) & 0xf ) ];
+        decoded_sequence[i] = singleBase;
     }
-
-    lazy_load_lock.unlock();
-
-    return true;
-}
-
-bool BamAlignment::BuildQualitiesData() const {
-    lazy_load_lock.lock();
-    if(hasQualitiesData) {
-        lazy_load_lock.unlock();
-        return true;
-    }
-
-    hasQualitiesData = true;
-
-    // calculate character lengths/offsets
-    const unsigned int seqDataOffset  = SupportData.QueryNameLength + (SupportData.NumCigarOperations*4);
-    const unsigned int qualDataOffset = seqDataOffset + (SupportData.QuerySequenceLength+1)/2;
-    const unsigned int tagDataOffset  = qualDataOffset + SupportData.QuerySequenceLength;
-    
-    // check offsets to see what char data exists
-    const bool hasQualData = ( qualDataOffset < tagDataOffset );
-
-    Qualities.clear();
-    if ( hasQualData ) {
-        const char* qualData = SupportData.AllCharData.data() + qualDataOffset;
-
-        // if marked as unstored (sequence of 0xFF) - don't do conversion, just fill with 0xFFs
-        if ( qualData[0] == (char)0xFF )
-            Qualities.resize(SupportData.QuerySequenceLength, (char)0xFF);
-
-        // otherwise convert from numeric QV to 'FASTQ-style' ASCII character
-        else {
-            Qualities.reserve(SupportData.QuerySequenceLength);
-            for ( size_t i = 0; i < SupportData.QuerySequenceLength; ++i )
-                Qualities.append(1, qualData[i]+33);
-        }
-    }
-    
-    lazy_load_lock.unlock();
-    
-    return true;
-}
-
-bool BamAlignment::BuildAlignedBasesData() const {
-    lazy_load_lock.lock();
-    if(hasAlignedBasesData) {
-        lazy_load_lock.unlock();
-        return true;
-    }
-
-    hasAlignedBasesData = true;
-
-    // clear previous AlignedBases
-    AlignedBases.clear();
-
-    // if QueryBases has data, build AlignedBases using CIGAR data
-    // otherwise, AlignedBases will remain empty (this case IS allowed)
-    if ( !QueryBases.empty() && QueryBases != "*" ) {
-
-        // resize AlignedBases
-        AlignedBases.reserve(SupportData.QuerySequenceLength);
-
-        // iterate over CigarOps
-        int k = 0;
-        vector<CigarOp>::const_iterator cigarIter = CigarData.begin();
-        vector<CigarOp>::const_iterator cigarEnd  = CigarData.end();
-        for ( ; cigarIter != cigarEnd; ++cigarIter ) {
-            const CigarOp& op = (*cigarIter);
-
-            switch ( op.Type ) {
-
-                // for 'M', 'I', '=', 'X' - write bases
-                case (Constants::BAM_CIGAR_MATCH_CHAR)    :
-                case (Constants::BAM_CIGAR_INS_CHAR)      :
-                case (Constants::BAM_CIGAR_SEQMATCH_CHAR) :
-                case (Constants::BAM_CIGAR_MISMATCH_CHAR) :
-                    AlignedBases.append(QueryBases.substr(k, op.Length));
-                    // fall through
-
-                // for 'S' - soft clip, do not write bases
-                // but increment placeholder 'k'
-                case (Constants::BAM_CIGAR_SOFTCLIP_CHAR) :
-                    k += op.Length;
-                    break;
-
-                // for 'D' - write gap character
-                case (Constants::BAM_CIGAR_DEL_CHAR) :
-                    AlignedBases.append(op.Length, Constants::BAM_DNA_DEL);
-                    break;
-
-                // for 'P' - write padding character
-                case (Constants::BAM_CIGAR_PAD_CHAR) :
-                    AlignedBases.append( op.Length, Constants::BAM_DNA_PAD );
-                    break;
-
-                // for 'N' - write N's, skip bases in original query sequence
-                case (Constants::BAM_CIGAR_REFSKIP_CHAR) :
-                    AlignedBases.append( op.Length, Constants::BAM_DNA_N );
-                    break;
-
-                // for 'H' - hard clip, do nothing to AlignedBases, move to next op
-                case (Constants::BAM_CIGAR_HARDCLIP_CHAR) :
-                    break;
-
-                // invalid CIGAR op-code
-                default:
-                    const string message = string("invalid CIGAR operation type: ") + op.Type;
-                    SetErrorString("BamAlignment::BuildAlignedBasesData", message);
-                    return false;
-            }
-        }
-    }
-
-    lazy_load_lock.unlock();
-
-    return true;
-}
-
-bool BamAlignment::BuildTagData() const {
-    lazy_load_lock.lock();
-    if(hasTagData) {
-        lazy_load_lock.unlock();
-        return true;
-    }
-
-    hasTagData = true;
-
-    // calculate character lengths/offsets
-    const unsigned int dataLength     = SupportData.BlockLength - Constants::BAM_CORE_SIZE;
-    const unsigned int seqDataOffset  = SupportData.QueryNameLength + (SupportData.NumCigarOperations*4);
-    const unsigned int qualDataOffset = seqDataOffset + (SupportData.QuerySequenceLength+1)/2;
-    const unsigned int tagDataOffset  = qualDataOffset + SupportData.QuerySequenceLength;
-    const unsigned int tagDataLength  = dataLength - tagDataOffset;
-    
-    // check offsets to see what char data exists
-    const bool hasTagData  = ( tagDataOffset  < dataLength );
-    TagData.clear();
-    if ( hasTagData ) {
-
-        char* tagData = (((char*)SupportData.AllCharData.data()) + tagDataOffset);
-
-        // store tagData in alignment
-        TagData.resize(tagDataLength);
-        memcpy((char*)(TagData.data()), tagData, tagDataLength);
-    }
-    
-    lazy_load_lock.unlock();
-
-    return true;
-}
-
-bool BamAlignment::BuildCigarData() const {
-    
-    lazy_load_lock.lock();
-
-    if(hasCigarData) {
-        lazy_load_lock.unlock();
-        return true;
-    }
-
-    hasCigarData = true;
-
-    // save CIGAR ops
-    // need to calculate this here so that  BamAlignment::GetEndPosition() performs correctly,
-    // even when GetNextAlignment() is called
-    CigarData.reserve(SupportData.NumCigarOperations);
-    const unsigned int cigarDataOffset = SupportData.QueryNameLength;
-    uint32_t* cigarData = (uint32_t*)(&SupportData.AllCharData[0] + cigarDataOffset);
-    for ( unsigned int i = 0; i < SupportData.NumCigarOperations; ++i ) {
-
-        // build CigarOp structure
-        CigarOp op;
-        op.Length = (cigarData[i] >> Constants::BAM_CIGAR_SHIFT);
-        op.Type   = Constants::BAM_CIGAR_LOOKUP[ (cigarData[i] & Constants::BAM_CIGAR_MASK) ];
-        
-        // save CigarOp
-        CigarData.push_back(op);
-    }
-    
-    lazy_load_lock.unlock();
-    
-    return true;
 }
 
 // The implementation of this function is originally from BamWriter_p.cpp from bamtools.
@@ -455,6 +228,81 @@ void EncodeQuerySequence(const std::string& query, std::string& encodedQuery) {
     }
 }
 
+bool BamAlignment::BuildName(void) const {
+    lazy_load_lock.lock();
+    
+    if(!Name.empty()) {
+        lazy_load_lock.unlock();
+        return false;
+    }
+    
+    Name = SupportData.getName();
+
+    lazy_load_lock.unlock();
+    
+    return true;
+}
+
+bool BamAlignment::BuildQualitiesData(void) const {
+    lazy_load_lock.lock();
+    
+    if(!Qualities.empty()) {
+        lazy_load_lock.unlock();
+        return false;
+    }
+    
+    Qualities = SupportData.getQual();
+    
+    lazy_load_lock.unlock();
+    
+    return true;
+}
+
+bool BamAlignment::BuildQueryBasesData(void) const {
+    lazy_load_lock.lock();
+    
+    if(!QueryBases.empty()) {
+        lazy_load_lock.unlock();
+        return false;
+    }
+    
+    QueryBases = SupportData.getSeq();
+    
+    lazy_load_lock.unlock();
+    
+    return true;
+}
+
+bool BamAlignment::BuildTagData(void) const {
+    lazy_load_lock.lock();
+    
+    if(!TagData.empty()) {
+        lazy_load_lock.unlock();
+        return false;
+    }
+    
+    TagData = SupportData.getTagData();
+    
+    lazy_load_lock.unlock();
+    
+    return true;
+}
+
+bool BamAlignment::BuildCigarData(void) const {
+    lazy_load_lock.lock();
+    
+    if(!CigarData.empty()) {
+        lazy_load_lock.unlock();
+        return false;
+    }
+    
+    CigarData = SupportData.getCigar();
+    
+    lazy_load_lock.unlock();
+    
+    return true;
+}
+
 // calculates minimum bin for a BAM alignment interval [begin, end)
 // Taken from BAM specification.
 uint32_t inline CalculateMinimumBin(const int begin, int end) {
@@ -465,87 +313,6 @@ uint32_t inline CalculateMinimumBin(const int begin, int end) {
     if ( (begin >> 23) == (end >> 23) ) return    9 + (begin >> 23);
     if ( (begin >> 26) == (end >> 26) ) return    1 + (begin >> 26);
     return 0;
-}
-
-void BamAlignment::FlushCharData(void) const {
-    
-    BuildTagData();
-    BuildQueryBasesData();
-    BuildCigarData();
-    BuildQualitiesData();
-
-    lazy_load_lock.lock();
-    if(!stringDataDirty) {
-        lazy_load_lock.unlock();
-        return;
-    }
-
-    stringDataDirty = false;
-
-    // calculate char lengths
-    const unsigned int nameLength         = Name.size() + 1;
-    const unsigned int numCigarOperations = CigarData.size();
-    const unsigned int queryLength        = QueryBases.size();
-    const unsigned int tagDataLength      = TagData.size();
-    
-    // no way to tell if alignment's bin is already defined (there is no default, invalid value)
-    // so we'll go ahead calculate its bin ID before storing
-    const uint32_t alignmentBin = CalculateMinimumBin(getPosition(), GetEndPosition());
-    
-    // create our packed cigar string
-    std::string packedCigar;
-    CreatePackedCigar(CigarData, packedCigar);
-    const unsigned int packedCigarLength = packedCigar.size();
-    
-    stringstream output_stream;
-    
-    // encode the query
-    std::string encodedQuery;
-    EncodeQuerySequence(QueryBases, encodedQuery);
-    const unsigned int encodedQueryLength = encodedQuery.size();
-    
-    // write the block size
-    const unsigned int dataBlockSize = nameLength +
-    packedCigarLength +
-    encodedQueryLength +
-    queryLength +
-    tagDataLength;
-    unsigned int blockSize = 32 + dataBlockSize;
-    output_stream.write((char*)&blockSize, 4);
-    
-    // assign the BAM core data
-    uint32_t buffer[8];
-    buffer[0] = getRefID();
-    buffer[1] = getPosition();
-    buffer[2] = (alignmentBin << 16) | (getMapQuality() << 8) | nameLength;
-    buffer[3] = (getAlignmentFlag() << 16) | numCigarOperations;
-    buffer[4] = queryLength;
-    buffer[5] = getMateRefID();
-    buffer[6] = getMatePosition();
-    buffer[7] = getInsertSize();
-    
-    // write the BAM core
-    output_stream.write((char*)&buffer, 32);
-    
-    // write the query name
-    output_stream.write(Name.c_str(), nameLength);
-    
-    output_stream.write(packedCigar.data(), packedCigarLength);
-    
-    // write the encoded query sequence
-    output_stream.write(encodedQuery.data(), encodedQueryLength);
-    
-    // write the base qualities
-    char* pBaseQualities = (char*)Qualities.data();
-    char * qualities = (char *) alloca(Qualities.size());
-    for ( size_t i = 0; i < queryLength; ++i )
-        qualities[i] = pBaseQualities[i] - 33; // FASTQ conversion
-    output_stream.write(qualities, queryLength);
-    
-    output_stream.write(TagData.data(), tagDataLength);
-    
-    SupportData.AllCharData = output_stream.str();
-    lazy_load_lock.unlock();
 }
 
 /*! \fn bool BamAlignment::FindTag(const std::string& tag, char*& pTagData, const unsigned int& tagDataLength, unsigned int& numBytesParsed) const
@@ -658,94 +425,6 @@ int BamAlignment::GetEndPosition(bool usePadded, bool closedInterval) const {
 */
 std::string BamAlignment::GetErrorString(void) const {
     return ErrorString;
-}
-
-/*! \fn bool BamAlignment::GetSoftClips(std::vector<int>& clipSizes, std::vector<int>& readPositions, std::vector<int>& genomePositions, bool usePadded = false) const
-    \brief Identifies if an alignment has a soft clip. If so, identifies the
-           sizes of the soft clips, as well as their positions in the read and reference.
-
-    \param[out] clipSizes       vector of the sizes of each soft clip in the alignment
-    \param[out] readPositions   vector of the 0-based read locations of each soft clip in the alignment.
-                                These positions are basically indexes within the read, not genomic positions.
-    \param[out] genomePositions vector of the 0-based genome locations of each soft clip in the alignment
-    \param[in]  usePadded       inserted bases affect reported position. Default is false, so that
-                                reported position stays 'sync-ed' with reference coordinates.
-
-    \return \c true if any soft clips were found in the alignment
-*/
-bool BamAlignment::GetSoftClips(vector<int>& clipSizes,
-                                vector<int>& readPositions,
-                                vector<int>& genomePositions,
-                                bool usePadded) const
-{
-    // initialize positions & flags
-    int refPosition  = Position;
-    int readPosition = 0;
-    bool softClipFound = false;
-    bool firstCigarOp  = true;
-
-    // iterate over cigar operations
-    vector<CigarOp>::const_iterator cigarIter = CigarData.begin();
-    vector<CigarOp>::const_iterator cigarEnd  = CigarData.end();
-    for ( ; cigarIter != cigarEnd; ++cigarIter) {
-        const CigarOp& op = (*cigarIter);
-
-        switch ( op.Type ) {
-
-            // increase both read & genome positions on CIGAR chars [DMXN=]
-            case Constants::BAM_CIGAR_DEL_CHAR      :
-            case Constants::BAM_CIGAR_MATCH_CHAR    :
-            case Constants::BAM_CIGAR_MISMATCH_CHAR :
-            case Constants::BAM_CIGAR_REFSKIP_CHAR  :
-            case Constants::BAM_CIGAR_SEQMATCH_CHAR :
-                refPosition  += op.Length;
-                readPosition += op.Length;
-                break;
-
-            // increase read position on insertion, genome position only if @usePadded is true
-            case Constants::BAM_CIGAR_INS_CHAR :
-                readPosition += op.Length;
-                if ( usePadded )
-                    refPosition += op.Length;
-                break;
-
-            case Constants::BAM_CIGAR_SOFTCLIP_CHAR :
-
-                softClipFound = true;
-
-                //////////////////////////////////////////////////////////////////////////////
-                // if we are dealing with the *first* CIGAR operation
-                // for this alignment, we increment the read position so that
-                // the read and genome position of the clip are referring to the same base.
-                // For example, in the alignment below, the ref position would be 4, yet
-                //              the read position would be 0. Thus, to "sync" the two,
-                //              we need to increment the read position by the length of the
-                //              soft clip.
-                // Read:  ATCGTTTCGTCCCTGC
-                // Ref:   GGGATTTCGTCCCTGC
-                // Cigar: SSSSMMMMMMMMMMMM
-                //
-                // NOTE: This only needs to be done if the soft clip is the _first_ CIGAR op.
-                //////////////////////////////////////////////////////////////////////////////
-                if ( firstCigarOp )
-                    readPosition += op.Length;
-
-                // track the soft clip's size, read position, and genome position
-                clipSizes.push_back(op.Length);
-                readPositions.push_back(readPosition);
-                genomePositions.push_back(refPosition);
-
-            // any other CIGAR operations have no effect
-            default :
-                break;
-        }
-
-        // clear our "first pass" flag
-        firstCigarOp = false;
-    }
-
-    // return whether any soft clips found
-    return softClipFound;
 }
 
 /*! \fn bool BamAlignment::GetTagType(const std::string& tag, char& type) const
@@ -1178,3 +857,58 @@ string cigarToString(const vector<CigarOp> cigar)
 
     return string(ss.str());
 }
+
+#pragma mark BamAlignmentSupportData
+void BamAlignment::BamAlignmentSupportData::setCigar(const std::vector<CigarOp> & cigar) {
+    string encoded_cigar;
+    CreatePackedCigar(cigar, encoded_cigar);
+    AllCharData.replace(beginCigar(), endCigar(), encoded_cigar);
+}
+
+const std::vector<CigarOp> BamAlignment::BamAlignmentSupportData::getCigar() const {
+    string encoded_cigar(beginCigar(), endCigar());
+    uint32_t * cigarData = (uint32_t *) &encoded_cigar[0];
+    vector<CigarOp> CigarData;
+
+    CigarData.reserve(NumCigarOperations);
+
+    for ( unsigned int i = 0; i < NumCigarOperations; ++i ) {
+        
+        // build CigarOp structure
+        CigarOp op;
+        op.Length = (cigarData[i] >> Constants::BAM_CIGAR_SHIFT);
+        op.Type   = Constants::BAM_CIGAR_LOOKUP[ (cigarData[i] & Constants::BAM_CIGAR_MASK) ];
+        
+        // save CigarOp
+        CigarData.push_back(op);
+    }
+    return CigarData;
+}
+
+void BamAlignment::BamAlignmentSupportData::setSeq(const std::string & seq) {
+    string encoded_seq;
+    EncodeQuerySequence(seq, encoded_seq);
+    AllCharData.replace(beginSeq(), endSeq(), encoded_seq);
+}
+
+const std::string BamAlignment::BamAlignmentSupportData::getSeq() const {
+    string decoded;
+
+    DecodeSequenceData(string(beginSeq(), endSeq()), decoded, QuerySequenceLength);
+
+    return decoded;
+}
+
+void BamAlignment::BamAlignmentSupportData::setQual(const std::string & seq) {
+    AllCharData.replace(beginQual(), endQual(), seq);
+    for(string::iterator i = beginQual(); i != endQual(); i++)
+        *i -= 33;
+}
+
+const std::string BamAlignment::BamAlignmentSupportData::getQual() const {
+    string ret(beginQual(), endQual());
+    for(int i = 0; i < QuerySequenceLength; i++)
+        ret[i] += 33;
+    return ret;
+}
+

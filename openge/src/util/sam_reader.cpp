@@ -234,7 +234,7 @@ bool SamReader::open(const string & filename)
     
     int32_t sem_id = 0xffffffff & (int64_t) this;
     sprintf(sam_worker_sem_name, "sam_wkr_%x",sem_id);
-    if(0 != sem_unlink(sam_worker_sem_name))
+    if(0 != sem_unlink(sam_worker_sem_name) && errno != ENOENT)
         perror("Error unlinking semaphore sam_worker_sem_name");
     sam_worker_sem = sem_open(sam_worker_sem_name, O_CREAT | O_EXCL,0700,0);
     

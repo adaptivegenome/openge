@@ -7,15 +7,11 @@
 
 set( InternalDir "internal" )
 
-add_subdirectory( bam )
-add_subdirectory( index )
 add_subdirectory( io )
 add_subdirectory( sam )
 add_subdirectory( utils )
 
 set( InternalSources
-         ${InternalBamSources}
-         ${InternalIndexSources}
          ${InternalIOSources}
          ${InternalSamSources}
          ${InternalUtilsSources}

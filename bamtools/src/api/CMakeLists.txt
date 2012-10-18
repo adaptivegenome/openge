@@ -18,10 +18,7 @@ add_subdirectory ( internal )
 # make list of all API source files
 set( BamToolsAPISources
         BamAlignment.cpp
-        BamMultiReader.cpp
         BamParallelismSettings.cpp
-        BamReader.cpp
-        BamWriter.cpp
         SamHeader.cpp
         SamProgram.cpp
         SamProgramChain.cpp
@@ -67,9 +64,6 @@ ExportHeader(APIHeaders BamAlignment.h           ${ApiIncludeDir})
 ExportHeader(APIHeaders BamAux.h                 ${ApiIncludeDir})
 ExportHeader(APIHeaders BamConstants.h           ${ApiIncludeDir})
 ExportHeader(APIHeaders BamIndex.h               ${ApiIncludeDir})
-ExportHeader(APIHeaders BamMultiReader.h         ${ApiIncludeDir})
-ExportHeader(APIHeaders BamReader.h              ${ApiIncludeDir})
-ExportHeader(APIHeaders BamWriter.h              ${ApiIncludeDir})
 ExportHeader(APIHeaders BamParallelismSettings.h ${ApiIncludeDir})
 ExportHeader(APIHeaders IBamIODevice.h           ${ApiIncludeDir})
 ExportHeader(APIHeaders SamConstants.h           ${ApiIncludeDir})

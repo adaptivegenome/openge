@@ -192,7 +192,7 @@ int SequenceUtil::calculateSamNmTag(const OGERead * read, const std::string refe
 int SequenceUtil::sumQualitiesOfMismatches(const OGERead * read, const std::string referenceBases, const int referenceOffset, const bool bisulfiteSequence) {
     int qualities = 0;
     
-    const string readBases = read->getQueryBases();  //LCB TODO could be AlignedBases? getReadBases
+    const string readBases = read->getQueryBases();
     const string readQualities = read->getQualities();
     
     if (read->getPosition() <= referenceOffset) {

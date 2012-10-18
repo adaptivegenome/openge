@@ -97,14 +97,12 @@ bool BamSerializer<output_stream_t>::write(const OGERead & al) {
     // no way to tell if alignment's bin is already defined (there is no default, invalid value)
     // so we'll go ahead calculate its bin ID before storing
     const uint32_t alignmentBin = CalculateMinimumBin(al.getPosition(), al.GetEndPosition());
-    
-    const BamTools::BamAlignment::BamAlignmentSupportData & sd = al.getSupportData();
 
     // create our packed cigar string
-    const unsigned int packedCigarLength = sd.NumCigarOperations;
+    const unsigned int packedCigarLength = al.getCigarDataLength();
     
     // encode the query
-    const unsigned int encodedQueryLength = sd.QuerySequenceLength;
+    const unsigned int encodedQueryLength = al.getQueryBasesLength();
     
     // write the block size
     const unsigned int dataBlockSize = nameLength +
@@ -128,31 +126,10 @@ bool BamSerializer<output_stream_t>::write(const OGERead & al) {
     
     // write the BAM core
     output_stream.write((char*)&buffer, 32);
+    
+    const std::string & char_data = al.getSupportData().getAllCharData();
 
-    output_stream.write(&sd.AllCharData[0] , sd.AllCharData.size());
-    
-    /*
-    
-    
-    ouput_stream.write(sd.AllCharData.c_str(), sd.AllCharData.size());
-
-    // write the query name
-    output_stream.write(al.getName().c_str(), nameLength);
-    
-    output_stream.write(packedCigar.data(), packedCigarLength);
-    
-    // write the encoded query sequence
-    output_stream.write(encodedQuery.data(), encodedQueryLength);
-    
-    // write the base qualities
-    char* pBaseQualities = (char*)al.getQualities().data();
-    char * qualities = (char *) alloca(al.getQualities().size());
-    for ( size_t i = 0; i < queryLength; ++i )
-        qualities[i] = pBaseQualities[i] - 33; // FASTQ conversion
-    output_stream.write(qualities, queryLength);
-    
-    output_stream.write(al.getTagData().data(), tagDataLength);
-     */
+    output_stream.write(&char_data[0] , char_data.size());
 
     return true;
 }
