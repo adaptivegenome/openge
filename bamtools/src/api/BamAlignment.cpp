@@ -9,7 +9,6 @@
 
 #include "api/BamAlignment.h"
 #include "api/BamConstants.h"
-#include "api/internal/utils/BamThreadPool.h"
 
 #include <sstream>
 
@@ -1179,97 +1178,3 @@ string cigarToString(const vector<CigarOp> cigar)
 
     return string(ss.str());
 }
-
-//////////////
-// cache allocations for performance
-
-// this class should be a subclass of BamAlignment, but the way the API exports are structured,
-// we would have to export more classes with the API. Instead, we'll just do this temporarily
-// until bamtools is replaced.
-class BamAlignClearJob : public BamThreadJob {
-public:
-    vector<BamAlignment *> * cached_allocations, *cached_allocations_cleared;
-    BamSpinlock * allocator_spinlock;
-    bool * clean_thread_running;
-    virtual void runJob();
-};
-
-void BamAlignClearJob::runJob() {
-    vector<BamAlignment *> to_clear;    //thread private copy of to-be-cleared alignments
-    to_clear.reserve(100);
-    static int ct = 0;
-    while (true) {
-        allocator_spinlock->lock();
-        while(!cached_allocations->empty() && to_clear.size() < 100) {
-            BamAlignment * al = cached_allocations->back();
-            cached_allocations->pop_back();
-            ct++;
-            to_clear.push_back(al);
-        }
-        
-        allocator_spinlock->unlock();
-        
-        if(to_clear.empty()) break;
-
-        for(vector<BamAlignment *>::iterator i = to_clear.begin(); i!= to_clear.end(); i++)
-            (*i)->clear();
-        
-        allocator_spinlock->lock();
-        for(vector<BamAlignment *>::iterator i = to_clear.begin(); i!= to_clear.end(); i++)
-            cached_allocations_cleared->push_back(*i);
-        allocator_spinlock->unlock();
-        
-        to_clear.clear();
-    }
-    *clean_thread_running = false;
-}
-
-BamAlignment * BamAlignment::allocate() {
-    BamAlignment * ret = NULL;
-    allocator_spinlock.lock();
-
-    if(!cached_allocations_cleared.empty()) {
-        ret = cached_allocations_cleared.back();
-        cached_allocations_cleared.pop_back();
-    }
-
-    allocator_spinlock.unlock();
-    if(!ret) ret = new BamAlignment();
-    //else ret->clear();
-
-    return ret;
-}
-
-BamThreadPool allocator_pool;
-
-void BamAlignment::deallocate(BamAlignment * al) {
-    allocator_spinlock.lock();
-    cached_allocations.push_back(al);
-    allocator_spinlock.unlock();
-    
-    if(cached_allocations.size() > 100 && !clean_thread_running) {
-        clean_thread_running = true;
-        BamAlignClearJob * job = new BamAlignClearJob;
-        job->allocator_spinlock = &allocator_spinlock;
-        job->cached_allocations = & cached_allocations;
-        job->clean_thread_running = &clean_thread_running;
-        job->cached_allocations_cleared = &cached_allocations_cleared;
-        allocator_pool.addJob(job);
-    }
-}
-
-void BamAlignment::clearCachedAllocations() {
-    allocator_pool.waitForJobCompletion();
-    allocator_spinlock.lock();
-    while(!cached_allocations.empty()) {
-        BamAlignment * al = cached_allocations.back();
-        delete(al);
-        cached_allocations.pop_back();
-    }
-    allocator_spinlock.unlock();
-}
-
-BamSpinlock BamAlignment::allocator_spinlock;
-std::vector<BamAlignment *> BamAlignment::cached_allocations;
-std::vector<BamAlignment *> BamAlignment::cached_allocations_cleared;
-bool BamAlignment::clean_thread_running = false;

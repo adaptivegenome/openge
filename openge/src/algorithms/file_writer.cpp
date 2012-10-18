@@ -30,8 +30,9 @@
 #include "../util/bam_serializer.h"
 #include "../util/bgzf_output_stream.h"
 
-using namespace BamTools;
 using namespace std;
+using BamTools::SamHeader;
+using BamTools::SamProgram;
 
 //from http://stackoverflow.com/questions/874134/find-if-string-endswith-another-string-in-c
 bool hasEnding (std::string const &fullString, std::string const &ending)
@@ -99,7 +100,7 @@ int FileWriter::runInternal()
                     exit(-1);
                 }
                 
-                BamAlignment * al;
+                OGERead * al;
                 
                 while(true)
                 {
@@ -124,7 +125,7 @@ int FileWriter::runInternal()
                     exit(-1);
                 }
                 
-                BamAlignment * al;
+                OGERead * al;
                 
                 while(true)
                 {
@@ -151,7 +152,7 @@ int FileWriter::runInternal()
                     exit(-1);
                 }
 
-                BamAlignment * al;
+                OGERead * al;
                 
                 while(true)
                 {
@@ -175,7 +176,7 @@ int FileWriter::runInternal()
                 exit(-1);
             }
             
-            BamAlignment * al;
+            OGERead * al;
             
             while(true)
             {

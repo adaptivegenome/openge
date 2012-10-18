@@ -63,19 +63,19 @@ import java.util.BitSet;
 #include <string>
 #include <vector>
 using namespace std;
-using namespace BamTools;
+using BamTools::CigarOp;
 
-long AlignmentUtils::mismatchingQualities(const BamTools::BamAlignment *  r, string refSeq, int refIndex) {
+long AlignmentUtils::mismatchingQualities(const OGERead *  r, string refSeq, int refIndex) {
     return getMismatchCount(r, refSeq, refIndex).mismatchQualities;
 }
 
-AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const BamTools::BamAlignment *  r, string refSeq, int refIndex) {
+AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const OGERead *  r, string refSeq, int refIndex) {
     return getMismatchCount(r, refSeq, refIndex, 0, r->getLength());
 }
 
 // todo -- this code and mismatchesInRefWindow should be combined and optimized into a single
 // todo -- high performance implementation.  We can do a lot better than this right now
-AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const BamTools::BamAlignment *  r, string refSeq, int refIndex, int startOnRead, int nReadBases) {
+AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const OGERead *  r, string refSeq, int refIndex, int startOnRead, int nReadBases) {
     MismatchCount mc;
     
     int readIdx = 0;

@@ -20,7 +20,6 @@
 #include <algorithm>
 #include <numeric>
 
-using namespace BamTools;
 using namespace std;
 
 SplitByChromosome::SplitByChromosome()
@@ -32,7 +31,7 @@ int SplitByChromosome::runInternal()
 {    
     ogeNameThread("am_split_chromo");
 
-    BamAlignment * read;
+    OGERead * read;
     number_of_splits = sinks.size();
     while(true) {
         

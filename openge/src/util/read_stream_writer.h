@@ -18,13 +18,13 @@
  *********************************************************************/
 
 #include <api/SamHeader.h>
-#include <api/BamAlignment.h>
+#include "oge_read.h"
 
 class ReadStreamWriter {
     virtual bool open(const std::string & filename, const BamTools::SamHeader & header) = 0;
     virtual void close() = 0;
     virtual bool is_open() const = 0;
-    virtual bool write(const BamTools::BamAlignment & alignment) = 0;
+    virtual bool write(const OGERead & alignment) = 0;
 };
 
 #endif

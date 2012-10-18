@@ -48,7 +48,7 @@ bool MultiReader::open(const std::vector<std::string> & filenames) {
     
     for(std::vector<ReadStreamReader *>::iterator i = readers.begin(); i != readers.end(); i++)
     {
-        BamTools::BamAlignment * read = (*i)->read();
+        OGERead * read = (*i)->read();
         
         if(!read)
             continue;

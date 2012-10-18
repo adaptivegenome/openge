@@ -29,11 +29,6 @@
 #include "api/internal/io/BgzfStream_p.h"
 #include <string>
 
-#include <pthread.h>
-#include <semaphore.h>
-
-#define BAMREADER_NUM_ALIGNMENTS_IN_FIFO 128
-
 namespace BamTools {
 namespace Internal {
 
@@ -57,7 +52,7 @@ class BamReaderPrivate {
 
         // access alignment data
         bool GetNextAlignment(BamAlignment& alignment);
-        BamAlignment * GetNextAlignment();
+        bool GetNextAlignmentCore(BamAlignment& alignment);
 
         // access auxiliary data
         std::string GetHeaderText(void) const;
@@ -87,8 +82,6 @@ class BamReaderPrivate {
         // retrieves BAM alignment under file pointer
         // (does no overlap checking or character data parsing)
         bool LoadNextAlignment(BamAlignment& alignment);
-        BamAlignment * LoadNextAlignment();
-        bool LoadNextAlignmentInternal(BamAlignment& alignment);
         // builds reference data structure from BAM file
         bool LoadReferenceData(void);
         // seek reader to file position
@@ -117,30 +110,6 @@ class BamReaderPrivate {
 
         // error handling
         std::string m_errorString;
-  
-    // Prefetch alignments
-    // To increase the performance of sequential reads, we read the next alignment
-    // in (in another thread) before GetNextAlignment is actually called. For some
-    // types of reads (expecially with BamMultiReader, this increases performance 
-    // significantly.
-    //
-    // This type of prefetching only makes sense when doing sequential reads. We start
-    // with the assumption that reads will be sequential, and stop prefetching if a call
-    // to Rewind or Seek is made.
-    //
-    // In order to reduce pressure on the semaphores (and not waste a ton of time posting and
-    // waiting), we use a set of pingpong buffers.
-    
-    public:
-      bool do_prefetch; //should we continue doing prefetch? Starts as true, and is set to false
-      SynchronizedQueue<BamAlignment *> prefetch_alignments;
-
-      // Store the position in the file as it would be without prefetching so that we can move the file pointer back to the correct location if we have to stop prefetching. 
-      SynchronizedQueue<int64_t> prefetch_tell_fail;
-      
-      pthread_t prefetch_thread;
-  
-      void StopPrefetch();  //stop doing prefetches
 };
 
 } // namespace Internal

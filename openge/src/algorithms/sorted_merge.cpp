@@ -23,8 +23,6 @@
 
 #include <api/algorithms/Sort.h>
 
-
-using namespace BamTools;
 using namespace std;
 
 SortedMerge::~SortedMerge()
@@ -128,7 +126,7 @@ int SortedMerge::runInternal()
 
     for(int ctr = 0; ctr < input_proxies.size(); ctr++)
     {
-        BamAlignment * read = input_proxies[ctr]->getInputAlignment();
+        OGERead * read = input_proxies[ctr]->getInputAlignment();
 
         if(!read) {
             input_proxies[ctr]->mergeDone();

@@ -18,7 +18,6 @@
 #define OGE_SAMWRITER_H
 #include <string>
 #include <iostream>
-#include <api/BamAlignment.h>
 #include <api/SamHeader.h>
 #include "read_stream_writer.h"
 
@@ -32,7 +31,7 @@ public:
     bool open(const std::string& filename,
               const BamTools::SamHeader & samHeader);
     void close();
-    bool write( const BamTools::BamAlignment & al);
+    bool write( const OGERead & al);
     bool is_open() const { return m_open; }
 protected:
     std::ofstream file;

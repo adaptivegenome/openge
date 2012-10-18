@@ -10,7 +10,6 @@
 #include "api/BamConstants.h"
 #include "api/BamReader.h"
 #include "api/IBamIODevice.h"
-#include "api/BamParallelismSettings.h"
 #include "api/internal/bam/BamHeader_p.h"
 #include "api/internal/bam/BamRandomAccessController_p.h"
 #include "api/internal/bam/BamReader_p.h"
@@ -20,12 +19,6 @@
 using namespace BamTools;
 using namespace BamTools::Internal;
 
-#ifdef __linux__
-#include <sys/prctl.h>
-#endif
-
-#include <ctime>
-
 #include <algorithm>
 #include <cassert>
 #include <iostream>
@@ -33,62 +26,10 @@ using namespace BamTools::Internal;
 #include <vector>
 using namespace std;
 
-
-//prefetch thread
-
-void * prefetch_start(void * reader_ptr)
-{
-#ifdef __linux__
-    prctl(PR_SET_NAME,"bt_brprefetch",0,0,0);
-#endif
-    BamReaderPrivate * reader = (BamReaderPrivate *) reader_ptr;
-    int count = 0;
-
-    while(reader->do_prefetch)
-    {
-        if(!reader->do_prefetch)
-          break;
-
-        BamAlignment * al = BamAlignment::allocate();
-        reader->prefetch_tell_fail.push(reader->m_stream.Tell());
-        if(!reader->LoadNextAlignmentInternal(*al)) {
-            delete al;
-            al = NULL;
-        }
-        reader->prefetch_alignments.push(al);
-        if(!al)
-            break;
-
-        // If we build up a ton of data in the queue,
-        // sleep this thread for a while to allow other threads to catch up
-        // these numbers were chosen to ensure that the queue never runs out while we are sleeping.
-        // 
-        // Another issue that we address here is the problem of many threads simultaneously reading
-        // from disk- when using slower seeking disks (ie, non-SSD), the system can grind to a 
-        // halt as a result of tons of threads causing reads trying to fill up their queues constantly.
-        // This will send the load average through the roof.
-        if(count % 300 == 0)    //don't check often
-        {
-            double load;
-            getloadavg(&load, 1);
-            
-            if(load > BamParallelismSettings::availableCores() / 2 && reader->prefetch_alignments.size() > 400) {
-                 while(reader->prefetch_alignments.size() > 100) usleep(20000);
-            } else if( reader->prefetch_alignments.size() > 20000) {
-                while (reader->prefetch_alignments.size() > 5000) usleep(20000);
-            }
-        }
-        count++;
-    }
-
-    return NULL;
-}
-
 // constructor
 BamReaderPrivate::BamReaderPrivate(BamReader* parent)
     : m_alignmentsBeginOffset(0)
     , m_parent(parent)
-    , do_prefetch(false)
 {
     m_isBigEndian = BamTools::SystemIsBigEndian();
 }
@@ -100,8 +41,6 @@ BamReaderPrivate::~BamReaderPrivate(void) {
 
 // closes the BAM file
 bool BamReaderPrivate::Close(void) {
-
-    StopPrefetch();
 
     // clear BAM metadata
     m_references.clear();
@@ -168,11 +107,23 @@ SamHeader BamReaderPrivate::GetSamHeader(void) const {
     return m_header.ToSamHeader();
 }
 
+// get next alignment (with character data fully parsed)
+bool BamReaderPrivate::GetNextAlignment(BamAlignment& alignment) {
+
+    // if valid alignment found
+    if ( GetNextAlignmentCore(alignment) ) {
+
+    }
+
+    // no valid alignment found
+    return false;
+}
+
 // retrieves next available alignment core data (returns success/fail)
 // ** DOES NOT populate any character data fields (read name, bases, qualities, tag data, filename)
 //    these can be accessed, if necessary, from the supportData
 // useful for operations requiring ONLY positional or other alignment-related information
-bool BamReaderPrivate::GetNextAlignment(BamAlignment& alignment) {
+bool BamReaderPrivate::GetNextAlignmentCore(BamAlignment& alignment) {
 
     // skip if stream not opened
     if ( !m_stream.IsOpen() )
@@ -213,67 +164,13 @@ bool BamReaderPrivate::GetNextAlignment(BamAlignment& alignment) {
                 return false;
         }
 
-        // if we get here, we found the next 'valid' alignment
-        // (e.g. overlaps current region if one was set, simply the next alignment if not)
         return true;
 
     } catch ( BamException& e ) {
         const string streamError = e.what();
         const string message = string("encountered error reading BAM alignment: \n\t") + streamError;
-        SetErrorString("BamReader::GetNextAlignment", message);
+        SetErrorString("BamReader::GetNextAlignmentCore", message);
         return false;
-    }
-}
-
-BamAlignment * BamReaderPrivate::GetNextAlignment() {
-    
-    // skip if stream not opened
-    if ( !m_stream.IsOpen() )
-        return NULL;
-    
-    try {
-        
-        // skip if region is set but has no alignments
-        if ( m_randomAccessController.HasRegion() &&
-            !m_randomAccessController.RegionHasAlignments() ) {
-            return NULL;
-        }
-        
-        // if can't read next alignment
-        BamAlignment * alignment = LoadNextAlignment();
-        if ( !alignment ) return NULL;
-        
-        // check alignment's region-overlap state
-        BamRandomAccessController::RegionState state = m_randomAccessController.AlignmentState(*alignment);
-        
-        // if alignment starts after region, no need to keep reading
-        if ( state == BamRandomAccessController::AfterRegion )
-            return NULL;
-        
-        // read until overlap is found
-        while ( state != BamRandomAccessController::OverlapsRegion ) {
-            
-            // if can't read next alignment
-            alignment = LoadNextAlignment();
-            if ( !alignment ) return NULL;
-            
-            // check alignment's region-overlap state
-            state = m_randomAccessController.AlignmentState(*alignment);
-            
-            // if alignment starts after region, no need to keep reading
-            if ( state == BamRandomAccessController::AfterRegion )
-                return NULL;
-        }
-        
-        // if we get here, we found the next 'valid' alignment
-        // (e.g. overlaps current region if one was set, simply the next alignment if not)
-        return alignment;
-        
-    } catch ( BamException& e ) {
-        const string streamError = e.what();
-        const string message = string("encountered error reading BAM alignment: \n\t") + streamError;
-        SetErrorString("BamReader::GetNextAlignment", message);
-        return NULL;
     }
 }
 
@@ -316,44 +213,6 @@ void BamReaderPrivate::LoadHeaderData(void) {
 
 // populates BamAlignment with alignment data under file pointer, returns success/fail
 bool BamReaderPrivate::LoadNextAlignment(BamAlignment& alignment) {
-    if(do_prefetch) {
-        bool retval = false;
-        
-        //wait for something to be prefetched
-        while(prefetch_alignments.size() == 0) usleep(5000);
-        
-        BamAlignment * al = prefetch_alignments.pop();
-        
-        if(!al)
-            retval = false;
-        else {
-            retval = true;
-            alignment = *al;
-        }
-        
-        delete al;
-        
-        return retval;
-    }
-    else
-        return LoadNextAlignmentInternal(alignment);
-}
-BamAlignment * BamReaderPrivate::LoadNextAlignment() {
-    if(do_prefetch) {        
-        //wait for something to be prefetched
-        while(prefetch_alignments.size() == 0) usleep(5000);
-        
-        BamAlignment * al = prefetch_alignments.pop();
-        
-        return al;
-    } else {
-        BamAlignment * al = BamAlignment::allocate();
-        bool ok = LoadNextAlignmentInternal(*al);
-        return ok ? al : NULL;
-    }
-}
-
-bool BamReaderPrivate::LoadNextAlignmentInternal(BamAlignment& alignment) {
 
     // read in the 'block length' value, make sure it's not zero
     char buffer[sizeof(uint32_t)];
@@ -487,13 +346,6 @@ bool BamReaderPrivate::Open(const string& filename) {
         // store filename & offset of first alignment
         m_filename = filename;
         m_alignmentsBeginOffset = m_stream.Tell();
-      
-        do_prefetch = BamParallelismSettings::isMultithreadingEnabled() ;
-      
-        if(do_prefetch && 0 != pthread_create(&prefetch_thread, NULL, prefetch_start, this)) {
-          perror("Failed to create BamReader prefetch thread");
-          do_prefetch = false;
-        }
 
         // return success
         return true;
@@ -521,8 +373,6 @@ bool BamReaderPrivate::OpenIndex(const std::string& indexFilename) {
 
 // returns BAM file pointer to beginning of alignment data
 bool BamReaderPrivate::Rewind(void) {
-  
-    StopPrefetch();
 
     // reset region
     m_randomAccessController.ClearRegion();
@@ -545,8 +395,6 @@ bool BamReaderPrivate::Seek(const int64_t& position) {
         SetErrorString("BamReader::Seek", "cannot seek on unopened BAM file");
         return false;
     }
-
-    StopPrefetch();
 
     try {
         m_stream.Seek(position);
@@ -581,17 +429,6 @@ bool BamReaderPrivate::SetRegion(const BamRegion& region) {
         SetErrorString("BamReader::SetRegion", message);
         return false;
     }
-}
-
-void BamReaderPrivate::StopPrefetch()
-{
-  if(!do_prefetch)
-    return;
-
-  do_prefetch = false;
-
-  if(do_prefetch && 0 != pthread_join(prefetch_thread, NULL))
-    perror("Error joining prefetch thread");
 }
 
 int64_t BamReaderPrivate::Tell(void) const {

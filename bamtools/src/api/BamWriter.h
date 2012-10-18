@@ -58,8 +58,6 @@ class API_EXPORT BamWriter {
         bool SaveAlignment(const BamAlignment& alignment);
         // sets the output compression mode
         void SetCompressionMode(const BamWriter::CompressionMode& compressionMode);
-        // sets the output compression level
-        void SetCompressionLevel(const int level);
 
     // private implementation
     private:

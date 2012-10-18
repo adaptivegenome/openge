@@ -18,8 +18,8 @@
  *********************************************************************/
 
 #include <api/SamHeader.h>
-#include <api/BamAlignment.h>
 #include <api/algorithms/Sort.h>
+#include "oge_read.h"
 
 #include <iostream>
 
@@ -35,7 +35,7 @@ public:
     virtual bool open(const std::string & filename) = 0;
     virtual const BamTools::SamHeader & getHeader() const = 0;
     virtual void close() = 0;
-    virtual BamTools::BamAlignment * read() = 0;
+    virtual OGERead * read() = 0;
     
     static inline file_format_t detectFileFormat(std::string filename);
 };
@@ -85,14 +85,14 @@ class MultiReader : public ReadStreamReader {
 
     class SortedMergeElement{
     public:
-        BamTools::BamAlignment * read;
+        OGERead * read;
         ReadStreamReader * source;
         bool operator<(const SortedMergeElement & t) const {
             BamTools::Algorithms::Sort::ByPosition cmp = BamTools::Algorithms::Sort::ByPosition();
             return cmp(this->read, t.read);
         }
 
-        SortedMergeElement(BamTools::BamAlignment * read, ReadStreamReader * source)
+        SortedMergeElement(OGERead * read, ReadStreamReader * source)
         : read(read)
         , source(source)
         {}
@@ -125,8 +125,8 @@ public:
         }
     }
 
-    virtual BamTools::BamAlignment * read() {
-        BamTools::BamAlignment * ret = NULL;
+    virtual OGERead * read() {
+        OGERead * ret = NULL;
         //now handle the steady state situation. When sources are done, We
         // won't have a read any more in the reads pqueue.
         while(!ret && !reads.empty()) {

@@ -30,7 +30,7 @@
 
 #include <algorithm>
 using namespace std;
-using namespace BamTools;
+using BamTools::SamSequenceDictionary;
 
 FastaReader::FastaReader()
 : is_open(false)

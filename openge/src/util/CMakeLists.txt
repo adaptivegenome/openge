@@ -5,6 +5,7 @@ set(OPENGE_UTIL_SOURCES
   ${UTIL_DIR}/bgzf_output_stream.cpp
   ${UTIL_DIR}/fasta_reader.cpp
   ${UTIL_DIR}/fastq_writer.cpp
+  ${UTIL_DIR}/oge_read.cpp
   ${UTIL_DIR}/picard_structures.cpp
   ${UTIL_DIR}/read_stream_reader.cpp
   ${UTIL_DIR}/sam_reader.cpp

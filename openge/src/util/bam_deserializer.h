@@ -25,7 +25,7 @@ public:
     virtual bool open(const std::string & filename);
     virtual const BamTools::SamHeader & getHeader() const { return header; };
     virtual void close();
-    virtual BamTools::BamAlignment * read();
+    virtual OGERead * read();
     virtual bool is_open() { return input_stream.is_open(); }
 protected:
     input_stream_t input_stream;
@@ -134,8 +134,8 @@ void BamDeserializer<input_stream_t>::close() {
 }
 
 template <class input_stream_t>
-BamTools::BamAlignment * BamDeserializer<input_stream_t>::read() {
-    BamTools::BamAlignment * al = BamTools::BamAlignment::allocate();
+OGERead * BamDeserializer<input_stream_t>::read() {
+    OGERead * al = OGERead::allocate();
 
     // read in the 'block length' value, make sure it's not zero
     char buffer[sizeof(uint32_t)];

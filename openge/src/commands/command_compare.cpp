@@ -17,14 +17,15 @@
 
 #include "commands.h"
 
+#include "../util/read_stream_reader.h"
+
 #include <vector>
 #include <string>
 #include <iomanip>
 using namespace std;
-
-#include <api/BamAlignment.h>
-#include <api/BamReader.h>
-using namespace BamTools;
+using BamTools::CigarOp;
+using BamTools::BamRegion;
+using BamTools::SamSequenceDictionary;
 
 #include "../algorithms/filter.h"
 namespace po = boost::program_options;
@@ -71,7 +72,7 @@ public:
     }
 };
             
-bool regionContainsRead(const BamRegion & region, const BamAlignment & read) {
+bool regionContainsRead(const BamRegion & region, const OGERead & read) {
     return
         (read.getRefID() >= region.LeftRefID && read.getRefID() <= region.RightRefID) &&
     (read.getPosition() >= region.LeftPosition && read.getPosition() <= region.RightPosition);
@@ -88,14 +89,14 @@ void CompareCommand::getOptions()
 int CompareCommand::runCommand()
 {
     //open ref file
-    BamReader ref_reader;
-    if(!ref_reader.Open(input_filenames[0])) {
+    MultiReader ref_reader;
+    if(!ref_reader.open(input_filenames[0])) {
         cerr << "Couldn't open input file" << input_filenames[0] << ". Aborting." << endl;
         exit(-1);
     }
     vector<BamRegion> regions;
     vector<string> region_strings;
-    const SamSequenceDictionary sequences = ref_reader.GetHeader().Sequences;
+    const SamSequenceDictionary sequences = ref_reader.getHeader().Sequences;
 
     size_t longest_region_string = 0;
     if(vm.count("region")) {
@@ -131,20 +132,20 @@ int CompareCommand::runCommand()
         vector<vector<CompareElement> > & compare_data = *compare_data_p;
         vector<vector<CompareElement> > & ref_data = *ref_data_p;
 
-        BamReader reader;
-        if(!reader.Open(input_filenames[file])) {
+        MultiReader reader;
+        if(!reader.open(input_filenames[file])) {
             cerr << "Couldn't open input file " << input_filenames[file] << ". Aborting." << endl;
             exit(-1);
         }
         
-        const SamSequenceDictionary compare_sequences = ref_reader.GetHeader().Sequences;
+        const SamSequenceDictionary compare_sequences = ref_reader.getHeader().Sequences;
 
         if(compare_sequences != sequences) {
             cerr << "Sequence dictionaries between " << input_filenames[0] << " and " << input_filenames[file] << " differ. This may produce inconsistent results." << endl;
         }
 
         while(true) {
-            BamAlignment * read = reader.GetNextAlignment();
+            OGERead * read = reader.read();
             if(!read)
                 break;
     

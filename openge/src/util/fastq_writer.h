@@ -33,7 +33,7 @@ public:
     FastqWriter();
     virtual bool open(const std::string& filename, const BamTools::SamHeader & samHeader);
     virtual void close();
-    virtual bool write( const BamTools::BamAlignment & al);
+    virtual bool write( const OGERead & al);
     virtual bool is_open() const { return m_open; }
 protected:
     typedef struct {

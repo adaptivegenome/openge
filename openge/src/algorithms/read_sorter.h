@@ -24,7 +24,7 @@
 
 #include "algorithm_module.h"
 #include "../commands/commands.h"
-#include <api/BamReader.h>
+#include "../util/read_stream_reader.h"
 
 #include <vector>
 #include <string>
@@ -61,11 +61,10 @@ protected:
     static void * RunSortThread(void *);
     
     //from SortTool:
-    bool CreateSortedTempFile(std::vector<BamTools::BamAlignment *> * buffer);
+    bool CreateSortedTempFile(std::vector<OGERead *> * buffer);
     bool GenerateSortedRuns(void);
     bool MergeSortedRuns(void);
-    bool WriteTempFile(const std::vector<BamTools::BamAlignment> & buffer, const std::string& tempFilename);
-    bool WriteTempFile(const std::vector<BamTools::BamAlignment *> & buffer, const std::string& tempFilename);
+    bool WriteTempFile(const std::vector<OGERead *> & buffer, const std::string& tempFilename);
     template<class T> void SortBuffer(std::vector<T>& buffer);
 
     // data members
@@ -85,27 +84,16 @@ private:
     sorting_t sort_order;
     bool compress_temp_files;
     size_t alignments_per_tempfile;
-    
-    class SortedMergeElement{
-    public:
-        BamTools::BamAlignment * read;
-        BamTools::BamReader * source;
-        bool operator<(const SortedMergeElement & t) const;
-        SortedMergeElement(BamTools::BamAlignment * read, BamTools::BamReader * source)
-        : read(read)
-        , source(source)
-        {}
-    };
 
 public:
     class TempFileWriteJob : public ThreadJob
     {
     public:
-        TempFileWriteJob(ReadSorter * tool, std::vector<BamTools::BamAlignment *> * buffer, std::string filename);
+        TempFileWriteJob(ReadSorter * tool, std::vector<OGERead *> * buffer, std::string filename);
         virtual void runJob();
     protected:
         std::string filename;
-        std::vector<BamTools::BamAlignment *> * buffer;
+        std::vector<OGERead *> * buffer;
         ReadSorter * tool;
     };
 

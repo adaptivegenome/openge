@@ -65,14 +65,14 @@ using namespace std;
 using namespace BamTools;
 
 
-ReadMetaDataTracker::ReadMetaDataTracker(GenomeLocParser * genomeLocParser, BamAlignment * record, map<int, RODMetaDataContainer> mapping) 
+ReadMetaDataTracker::ReadMetaDataTracker(GenomeLocParser * genomeLocParser, OGERead * record, map<int, RODMetaDataContainer> mapping) 
 : genomeLocParser(genomeLocParser)
 , record(record)
 , mapping(mapping)
 {
 }
 
-map<int, set<GATKFeature> > ReadMetaDataTracker::createReadAlignment(BamAlignment * record, map<int, RODMetaDataContainer> q, string name) const {
+map<int, set<GATKFeature> > ReadMetaDataTracker::createReadAlignment(OGERead * record, map<int, RODMetaDataContainer> q, string name) const {
     map<int, set<GATKFeature> > ret;
     GenomeLoc location = genomeLocParser->createGenomeLoc(*record);
     int length = record->getLength();
@@ -89,7 +89,7 @@ map<int, set<GATKFeature> > ReadMetaDataTracker::createReadAlignment(BamAlignmen
     
 }
 
-map<int, set<GATKFeature> > ReadMetaDataTracker::createGenomeLocAlignment(const BamAlignment & record, map<int, RODMetaDataContainer> mapping, string * name) const {
+map<int, set<GATKFeature> > ReadMetaDataTracker::createGenomeLocAlignment(const OGERead & record, map<int, RODMetaDataContainer> mapping, string * name) const {
     map<int, set<GATKFeature> > ret;
     int start = record.getPosition();
     int stop = record.getPosition() + record.getLength();

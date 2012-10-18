@@ -201,12 +201,12 @@ protected:
 private:
     static std::vector<BamTools::CigarOp> unclipCigar(const std::vector<BamTools::CigarOp> & cigar);    
     static bool isClipOperator(const BamTools::CigarOp op);
-    static std::vector<BamTools::CigarOp> reclipCigar(const std::vector<BamTools::CigarOp> & cigar, BamTools::BamAlignment * read);
+    static std::vector<BamTools::CigarOp> reclipCigar(const std::vector<BamTools::CigarOp> & cigar, OGERead * read);
 
 #pragma mark AlignedRead
     class AlignedRead {
     private:
-        BamTools::BamAlignment * read;
+        OGERead * read;
         const BamTools::SamSequenceDictionary * sequences;
         std::string readBases;
         std::string baseQuals;
@@ -217,7 +217,7 @@ private:
     public:
         static int MAX_POS_MOVE_ALLOWED;
         static int NO_ORIGINAL_ALIGNMENT_TAGS;
-        AlignedRead(BamTools::BamAlignment * read, const BamTools::SamSequenceDictionary * sequences)
+        AlignedRead(OGERead * read, const BamTools::SamSequenceDictionary * sequences)
         : read(read)
         , sequences(sequences)
         , newStart(-1)
@@ -239,7 +239,7 @@ private:
         
         //AlignedRead & operator=(const AlignedRead & a) { assert(0);  return *this;}
         
-        BamTools::BamAlignment * getRead() const {
+        OGERead * getRead() const {
             return read;
         }
 
@@ -327,7 +327,7 @@ private:
 #pragma mark ReadBin
     class ReadBin {
     private:
-        std::vector<BamTools::BamAlignment *> reads;
+        std::vector<OGERead *> reads;
         std::string reference;
         GenomeLoc * loc;
         GenomeLocParser * loc_parser;
@@ -349,9 +349,9 @@ private:
         
         // Return false if we can't process this read bin because the reads are not correctly overlapping.
         // This can happen if e.g. there's a large known indel with no overlapping reads.
-        void add(BamTools::BamAlignment * read);
+        void add(OGERead * read);
         
-        std::vector<BamTools::BamAlignment *> getReads() { return reads; }
+        std::vector<OGERead *> getReads() { return reads; }
         
         std::string getReference(FastaReader & referenceReader);
         GenomeLoc getLocation() { return *loc; }
@@ -391,10 +391,10 @@ private:
         , ready_for_flush(false)
         {}
         ReadBin readsToClean;
-        std::vector<BamTools::BamAlignment *> readsNotToClean;
+        std::vector<OGERead *> readsNotToClean;
         std::vector<VariantContext> knownIndelsToTry;
         std::set<GATKFeature> indelRodsSeen;
-        std::set<BamTools::BamAlignment *> readsActuallyCleaned;
+        std::set<OGERead *> readsActuallyCleaned;
         const GenomeLoc current_interval;
         bool current_interval_valid;
         bool ready_for_flush;
@@ -480,17 +480,17 @@ private:
     
 public:
     void initialize();
-    void writeRead(BamTools::BamAlignment * read) { putOutputAlignment(read); }
+    void writeRead(OGERead * read) { putOutputAlignment(read); }
 
 private:
-    void emit(IntervalData & interval_data, BamTools::BamAlignment * read);
+    void emit(IntervalData & interval_data, OGERead * read);
     void emitReadLists(IntervalData & interval_data);
     
 public:
-    int map_func(BamTools::BamAlignment * read, const ReadMetaDataTracker & metaDataTracker);
+    int map_func(OGERead * read, const ReadMetaDataTracker & metaDataTracker);
 
 private:
-    bool doNotTryToClean(const BamTools::BamAlignment & read);
+    bool doNotTryToClean(const OGERead & read);
     
 public:
     void onTraversalDone(IntervalData & interval_data, int result);
@@ -502,8 +502,8 @@ private:
     
     void clean(IntervalData & interval_data) const;
     void generateAlternateConsensesFromKnownIndels(IntervalData & interval_data, std::set<Consensus *> & altConsensesToPopulate, const int leftmostIndex, const std::string reference) const;
-    long determineReadsThatNeedCleaning( std::vector<BamTools::BamAlignment *> & reads,
-                                        std::vector<BamTools::BamAlignment *> & refReadsToPopulate,
+    long determineReadsThatNeedCleaning( std::vector<OGERead *> & reads,
+                                        std::vector<OGERead *> & refReadsToPopulate,
                                         std::vector<AlignedRead *> & altReadsToPopulate,
                                         std::vector<AlignedRead *> & altAlignmentsToTest,
                                         std::set<Consensus *> & altConsenses,

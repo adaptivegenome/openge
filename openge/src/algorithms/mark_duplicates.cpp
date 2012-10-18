@@ -22,7 +22,10 @@
 #include "../util/read_stream_reader.h"
 
 #include <algorithm>
-using namespace BamTools;
+using BamTools::CigarOp;
+using BamTools::SamHeader;
+using BamTools::SamReadGroupDictionary;
+using BamTools::SamReadGroup;
 using namespace std;
 
 MarkDuplicates::MarkDuplicates()
@@ -44,7 +47,7 @@ string MarkDuplicates::getBufferFileName()
 /////////////////
 // From Samtools' SAMRecord.java:
 
-int MarkDuplicates::getReferenceLength(const BamAlignment &rec) {
+int MarkDuplicates::getReferenceLength(const OGERead &rec) {
     int length = 0;
     for(vector<CigarOp>::const_iterator i = rec.getCigarData().begin(); i != rec.getCigarData().end(); i++) {
         switch (i->Type) {
@@ -64,14 +67,14 @@ int MarkDuplicates::getReferenceLength(const BamAlignment &rec) {
 /**
  * @return 1-based inclusive leftmost position of the clippped sequence, or 0 if there is no position.
  */
-int MarkDuplicates::getAlignmentStart(const BamAlignment & rec) {
+int MarkDuplicates::getAlignmentStart(const OGERead & rec) {
     return rec.getPosition();
 }
 
 /**
  * @return 1-based inclusive rightmost position of the clippped sequence, or 0 read if unmapped.
  */
-int MarkDuplicates::getAlignmentEnd(const BamAlignment & rec) {
+int MarkDuplicates::getAlignmentEnd(const OGERead & rec) {
     if (!rec.IsMapped() ) {
         return -1;
     } else {
@@ -86,7 +89,7 @@ int MarkDuplicates::getAlignmentEnd(const BamAlignment & rec) {
  *
  * Invalid to call on an unmapped read.
  */
-int MarkDuplicates::getUnclippedStart(const BamAlignment & rec) {
+int MarkDuplicates::getUnclippedStart(const OGERead & rec) {
     int pos = getAlignmentStart(rec);
     
     for (vector<CigarOp>::const_iterator op = rec.getCigarData().begin(); op != rec.getCigarData().end(); op++ ) {
@@ -108,7 +111,7 @@ int MarkDuplicates::getUnclippedStart(const BamAlignment & rec) {
  *
  * Invalid to call on an unmapped read.
  */
-int MarkDuplicates::getUnclippedEnd(const BamAlignment & rec) {
+int MarkDuplicates::getUnclippedEnd(const OGERead & rec) {
     int pos = getAlignmentEnd(rec);
     
     for (int i=rec.getCigarData().size() - 1; i>=0; --i) {
@@ -129,7 +132,7 @@ int MarkDuplicates::getUnclippedEnd(const BamAlignment & rec) {
 /////////////////
 
 /** Calculates a score for the read which is the sum of scores over Q20. */
-short MarkDuplicates::getScore(const BamAlignment & rec) {
+short MarkDuplicates::getScore(const OGERead & rec) {
     short score = 0;
     for (int i = 0; i < rec.getQualities().size(); i++) {
         uint8_t b = rec.getQualities()[i]-33;   //33 comes from the conversion in BamAlignment
@@ -140,7 +143,7 @@ short MarkDuplicates::getScore(const BamAlignment & rec) {
 }
 
 /** Builds a read ends object that represents a single read. */
-ReadEnds * MarkDuplicates::buildReadEnds(SamHeader & header, long index, const BamAlignment & rec) {
+ReadEnds * MarkDuplicates::buildReadEnds(SamHeader & header, long index, const OGERead & rec) {
     ReadEnds * ends = new ReadEnds();
     ends->read1Sequence    = rec.getRefID();
     ends->read1Coordinate  = rec.IsReverseStrand() ? getUnclippedEnd(rec) : getUnclippedStart(rec);
@@ -189,11 +192,11 @@ void MarkDuplicates::buildSortedReadEndLists() {
     writer.open(getBufferFileName(), header);
     
     while (true) {
-        BamAlignment * prec = getInputAlignment();
+        OGERead * prec = getInputAlignment();
         if(!prec)
             break;
 
-        BamAlignment & rec = *prec;
+        OGERead & rec = *prec;
 
         if (!rec.IsMapped() || rec.getRefID() == -1) {
             // When we hit the unmapped reads or reads with no coordinate, just write them.
@@ -275,7 +278,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
 }
 
 /** Get the library ID for the given SAM record. */
-short MarkDuplicates::getLibraryId(SamHeader & header, const BamAlignment & rec) {
+short MarkDuplicates::getLibraryId(SamHeader & header, const OGERead & rec) {
     string library = getLibraryName(header, rec);
     
     short libraryId;
@@ -294,7 +297,7 @@ short MarkDuplicates::getLibraryId(SamHeader & header, const BamAlignment & rec)
  * the record, or the library isn't denoted on the read group, a constant string is
  * returned.
  */
-string MarkDuplicates::getLibraryName(SamHeader & header, const BamAlignment & rec) {     
+string MarkDuplicates::getLibraryName(SamHeader & header, const OGERead & rec) {     
     
     string read_group;
     static const string RG("RG");
@@ -437,7 +440,7 @@ int MarkDuplicates::runInternal() {
     
     long written = 0;
     while (true) {
-        BamAlignment * prec = in.read();
+        OGERead * prec = in.read();
         if(!prec)
             break;
         

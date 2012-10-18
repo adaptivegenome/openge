@@ -282,11 +282,11 @@ const SamHeader & SamReader::getHeader() const
     return header;
 }
 
-bool AddHeaderAttributeArray(BamAlignment & alignment, const string & tag,const string & value);
+bool AddHeaderAttributeArray(OGERead & alignment, const string & tag,const string & value);
 
 // retrieves BAM alignment under file pointer
 // (does no overlap checking or character data parsing)
-BamAlignment * SamReader::LoadNextAlignment()
+OGERead * SamReader::LoadNextAlignment()
 {
 #ifdef SAM_READER_MT
     
@@ -302,7 +302,7 @@ BamAlignment * SamReader::LoadNextAlignment()
     }
     //cerr << "pop" << endl;
     SamLine * s = jobs.pop();
-    BamAlignment * ret = s->al;
+    OGERead * ret = s->al;
     if(s->line != s->line_static)
         free(s->line);
 
@@ -323,10 +323,10 @@ BamAlignment * SamReader::LoadNextAlignment()
 #endif
 }
 
-BamAlignment * SamReader::ParseAlignment(const char * line_s) const
+OGERead * SamReader::ParseAlignment(const char * line_s) const
 {
-    BamAlignment * al = BamAlignment::allocate();
-    BamAlignment & alignment = *al;
+    OGERead * al = OGERead::allocate();
+    OGERead & alignment = *al;
 
     size_t line_length = strlen(line_s);
     if(line_length < 10)    //if the line is shorter than 10 chars, it is definitely not a full SAM line.
@@ -504,7 +504,7 @@ vector<T> ParseAttributeArray(const string & value)
     return array;
 }
 
-bool AddHeaderAttributeArray(BamAlignment & alignment, const string & tag,const string & value)
+bool AddHeaderAttributeArray(OGERead & alignment, const string & tag,const string & value)
 {
     switch(value[0])
     {
@@ -528,7 +528,7 @@ bool AddHeaderAttributeArray(BamAlignment & alignment, const string & tag,const 
     }
 }
 
-BamAlignment * SamReader::read()
+OGERead * SamReader::read()
 {
     return LoadNextAlignment();
 }

@@ -2,7 +2,7 @@
 // BamWriter_p.cpp (c) 2010 Derek Barnett
 // Marth Lab, Department of Biology, Boston College
 // ---------------------------------------------------------------------------
-// Last modified: 13 February 2012 (DB)
+// Last modified: 4 April 2012 (DB)
 // ---------------------------------------------------------------------------
 // Provides the basic functionality for producing BAM files
 // ***************************************************************************
@@ -180,16 +180,7 @@ bool BamWriterPrivate::Open(const string& filename,
 bool BamWriterPrivate::SaveAlignment(const BamAlignment& al) {
 
     try {
-
-        // if BamAlignment contains only the core data and a raw char data buffer
-        // (as a result of BamReader::GetNextAlignmentCore())
-        //if ( al.getSupportData().HasCoreOnly )
-        //    WriteCoreAlignment(al);
-
-        // otherwise, BamAlignment should contain character in the standard fields: Name, QueryBases, etc
-        // (resulting from BamReader::GetNextAlignment() *OR* being generated directly by client code)
-        //else
-            WriteAlignment(al);
+        WriteAlignment(al);
 
         // if we get here, everything OK
         return true;
@@ -198,12 +189,6 @@ bool BamWriterPrivate::SaveAlignment(const BamAlignment& al) {
         m_errorString = e.what();
         return false;
     }
-}
-
-void BamWriterPrivate::SetCompressionLevel(int compressionLevel)
-{
-	if ( !IsOpen() )
-		m_stream.SetCompressionLevel(compressionLevel);
 }
 
 void BamWriterPrivate::SetWriteCompressed(bool ok) {
@@ -217,7 +202,7 @@ void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
     // calculate char lengths
     const unsigned int nameLength         = al.getName().size() + 1;
     const unsigned int numCigarOperations = al.getCigarData().size();
-    const unsigned int queryLength        = al.getQueryBases().size();
+    const unsigned int queryLength        = ( (al.getQueryBases() == "*") ? 0 : al.getQueryBases().size() );
     const unsigned int tagDataLength      = al.getTagData().size();
 
     // no way to tell if alignment's bin is already defined (there is no default, invalid value)
@@ -230,15 +215,18 @@ void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
     const unsigned int packedCigarLength = packedCigar.size();
 
     // encode the query
+    unsigned int encodedQueryLength = 0;
     string encodedQuery;
-    EncodeQuerySequence(al.getQueryBases(), encodedQuery);
-    const unsigned int encodedQueryLength = encodedQuery.size();
+    if ( queryLength > 0 ) {
+        EncodeQuerySequence(al.getQueryBases(), encodedQuery);
+        encodedQueryLength = encodedQuery.size();
+    }
 
     // write the block size
     const unsigned int dataBlockSize = nameLength +
                                        packedCigarLength +
                                        encodedQueryLength +
-                                       queryLength +
+                                       queryLength +         // here referring to quality length
                                        tagDataLength;
     unsigned int blockSize = Constants::BAM_CORE_SIZE + dataBlockSize;
     if ( m_isBigEndian ) BamTools::SwapEndian_32(blockSize);
@@ -269,30 +257,39 @@ void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
 
     // write the packed cigar
     if ( m_isBigEndian ) {
-        char* cigarData = (char *) alloca(packedCigarLength);
+        char* cigarData = new char[packedCigarLength]();
         memcpy(cigarData, packedCigar.data(), packedCigarLength);
         if ( m_isBigEndian ) {
             for ( size_t i = 0; i < packedCigarLength; ++i )
                 BamTools::SwapEndian_32p(&cigarData[i]);
         }
         m_stream.Write(cigarData, packedCigarLength);
+        delete[] cigarData; // TODO: cleanup on Write exception thrown?
     }
     else
         m_stream.Write(packedCigar.data(), packedCigarLength);
 
-    // write the encoded query sequence
-    m_stream.Write(encodedQuery.data(), encodedQueryLength);
+    if ( queryLength > 0 ) {
 
-    // write the base qualities
-    char* pBaseQualities = (char*)al.getQualities().data();
-    for ( size_t i = 0; i < queryLength; ++i )
-        pBaseQualities[i] -= 33; // FASTQ conversion
-    m_stream.Write(pBaseQualities, queryLength);
+        // write the encoded query sequence
+        m_stream.Write(encodedQuery.data(), encodedQueryLength);
+
+        // write the base qualities
+        char* pBaseQualities = new char[queryLength]();
+        if ( al.getQualities().empty() || al.getQualities() == "*" )
+            memset(pBaseQualities, 0xFF, queryLength); // if missing or '*', fill with invalid qual
+        else {
+            for ( size_t i = 0; i < queryLength; ++i )
+                pBaseQualities[i] = al.getQualities().at(i) - 33; // FASTQ ASCII -> phred score conversion
+        }
+        m_stream.Write(pBaseQualities, queryLength);
+        delete[] pBaseQualities;
+    }
 
     // write the tag data
     if ( m_isBigEndian ) {
 
-        char* tagData = (char *) alloca(tagDataLength);
+        char* tagData = new char[tagDataLength]();
         memcpy(tagData, al.getTagData().data(), tagDataLength);
 
         size_t i = 0;
@@ -375,12 +372,14 @@ void BamWriterPrivate::WriteAlignment(const BamAlignment& al) {
                 }
 
                 default :
+                    delete[] tagData;
                     const string message = string("invalid tag type: ") + type;
                     throw BamException("BamWriter::SaveAlignment", message);
             }
         }
 
         m_stream.Write(tagData, tagDataLength);
+        delete[] tagData; // TODO: cleanup on Write exception thrown?
     }
     else
         m_stream.Write(al.getTagData().data(), tagDataLength);

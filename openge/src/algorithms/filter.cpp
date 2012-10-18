@@ -25,7 +25,9 @@
 #include <algorithm>
 #include <numeric>
 
-using namespace BamTools;
+using BamTools::SamSequenceDictionary;
+using BamTools::SamSequence;
+using BamTools::BamRegion;
 using namespace std;
 
 
@@ -51,7 +53,6 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region, co
     // no colon found
     // going to use entire contents of requested chromosome 
     // just store entire region string as startChrom name
-    // use BamReader methods to check if its valid for current BAM file
     if ( foundFirstColon == string::npos ) {
         chrom = regionString;
         startPos   = 0;
@@ -181,7 +182,7 @@ Filter::Filter()
 , trim_end_length(0)
 {}
 
-void Filter::trim(BamAlignment & al)
+void Filter::trim(OGERead & al)
 {
     if(trim_begin_length == 0 && trim_end_length == 0)
         return;
@@ -196,7 +197,7 @@ int Filter::runInternal()
 
     // if no region specified, store entire contents of file(s)
     if ( !has_region ) {
-        BamAlignment * al = NULL;
+        OGERead * al = NULL;
         while (NULL != (al = getInputAlignment()) && count < count_limit) {
             if(al->getMapQuality() >= mapq_limit
                && al->getLength() >= min_length && al->getLength() <= max_length
@@ -222,7 +223,7 @@ int Filter::runInternal()
         // if region string parses OK
         BamRegion region;
         if (ParseRegionString(region_string, region, getHeader().Sequences) ) {
-            BamAlignment * al;
+            OGERead * al;
             while ( NULL != (al = getInputAlignment())  && count < count_limit) {
                 if ( (al->getRefID() >= region.LeftRefID)  && ( (al->getPosition() + al->getLength()) >= region.LeftPosition ) &&
                     (al->getRefID() <= region.RightRefID) && ( al->getPosition() <= region.RightPosition) 

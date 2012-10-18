@@ -113,9 +113,9 @@ import java.util.*;
 #include <sstream>
 using namespace std;
 
-using namespace BamTools;
+using BamTools::CigarOp;
 
-size_t getReferenceLength(const BamAlignment & read) {
+size_t getReferenceLength(const OGERead & read) {
     size_t length = 0;
     for (vector<CigarOp>::const_iterator i = read.getCigarData().begin(); i != read.getCigarData().end(); i++) {
         switch (i->Type) {
@@ -131,14 +131,14 @@ size_t getReferenceLength(const BamAlignment & read) {
     return length;
 }
 
-int getEndPosition(const BamAlignment & read) {
+int getEndPosition(const OGERead & read) {
     return read.getPosition() + getReferenceLength(read) - 1;
 }
 
 //////////////
 //These functions (computeInsertSize and setMateInfo) are from SamPairUtil.java
 
-int computeInsertSize(const BamAlignment & firstEnd, const BamAlignment & secondEnd) {
+int computeInsertSize(const OGERead & firstEnd, const OGERead & secondEnd) {
     if (!firstEnd.IsMapped() || !secondEnd.IsMapped()) {
         return 0;
     }
@@ -156,7 +156,7 @@ int computeInsertSize(const BamAlignment & firstEnd, const BamAlignment & second
     return secondEnd5PrimePosition - firstEnd5PrimePosition + adjustment;
 }
 
-void setMateInfo( BamAlignment & rec1, BamAlignment & rec2) {
+void setMateInfo( OGERead & rec1, OGERead & rec2) {
     const int NO_ALIGNMENT_REFERENCE_INDEX = -1;
     const int NO_ALIGNMENT_START = -1;
     // If neither read is unmapped just set their mate info
@@ -203,8 +203,8 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2) {
     }
     // And if only one is mapped copy it's coordinate information to the mate
     else {
-        BamAlignment & mapped   = rec1.IsMapped() ? rec1 : rec2;
-        BamAlignment & unmapped = rec1.IsMapped() ? rec2 : rec1;
+        OGERead & mapped   = rec1.IsMapped() ? rec1 : rec2;
+        OGERead & unmapped = rec1.IsMapped() ? rec2 : rec1;
         unmapped.setRefID(mapped.getRefID());
         unmapped.setPosition(mapped.getPosition());
 
@@ -226,8 +226,8 @@ void setMateInfo( BamAlignment & rec1, BamAlignment & rec2) {
     rec2.setInsertSize(-insertSize);
 }
 
-BamAlignment * ConstrainedMateFixingManager::remove(waitingReads_t & treeSet) {
-    BamAlignment * first = *treeSet.begin();
+OGERead * ConstrainedMateFixingManager::remove(waitingReads_t & treeSet) {
+    OGERead * first = *treeSet.begin();
     if ( !treeSet.erase(first) ) {
         cerr << "Error caching SAM record " << first->getName() << ", which is usually caused by malformed SAM/BAM files in which multiple identical copies of a read are present." << endl;
         exit(-1);
@@ -295,7 +295,7 @@ bool ConstrainedMateFixingManager::canMoveReads(const GenomeLoc & earliestPositi
     lastLocFlushed->distance(earliestPosition) > maxInsertSizeForMovingReadPairs;
 }
 
-bool ConstrainedMateFixingManager::noReadCanMoveBefore(int pos, const BamAlignment & addedRead) const {
+bool ConstrainedMateFixingManager::noReadCanMoveBefore(int pos, const OGERead & addedRead) const {
     return pos + 2 * MAX_POS_MOVE_ALLOWED < addedRead.getPosition();
 }
 
@@ -317,13 +317,13 @@ void * ConstrainedMateFixingManager::addread_threadproc(void * data)
     return 0;
 }
 
-void ConstrainedMateFixingManager::addReads(const vector<BamAlignment *> & newReads, const set<BamAlignment *> & modifiedReads) {
+void ConstrainedMateFixingManager::addReads(const vector<OGERead *> & newReads, const set<OGERead *> & modifiedReads) {
 	if(!output_module->isNothreads() &&  0 != pthread_mutex_lock(&add_read_lock)) {
 		perror("Error locking ConstrainedMateFixingManager queueing mutex");
         exit(-1);
     }
 
-    for (vector<BamAlignment *>::const_iterator newRead =  newReads.begin(); newRead != newReads.end(); newRead++ ) {
+    for (vector<OGERead *>::const_iterator newRead =  newReads.begin(); newRead != newReads.end(); newRead++ ) {
         cmfm_read_t r;
         r.read = *newRead;
         r.readWasModified = modifiedReads.count(*newRead) > 0;
@@ -341,7 +341,7 @@ void ConstrainedMateFixingManager::addReads(const vector<BamAlignment *> & newRe
     }
 }
 
-void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasModified, bool canFlush) {
+void ConstrainedMateFixingManager::addRead(OGERead * newRead, bool readWasModified, bool canFlush) {
     cmfm_read_t r;
     r.read = newRead;
     r.readWasModified = readWasModified;
@@ -360,7 +360,7 @@ void ConstrainedMateFixingManager::addRead(BamAlignment * newRead, bool readWasM
     }
 }
 
-void ConstrainedMateFixingManager::addReadInternal( BamAlignment * newRead, const bool readWasModified, bool canFlush ) {
+void ConstrainedMateFixingManager::addReadInternal( OGERead * newRead, const bool readWasModified, bool canFlush ) {
     if ( DEBUG ) {
         string OP;
         newRead->GetTag("OP", OP);
@@ -384,7 +384,7 @@ void ConstrainedMateFixingManager::addReadInternal( BamAlignment * newRead, cons
             writeRead(remove(waitingReads));
         }
         
-        BamAlignment * lastRead = remove(waitingReads);
+        OGERead * lastRead = remove(waitingReads);
         lastLocFlushed = (lastRead->getRefID() == -1) ? NULL : new GenomeLoc(loc_parser->createGenomeLoc(*lastRead));
         writeRead(lastRead);
         
@@ -442,7 +442,7 @@ void ConstrainedMateFixingManager::addReadInternal( BamAlignment * newRead, cons
     
     if ( ++counter % EMIT_FREQUENCY == 0 ) {
         while ( ! waitingReads.empty() ) { // there's something in the queue
-            BamAlignment * read = *waitingReads.begin();
+            OGERead * read = *waitingReads.begin();
 
             if ( noReadCanMoveBefore(read->getPosition(), *newRead) &&
                 (!pairedReadIsMovable(*read)                               // we won't try to move such a read
@@ -469,7 +469,7 @@ void ConstrainedMateFixingManager::addReadInternal( BamAlignment * newRead, cons
     }
 }
 
-void ConstrainedMateFixingManager::writeRead(BamAlignment * read) const {
+void ConstrainedMateFixingManager::writeRead(OGERead * read) const {
     output_module->writeRead(read);
 }
 
@@ -477,11 +477,11 @@ void ConstrainedMateFixingManager::writeRead(BamAlignment * read) const {
  * @param read  the read
  * @return true if the read shouldn't be moved given the constraints of this SAMFileWriter
  */
-bool ConstrainedMateFixingManager::iSizeTooBigToMove(const BamAlignment & read) const {
+bool ConstrainedMateFixingManager::iSizeTooBigToMove(const OGERead & read) const {
     return iSizeTooBigToMove(read, maxInsertSizeForMovingReadPairs);               // we won't try to move such a read
 }
 
-bool ConstrainedMateFixingManager::iSizeTooBigToMove(const BamAlignment & read, int maxInsertSizeForMovingReadPairs) {
+bool ConstrainedMateFixingManager::iSizeTooBigToMove(const OGERead & read, int maxInsertSizeForMovingReadPairs) {
     return ( read.IsPaired() && read.IsMapped() && read.getRefID() != read.getMateRefID() ) // maps to different chromosomes
     || abs(read.getLength()) > maxInsertSizeForMovingReadPairs;     // we won't try to move such a read
 }
@@ -497,7 +497,7 @@ void ConstrainedMateFixingManager::purgeUnmodifiedMates() {
     forMateMatching = forMateMatchingCleaned;
 }
 
-bool ConstrainedMateFixingManager::pairedReadIsMovable(const BamAlignment & read) const {
+bool ConstrainedMateFixingManager::pairedReadIsMovable(const OGERead & read) const {
     return read.IsPaired()                                          // we're a paired read
     && (read.IsMapped() || read.IsMateMapped())  // at least one read is mapped
     && !iSizeTooBigToMove(read);                                     // insert size isn't too big

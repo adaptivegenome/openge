@@ -250,16 +250,12 @@ string BamMultiReaderPrivate::GetHeaderText(void) const {
 
 // get next alignment among all files
 bool BamMultiReaderPrivate::GetNextAlignment(BamAlignment& al) {
-    BamAlignment * ret = PopNextCachedAlignment();
-    if(ret) {
-        al = *ret;
-        delete ret;
-    }
-    return ret != NULL;
+    return PopNextCachedAlignment(al, true);
 }
 
-BamAlignment * BamMultiReaderPrivate::GetNextAlignment() {
-    return PopNextCachedAlignment();
+// get next alignment among all files without parsing character data from alignments
+bool BamMultiReaderPrivate::GetNextAlignmentCore(BamAlignment& al) {
+    return PopNextCachedAlignment(al, false);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -445,7 +441,7 @@ bool BamMultiReaderPrivate::Open(const vector<string>& filenames) {
 
         // if opened OK, store it
         if ( readerOpened )
-            m_readers.push_back( MergeItem(reader, BamAlignment::allocate()) );
+            m_readers.push_back( MergeItem(reader, new BamAlignment) );
 
         // otherwise store error & clean up invalid reader
         else {
@@ -541,8 +537,8 @@ bool BamMultiReaderPrivate::OpenIndexes(const vector<string>& indexFilenames) {
     } else
         return true;
 }
-#if 0
-bool BamMultiReaderPrivate::PopNextCachedAlignment(BamAlignment& al) {
+
+bool BamMultiReaderPrivate::PopNextCachedAlignment(BamAlignment& al, const bool needCharData) {
 
     // skip if no alignments available
     if ( m_alignmentCache == 0 || m_alignmentCache->IsEmpty() )
@@ -562,26 +558,6 @@ bool BamMultiReaderPrivate::PopNextCachedAlignment(BamAlignment& al) {
     SaveNextAlignment(reader, alignment);
     return true;
 }
-#else
-
-BamAlignment * BamMultiReaderPrivate::PopNextCachedAlignment() {
-    
-    // skip if no alignments available
-    if ( m_alignmentCache == 0 || m_alignmentCache->IsEmpty() )
-        return NULL;
-    
-    // pop next merge item entry from cache
-    MergeItem item = m_alignmentCache->TakeFirst();
-    BamReader* reader = item.Reader;
-    BamAlignment* alignment = item.Alignment;
-    if ( reader == 0 || alignment == 0 )
-        return NULL;
-
-    // load next alignment from reader & store in cache
-    SaveNextAlignment(reader);
-    return alignment;
-}
-#endif
 
 // returns BAM file pointers to beginning of alignment data & resets alignment cache
 bool BamMultiReaderPrivate::Rewind(void) {
@@ -628,7 +604,7 @@ bool BamMultiReaderPrivate::RewindReaders(void) {
     return !errorsEncountered;
 }
 
-void BamMultiReaderPrivate::SaveNextAlignment(BamReader* reader) {
+void BamMultiReaderPrivate::SaveNextAlignment(BamReader* reader, BamAlignment* alignment) {
 
     // if can read alignment from reader, store in cache
     //
@@ -636,8 +612,7 @@ void BamMultiReaderPrivate::SaveNextAlignment(BamReader* reader) {
     //        automatically by alignment cache to maintain its sorting OR
     //        on demand from client call to future call to GetNextAlignment()
 
-    BamAlignment * alignment =  reader->GetNextAlignment();
-    if ( alignment)
+    if ( reader->GetNextAlignmentCore(*alignment) )
         m_alignmentCache->Add( MergeItem(reader, alignment) );
 }
 
@@ -694,7 +669,7 @@ bool BamMultiReaderPrivate::UpdateAlignmentCache(void) {
         if ( reader == 0 || alignment == 0 ) continue;
 
         // save next alignment from each reader in cache
-        SaveNextAlignment(reader);
+        SaveNextAlignment(reader, alignment);
     }
 
     // if we get here, ok

@@ -18,7 +18,6 @@
  *********************************************************************/
 
 #include "algorithm_module.h"
-#include "api/BamAlignment.h"
 #include "../util/picard_structures.h"
 
 #include <map>
@@ -48,20 +47,20 @@ public:
 protected:
     /////////////////
     // From Samtools' SAMRecord.java:
-    int getReferenceLength(const BamTools::BamAlignment &rec);
-    int getAlignmentStart(const BamTools::BamAlignment & rec); 
-    int getAlignmentEnd(const BamTools::BamAlignment & rec);
-    int getUnclippedStart(const BamTools::BamAlignment & rec);
-    int getUnclippedEnd(const BamTools::BamAlignment & rec);
+    int getReferenceLength(const OGERead &rec);
+    int getAlignmentStart(const OGERead & rec); 
+    int getAlignmentEnd(const OGERead & rec);
+    int getUnclippedStart(const OGERead & rec);
+    int getUnclippedEnd(const OGERead & rec);
 
     ////////////////
     // From Picard MarkDuplicates.java
-    short getScore(const BamTools::BamAlignment & rec);
-    ReadEnds * buildReadEnds(BamTools::SamHeader & header, long index, const BamTools::BamAlignment & rec);
+    short getScore(const OGERead & rec);
+    ReadEnds * buildReadEnds(BamTools::SamHeader & header, long index, const OGERead & rec);
     readends_orientation_t getOrientationByte(bool read1NegativeStrand, bool read2NegativeStrand);
     void buildSortedReadEndLists();
-    short getLibraryId(BamTools::SamHeader & header, const BamTools::BamAlignment & rec);
-    std::string getLibraryName(BamTools::SamHeader & header, const BamTools::BamAlignment & rec);
+    short getLibraryId(BamTools::SamHeader & header, const OGERead & rec);
+    std::string getLibraryName(BamTools::SamHeader & header, const OGERead & rec);
     void generateDuplicateIndexes();
     bool areComparableForDuplicates(const ReadEnds & lhs, const ReadEnds & rhs, bool compareRead2);
     void addIndexAsDuplicate(long bamIndex);

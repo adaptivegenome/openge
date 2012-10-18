@@ -146,8 +146,23 @@ std::string BamReader::GetHeaderText(void) const {
 bool BamReader::GetNextAlignment(BamAlignment& alignment) {
     return d->GetNextAlignment(alignment);
 }
-BamAlignment * BamReader::GetNextAlignment() {
-    return d->GetNextAlignment();
+
+/*! \fn bool BamReader::GetNextAlignmentCore(BamAlignment& alignment)
+    \brief Retrieves next available alignment, without populating the alignment's string data fields.
+
+    Equivalent to GetNextAlignment() with respect to what is a valid overlapping alignment.
+
+    However, this method does NOT populate the alignment's string data fields
+    (read name, bases, qualities, tags, filename). This provides a boost in speed
+    when these fields are not required for every alignment. These fields can be
+    populated 'lazily' (as needed) by calling BamAlignment::BuildCharData() later.
+
+    \param[out] alignment destination for alignment record data
+    \returns \c true if a valid alignment was found
+    \sa SetRegion()
+*/
+bool BamReader::GetNextAlignmentCore(BamAlignment& alignment) {
+    return d->GetNextAlignmentCore(alignment);
 }
 
 /*! \fn int BamReader::GetReferenceCount(void) const
@@ -301,7 +316,7 @@ void BamReader::SetIndex(BamIndex* index) {
     Requires that index data be available. Attempts a random-access
     jump in the BAM file, near \a region left boundary position.
 
-    Subsequent calls to GetNextAlignment()
+    Subsequent calls to GetNextAlignment() or GetNextAlignmentCore()
     will only return \c true when alignments can be found that overlap
     this \a region.
 

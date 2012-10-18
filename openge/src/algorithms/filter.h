@@ -24,7 +24,6 @@
  *********************************************************************/
 
 #include "algorithm_module.h"
-#include "api/BamAlignment.h"
 
 #include <string>
 
@@ -46,7 +45,7 @@ public:
     static bool ParseRegionString(const std::string& regionString, BamTools::BamRegion& region, const BamTools::SamSequenceDictionary & sequences);
 protected:
     virtual int runInternal();
-    void trim(BamTools::BamAlignment & al);
+    void trim(OGERead & al);
 protected:
     std::string region_string;
     bool has_region;

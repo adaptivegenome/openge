@@ -41,17 +41,19 @@
 
 #include "SequenceUtil.h"
 #include "AlignmentBlock.h"
+#include "../oge_read.h"
+
 #include <iostream>
 #include <vector>
 using namespace std;
-using namespace BamTools;
+using BamTools::CigarOp;
 
 /**
  * Returns blocks of the read sequence that have been aligned directly to the
  * reference sequence. Note that clipped portions of the read and inserted and
  * deleted bases (vs. the reference) are not represented in the alignment blocks.
  */
-vector<AlignmentBlock> getAlignmentBlocks(const BamAlignment * read) {
+vector<AlignmentBlock> getAlignmentBlocks(const OGERead * read) {
     assert(read != NULL);
 
     vector<AlignmentBlock> alignmentBlocks;
@@ -129,7 +131,7 @@ bool SequenceUtil::bisulfiteBasesEqual(const bool negativeStrand, const char rea
  *      and C->T on the positive strand and G->A on the negative strand will not be counted
  *      as mismatches.
  */
-int SequenceUtil::countMismatches(const BamAlignment * read, const string referenceBases, const int referenceOffset, const bool bisulfiteSequence) {
+int SequenceUtil::countMismatches(const OGERead * read, const string referenceBases, const int referenceOffset, const bool bisulfiteSequence) {
 
     int mismatches = 0;
     
@@ -167,7 +169,7 @@ int SequenceUtil::countMismatches(const BamAlignment * read, const string refere
  *      and C->T on the positive strand and G->A on the negative strand will not be counted
  *      as mismatches.
  */
-int SequenceUtil::calculateSamNmTag(const BamAlignment * read, const std::string referenceBases, const int referenceOffset, const bool bisulfiteSequence) {
+int SequenceUtil::calculateSamNmTag(const OGERead * read, const std::string referenceBases, const int referenceOffset, const bool bisulfiteSequence) {
     int samNm = countMismatches(read, referenceBases, referenceOffset, bisulfiteSequence);
     for (vector<CigarOp>::const_iterator el = read->getCigarData().begin(); el != read->getCigarData().end(); el++) {
         if (el->Type == 'I' || el->Type == 'D') {
@@ -187,7 +189,7 @@ int SequenceUtil::calculateSamNmTag(const BamAlignment * read, const std::string
  *      and C->T on the positive strand and G->A on the negative strand will not be counted
  *      as mismatches.
  */
-int SequenceUtil::sumQualitiesOfMismatches(const BamAlignment * read, const std::string referenceBases, const int referenceOffset, const bool bisulfiteSequence) {
+int SequenceUtil::sumQualitiesOfMismatches(const OGERead * read, const std::string referenceBases, const int referenceOffset, const bool bisulfiteSequence) {
     int qualities = 0;
     
     const string readBases = read->getQueryBases();  //LCB TODO could be AlignedBases? getReadBases

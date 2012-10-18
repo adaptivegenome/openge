@@ -26,7 +26,7 @@ public:
     virtual void close();
     virtual bool is_open() const { return output_stream.is_open(); }
 
-    virtual bool write(const BamTools::BamAlignment & alignment);
+    virtual bool write(const OGERead & alignment);
     
     // access the real output stream object, in case we need to change some setting,
     // like compression level for bgzfstream.
@@ -87,7 +87,7 @@ uint32_t inline CalculateMinimumBin(const int begin, int end) {
 // The implementation of this function is originally from BamWriter_p.cpp from bamtools.
 // Bamtools is released under the BSD license.
 template <class output_stream_t>
-bool BamSerializer<output_stream_t>::write(const BamTools::BamAlignment & al) {
+bool BamSerializer<output_stream_t>::write(const OGERead & al) {
     // calculate char lengths
     const unsigned int nameLength         = al.getName().size() + 1;
     const unsigned int numCigarOperations = al.getCigarData().size();

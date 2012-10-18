@@ -42,7 +42,7 @@
 #ifndef OpenGE_ReadMetaDataTracker_h
 #define OpenGE_ReadMetaDataTracker_h
 
-#include "api/BamAlignment.h"
+#include "../oge_read.h"
 #include "GenomeLoc.h"
 #include "GenomeLocParser.h"
 #include "RODMetaDataContainer.h"
@@ -65,7 +65,7 @@ private:
      */
     GenomeLocParser * genomeLocParser;
     
-    BamTools::BamAlignment * record;
+    OGERead * record;
     
     // the buffer of positions and RODs we've stored
     std::map<int, RODMetaDataContainer> mapping;
@@ -77,7 +77,7 @@ public:
      * @param record  the read to create offset from
      * @param mapping the mapping of reference ordered datum
      */
-    ReadMetaDataTracker(GenomeLocParser * genomeLocParser, BamTools::BamAlignment * record, std::map<int, RODMetaDataContainer> mapping) ;
+    ReadMetaDataTracker(GenomeLocParser * genomeLocParser, OGERead * record, std::map<int, RODMetaDataContainer> mapping) ;
     
     /**
      * create an alignment of read position to reference ordered datum
@@ -90,14 +90,14 @@ public:
      * @return a mapping from the position in the read to the reference ordered datum
      */
 private:
-    std::map<int, std::set<GATKFeature> > createReadAlignment(BamTools::BamAlignment * record, std::map<int, RODMetaDataContainer> queue, std::string name) const;
+    std::map<int, std::set<GATKFeature> > createReadAlignment(OGERead * record, std::map<int, RODMetaDataContainer> queue, std::string name) const;
     
     /**
      * create an alignment of read position to reference ordered datum
      *
      * @return a mapping from the position in the read to the reference ordered datum
      */
-    std::map<int, std::set<GATKFeature> > createGenomeLocAlignment(const BamTools::BamAlignment & record, std::map<int, RODMetaDataContainer> mapping, std::string * name) const;
+    std::map<int, std::set<GATKFeature> > createGenomeLocAlignment(const OGERead & record, std::map<int, RODMetaDataContainer> mapping, std::string * name) const;
     
     /**
      * get the position mapping, from read offset to ROD

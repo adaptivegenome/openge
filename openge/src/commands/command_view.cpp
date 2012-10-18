@@ -27,7 +27,6 @@ using namespace std;
 #include "../algorithms/file_reader.h"
 #include "../algorithms/file_writer.h"
 #include "../algorithms/filter.h"
-using namespace BamTools;
 namespace po = boost::program_options;
 
 void ViewCommand::getOptions()

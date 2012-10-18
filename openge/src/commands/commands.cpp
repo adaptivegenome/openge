@@ -104,7 +104,7 @@ int OpenGECommand::runWithParameters(int argc, const char ** argv)
         fprintf(stderr, "Max mem: %6ld MB\n", r.ru_maxrss /1024);
     }
     
-    BamTools::BamAlignment::clearCachedAllocations();
+    OGERead::clearCachedAllocations();
     
     return ret;
 }

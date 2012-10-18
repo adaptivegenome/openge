@@ -43,7 +43,7 @@
 #ifndef OpenGE_AlignmentUtils_h
 #define OpenGE_AlignmentUtils_h
 
-#include "api/BamAlignment.h"
+#include "../oge_read.h"
 #include <string>
 #include <vector>
 
@@ -60,9 +60,9 @@ public:
         {}
     };
     
-    static long mismatchingQualities(const BamTools::BamAlignment * r, std::string refSeq, int refIndex);    
-    static MismatchCount getMismatchCount(const BamTools::BamAlignment * r, std::string refSeq, int refIndex);
-    static MismatchCount getMismatchCount(const BamTools::BamAlignment * r, std::string refSeq, int refIndex, int startOnRead, int nReadBases) ;
+    static long mismatchingQualities(const OGERead * r, std::string refSeq, int refIndex);
+    static MismatchCount getMismatchCount(const OGERead * r, std::string refSeq, int refIndex);
+    static MismatchCount getMismatchCount(const OGERead * r, std::string refSeq, int refIndex, int startOnRead, int nReadBases) ;
     
     static std::vector<BamTools::CigarOp> leftAlignIndel( std::vector<BamTools::CigarOp> cigar, const std::string refSeq, const std::string readSeq, const int refIndex, const int readIndex);
     

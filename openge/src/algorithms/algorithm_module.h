@@ -23,8 +23,8 @@
 #define OGE_ALGO_MODULE_H
 
 #include <api/SamHeader.h>
-#include <api/BamAlignment.h>
 #include <api/BamAux.h>
+#include "../util/oge_read.h"
 
 #include <vector>
 
@@ -64,13 +64,13 @@ public:
     // responsible for deleting it! This function should not by called by most algorithm
     // modules; only call if you are doing something creative with which modules you pass data
     // to, eg. SplitByChromosome.
-    virtual void putInputAlignment(BamTools::BamAlignment * read);
+    virtual void putInputAlignment(OGERead * read);
 
 protected:
     // Use these functions when processing to get input data, and to pass the data to the next 
     // module in the chain.
-    virtual void putOutputAlignment(BamTools::BamAlignment * read);
-    BamTools::BamAlignment * getInputAlignment();
+    virtual void putOutputAlignment(OGERead * read);
+    OGERead * getInputAlignment();
 
 public:
     virtual BamTools::SamHeader getHeader();
@@ -97,7 +97,7 @@ protected:
 
     std::vector<AlgorithmModule *> sinks;
     AlgorithmModule * source;
-    SynchronizedQueue<BamTools::BamAlignment *> input_queue;
+    SynchronizedQueue<OGERead *> input_queue;
     pthread_t thread;
     bool finished_execution;
     int run_return_value;

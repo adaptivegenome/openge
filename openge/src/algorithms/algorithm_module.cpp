@@ -16,7 +16,8 @@
 
 #include "algorithm_module.h"
 #include <pthread.h>
-using namespace BamTools;
+
+using BamTools::SamHeader;
 using namespace std;
 
 int BlackHoleModule::runInternal()
@@ -24,10 +25,10 @@ int BlackHoleModule::runInternal()
     ogeNameThread("am_BlackHole");
 
     while(true) {
-        BamTools::BamAlignment * r = getInputAlignment();
+        OGERead * r = getInputAlignment();
         if(!r)
             return 0;
-        BamAlignment::deallocate(r);
+        OGERead::deallocate(r);
     }
 }
 
@@ -126,14 +127,14 @@ int AlgorithmModule::finishAsync()
     return run_return_value;
 }
 
-void AlgorithmModule::putInputAlignment(BamAlignment * read)
+void AlgorithmModule::putInputAlignment(OGERead * read)
 {
     while(input_queue.size() > 6000)
         usleep(10000);
     input_queue.push(read);
 }
 
-void AlgorithmModule::putOutputAlignment(BamAlignment * read)
+void AlgorithmModule::putOutputAlignment(OGERead * read)
 {
     write_count++;
     
@@ -144,14 +145,14 @@ void AlgorithmModule::putOutputAlignment(BamAlignment * read)
         if(sinks.begin() == i)
             (*i)->putInputAlignment(read);
         else {
-            BamAlignment * al = BamAlignment::allocate();
+            OGERead * al = OGERead::allocate();
             *al = *read;
             (*i)->putInputAlignment(al);
         }
     }
 }
 
-BamAlignment * AlgorithmModule::getInputAlignment()
+OGERead * AlgorithmModule::getInputAlignment()
 {
     while(input_queue.size() == 0) {
         if(source->finished_execution)

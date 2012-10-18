@@ -17,7 +17,8 @@
 #include "print_history.h"
 #include <api/SamHeader.h>
 using namespace std;
-using namespace BamTools;
+using BamTools::SamHeader;
+using BamTools::SamProgramConstIterator;
 
 int PrintHistory::runInternal()
 {
@@ -31,7 +32,7 @@ int PrintHistory::runInternal()
     }
     
     while(true) {
-        BamAlignment * a = getInputAlignment();
+        OGERead * a = getInputAlignment();
         if(!a) break;
         putOutputAlignment(a);
     }

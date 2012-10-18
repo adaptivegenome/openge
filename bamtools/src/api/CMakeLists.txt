@@ -22,7 +22,6 @@ set( BamToolsAPISources
         BamParallelismSettings.cpp
         BamReader.cpp
         BamWriter.cpp
-        SamReader.cpp
         SamHeader.cpp
         SamProgram.cpp
         SamProgramChain.cpp
@@ -77,7 +76,6 @@ ExportHeader(APIHeaders SamConstants.h           ${ApiIncludeDir})
 ExportHeader(APIHeaders SamHeader.h              ${ApiIncludeDir})
 ExportHeader(APIHeaders SamProgram.h             ${ApiIncludeDir})
 ExportHeader(APIHeaders SamProgramChain.h        ${ApiIncludeDir})
-ExportHeader(APIHeaders SamReader.h              ${ApiIncludeDir})
 ExportHeader(APIHeaders SamReadGroup.h           ${ApiIncludeDir})
 ExportHeader(APIHeaders SamReadGroupDictionary.h ${ApiIncludeDir})
 ExportHeader(APIHeaders SamSequence.h            ${ApiIncludeDir})

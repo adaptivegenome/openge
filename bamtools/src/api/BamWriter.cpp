@@ -123,7 +123,7 @@ bool BamWriter::Open(const std::string& filename,
     \brief Saves an alignment to the BAM file.
 
     \param[in] alignment BamAlignment record to save
-    \sa BamReader::GetNextAlignment()
+    \sa BamReader::GetNextAlignment(), BamReader::GetNextAlignmentCore()
 */
 bool BamWriter::SaveAlignment(const BamAlignment& alignment) {
     return d->SaveAlignment(alignment);
@@ -149,9 +149,4 @@ bool BamWriter::SaveAlignment(const BamAlignment& alignment) {
 */
 void BamWriter::SetCompressionMode(const BamWriter::CompressionMode& compressionMode) {
     d->SetWriteCompressed( compressionMode == BamWriter::Compressed );
-}
-
-
-void BamWriter::SetCompressionLevel(const int level){
-  d->SetCompressionLevel( level );
 }

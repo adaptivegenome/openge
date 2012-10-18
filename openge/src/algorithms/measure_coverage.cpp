@@ -27,7 +27,8 @@
 #include <numeric>
 #include <cassert>
 
-using namespace BamTools;
+using BamTools::SamHeader;
+using BamTools::SamSequenceConstIterator;
 using namespace std;
 
 MeasureCoverage::MeasureCoverage()
@@ -66,7 +67,7 @@ int MeasureCoverage::runInternal()
     if(verbose) 
         cerr << "Measuring coverage" << endl;
     while(true) {
-        BamAlignment * al = getInputAlignment();
+        OGERead * al = getInputAlignment();
         
         if(!al)
             break;

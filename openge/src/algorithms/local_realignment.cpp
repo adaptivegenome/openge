@@ -81,7 +81,7 @@ import java.util.*;
 #include "local_realignment.h"
 #include "api/algorithms/Sort.h"
 
-using namespace BamTools;
+using BamTools::CigarOp;
 
 #include <cassert>
 #include <ctime>
@@ -301,7 +301,7 @@ long LocalRealignment::AlignedRead::getAlignerMismatchScore() const {
 
 // Return false if we can't process this read bin because the reads are not correctly overlapping.
 // This can happen if e.g. there's a large known indel with no overlapping reads.
-void LocalRealignment::ReadBin::add(BamAlignment * read) {
+void LocalRealignment::ReadBin::add(OGERead * read) {
     
     GenomeLoc locForRead = loc_parser->createGenomeLoc(*read);
     if ( loc == NULL )
@@ -401,7 +401,7 @@ void LocalRealignment::initialize() {
     }
 }
 
-void LocalRealignment::emit(IntervalData & interval_data, BamAlignment * read) {
+void LocalRealignment::emit(IntervalData & interval_data, OGERead * read) {
     
     // check to see whether the read was modified by looking at the temporary tag
     bool wasModified = interval_data.readsActuallyCleaned.count(read) > 0;
@@ -410,9 +410,9 @@ void LocalRealignment::emit(IntervalData & interval_data, BamAlignment * read) {
 
 void LocalRealignment::emitReadLists(IntervalData & interval_data) {
     // pre-merge lists to sort them in preparation for constrained SAMFileWriter
-    vector<BamAlignment *> to_insert = interval_data.readsToClean.getReads();
+    vector<OGERead *> to_insert = interval_data.readsToClean.getReads();
     interval_data.readsNotToClean.insert(interval_data.readsNotToClean.end(), to_insert.begin(), to_insert.end());
-    std::stable_sort( interval_data.readsNotToClean.begin(), interval_data.readsNotToClean.end(), Algorithms::Sort::ByPosition() );
+    std::stable_sort( interval_data.readsNotToClean.begin(), interval_data.readsNotToClean.end(), BamTools::Algorithms::Sort::ByPosition() );
     manager->addReads(interval_data.readsNotToClean, interval_data.readsActuallyCleaned);
 }
 
@@ -421,10 +421,10 @@ LocalRealignment::Emittable::~Emittable() {}
 class LocalRealignment::EmittableRead : public LocalRealignment::Emittable
 {
     LocalRealignment::IntervalData * id;
-    BamAlignment * read;
+    OGERead * read;
     LocalRealignment & lr;
 public:
-    EmittableRead(LocalRealignment & lr, IntervalData * id, BamAlignment * read)
+    EmittableRead(LocalRealignment & lr, IntervalData * id, OGERead * read)
     : id(id)
     , read(read)
     , lr(lr)
@@ -505,7 +505,7 @@ public:
     }
 };
 
-int LocalRealignment::map_func(BamAlignment * read, const ReadMetaDataTracker & metaDataTracker) {
+int LocalRealignment::map_func(OGERead * read, const ReadMetaDataTracker & metaDataTracker) {
     const int NO_ALIGNMENT_REFERENCE_INDEX = -1;
     if ( !loading_interval_data->current_interval_valid ) {
         pushToEmitQueue(new EmittableRead(*this, loading_interval_data, read));
@@ -605,7 +605,7 @@ int LocalRealignment::map_func(BamAlignment * read, const ReadMetaDataTracker & 
     return 0;
 }
 
-bool LocalRealignment::doNotTryToClean( const BamAlignment & read) {
+bool LocalRealignment::doNotTryToClean( const OGERead & read) {
     const int NO_ALIGNMENT_START = -1;
     
     bool is454 = false;
@@ -649,7 +649,7 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     }
     
     if ( interval_data.readsToClean.size() > 0 ) {
-        BamAlignment * read = interval_data.readsToClean.getReads()[0];
+        OGERead * read = interval_data.readsToClean.getReads()[0];
         GenomeLoc earliestPossibleMove = loc_parser->createGenomeLoc(*read);
         if ( manager->canMoveReads(earliestPossibleMove) )
             clean(interval_data);
@@ -741,14 +741,14 @@ int LocalRealignment::mismatchQualitySumIgnoreCigar(AlignedRead & aRead, const s
 
 void LocalRealignment::clean(IntervalData & interval_data) const {
     
-    vector<BamAlignment *> reads = interval_data.readsToClean.getReads();
+    vector<OGERead *> reads = interval_data.readsToClean.getReads();
     if ( reads.size() == 0 )
         return;
     
     string reference = interval_data.readsToClean.getReference(*referenceReader);
     int leftmostIndex = interval_data.readsToClean.getLocation().getStart();
     
-    vector<BamAlignment *> refReads;                 // reads that perfectly match ref
+    vector<OGERead *> refReads;                 // reads that perfectly match ref
     vector<AlignedRead *> altReads;               // reads that don't perfectly match
     vector<AlignedRead *> altAlignmentsToTest;  // should we try to make an alt consensus from the read?
     set<Consensus *> altConsenses;               // list of alt consenses
@@ -917,7 +917,7 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
                     // however we don't have enough info to use the proper MAQ scoring system.
                     // For now, we will just arbitrarily add 10 to the mapping quality. [EB, 6/7/2010].
                     // TODO -- we need a better solution here
-                    BamAlignment * read = aRead.getRead();  //TODO LCB verify the below mapping quality, since BamTools and SAM format are a bit different.
+                    OGERead * read = aRead.getRead();  //TODO LCB verify the below mapping quality, since BamTools and SAM format are a bit different.
                     if ( read->getMapQuality() != 255 ) // 255 == Unknown, so don't modify it
                         read->setMapQuality(min(aRead.getRead()->getMapQuality() + 10, 254));
                     
@@ -976,8 +976,8 @@ void LocalRealignment::generateAlternateConsensesFromKnownIndels(IntervalData & 
     }
 }
 
-long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & reads,
-                                            vector<BamAlignment *> & refReadsToPopulate,
+long LocalRealignment::determineReadsThatNeedCleaning( vector<OGERead *> & reads,
+                                            vector<OGERead *> & refReadsToPopulate,
                                             vector<AlignedRead *> & altReadsToPopulate,
                                             vector<AlignedRead *> & altAlignmentsToTest,
                                             set<Consensus *> & altConsenses,
@@ -987,7 +987,7 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<BamAlignment *> & 
     long totalRawMismatchSum = 0L;
     
     for ( int read_ctr = 0; read_ctr < reads.size(); read_ctr++ ) {
-        BamAlignment * read = reads[read_ctr];
+        OGERead * read = reads[read_ctr];
         
         // we can not deal with screwy records
         if ( read->getCigarData().size() == 0 ) {
@@ -1463,7 +1463,7 @@ bool LocalRealignment::isClipOperator(const CigarOp op) {
     return op.Type == 'S' || op.Type == 'H' || op.Type == 'P';
 }
 
-vector<CigarOp> LocalRealignment::reclipCigar(const vector<CigarOp> & cigar, BamAlignment * read) {
+vector<CigarOp> LocalRealignment::reclipCigar(const vector<CigarOp> & cigar, OGERead * read) {
     vector<CigarOp> elements;
     
     int i = 0;
@@ -1524,7 +1524,7 @@ int LocalRealignment::runInternal()
     loading_interval_data->readsToClean.initialize(loc_parser, sequence_dictionary);
 
     while(true) {
-        BamAlignment * al = getInputAlignment();
+        OGERead * al = getInputAlignment();
         
         if(!al)
             break;

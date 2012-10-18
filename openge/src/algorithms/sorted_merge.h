@@ -25,7 +25,6 @@
  *********************************************************************/
 
 #include "algorithm_module.h"
-#include "api/BamAlignment.h"
 
 #include <string>
 
@@ -46,10 +45,10 @@ class SortedMerge : public AlgorithmModule
     
     class SortedMergeElement{
     public:
-        BamTools::BamAlignment * read;
+        OGERead * read;
         SortedMergeInputProxy * source;
         bool operator<(const SortedMergeElement & t) const;
-        SortedMergeElement(BamTools::BamAlignment * read, SortedMergeInputProxy * source)
+        SortedMergeElement(OGERead * read, SortedMergeInputProxy * source)
         : read(read)
         , source(source)
         {}

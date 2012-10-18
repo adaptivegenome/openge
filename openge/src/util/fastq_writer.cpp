@@ -20,7 +20,7 @@
 #include "fastq_writer.h"
 
 using namespace std;
-using namespace BamTools;
+using BamTools::SamHeader;
 
 FastqWriter::FastqWriter() 
 : fwd_stream(&cout)
@@ -96,7 +96,7 @@ void compliment(string & str)
     }
 }
 
-bool FastqWriter::write(const BamTools::BamAlignment & a) {
+bool FastqWriter::write(const OGERead & a) {
     if(fwd_stream == rev_stream)
         *fwd_stream << "@" << a.getName() << endl << a.getQueryBases() << endl << "+" << a.getName() << endl << a.getQualities() << endl;
     else {

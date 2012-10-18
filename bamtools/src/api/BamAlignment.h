@@ -217,16 +217,6 @@ namespace BamTools {
         
     public:
         std::string cigarString() const { return cigarToString(CigarData); }
-        
-        
-        // cached allocator
-        static BamAlignment * allocate();
-        static void deallocate(BamAlignment * al);
-        static void clearCachedAllocations();
-        static BamSpinlock allocator_spinlock;
-        static std::vector<BamAlignment *> cached_allocations;
-        static std::vector<BamAlignment *> cached_allocations_cleared;
-        static bool clean_thread_running;
     };
     
     // ---------------------------------------------------------

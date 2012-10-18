@@ -26,7 +26,6 @@
 
 #include <iomanip>
 
-using namespace BamTools;
 using namespace std;
 
 Statistics::Statistics()
@@ -77,12 +76,12 @@ bool CalculateMedian(vector<int>& data, double& median) {
 
 int Statistics::runInternal()
 {
-    BamAlignment * pal;
+    OGERead * pal;
     
     map<int, int> read_len_ct;
 
     while(NULL != (pal = getInputAlignment())) {
-        BamAlignment & al = *pal;
+        OGERead & al = *pal;
 
         // increment total alignment counter
         ++m_numReads;

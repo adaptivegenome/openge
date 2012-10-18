@@ -18,7 +18,6 @@
 #define OGE_SAMREADER_H
 #include <string>
 #include <vector>
-#include <api/BamAlignment.h>
 #include <api/SamHeader.h>
 #include <iostream>
 #include <queue>
@@ -29,7 +28,7 @@ class SamReader;
 
 class SamLine {
 public:
-    BamTools::BamAlignment * al;
+    OGERead * al;
     char * line;
     char line_static[640];  //for optimization, we statically allocate a block so we can avoid allocation for small lines. If line == NULL, then we are using line_static instead of line.
     bool parsed;
@@ -46,17 +45,17 @@ public:
     virtual bool open(const std::string & filename);
     virtual void close();
     // retrieves next available alignment
-    virtual BamTools::BamAlignment * read();
+    virtual OGERead * read();
 
     // returns the current file's header data
     virtual const BamTools::SamHeader & getHeader(void) const;
 
     //read a single line of a SAM file
-    BamTools::BamAlignment * ParseAlignment(const char * line_s) const;
+    OGERead * ParseAlignment(const char * line_s) const;
 protected:
     // retrieves BAM alignment under file pointer
     // (does no overlap checking or character data parsing)
-    BamTools::BamAlignment * LoadNextAlignment();
+    OGERead * LoadNextAlignment();
     
     // retrieves header text from SAM file
     void LoadHeaderData(void);

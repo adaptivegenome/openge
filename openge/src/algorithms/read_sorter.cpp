@@ -28,14 +28,15 @@ using namespace std;
 #include <api/algorithms/Sort.h>
 
 #include <api/SamConstants.h>
-#include <api/BamReader.h>
-#include <api/BamWriter.h>
 
 #include "mark_duplicates.h"
 
+#include "../util/bam_serializer.h"
+#include "../util/bgzf_output_stream.h"
+
 #include <pthread.h>
 
-using namespace BamTools;
+using BamTools::SamHeader;
 using namespace BamTools::Algorithms;
 
 #include <iostream>
@@ -50,14 +51,6 @@ const unsigned int SORT_DEFAULT_MAX_BUFFER_COUNT  = 500000;  // max numberOfAlig
 const unsigned int SORT_DEFAULT_MAX_BUFFER_MEMORY = 1024;    // Mb
 const unsigned int MERGESORT_MIN_SORT_SIZE = 30000;    //don't parallelize sort jobs smaller than this many alignments
 
-using namespace BamTools::Algorithms;
-
-bool ReadSorter::SortedMergeElement::operator<(const SortedMergeElement & t) const
-{
-    Sort::ByPosition cmp = Sort::ByPosition();
-    return cmp(this->read, t.read);
-}
-
 //actual run creates threads for other 'run'commands
 bool ReadSorter::Run(void)
 {
@@ -70,8 +63,8 @@ bool ReadSorter::Run(void)
     
     m_header = getHeader();
     m_header.SortOrder = ( sort_order == SORT_NAME
-                          ? Constants::SAM_HD_SORTORDER_QUERYNAME
-                          : Constants::SAM_HD_SORTORDER_COORDINATE );
+                          ? BamTools::Constants::SAM_HD_SORTORDER_QUERYNAME
+                          : BamTools::Constants::SAM_HD_SORTORDER_COORDINATE );
 
     RunSort();
 
@@ -91,14 +84,14 @@ bool ReadSorter::GenerateSortedRuns(void) {
 
     // get basic data that will be shared by all temp/output files
     m_header.SortOrder = ( sort_order == SORT_NAME
-                          ? Constants::SAM_HD_SORTORDER_QUERYNAME
-                          : Constants::SAM_HD_SORTORDER_COORDINATE );
+                          ? BamTools::Constants::SAM_HD_SORTORDER_QUERYNAME
+                          : BamTools::Constants::SAM_HD_SORTORDER_COORDINATE );
     
     // set up alignments buffer
-    vector<BamAlignment *> * buffer = new vector<BamAlignment *>();
+    vector<OGERead *> * buffer = new vector<OGERead *>();
     buffer->reserve( (size_t)(alignments_per_tempfile*1.1) );
     bool bufferFull = false;
-    BamAlignment * al = NULL;
+    OGERead * al = NULL;
     
     // if sorting by name, we need to generate full char data
     // so can't use GetNextAlignmentCore()
@@ -122,7 +115,7 @@ bool ReadSorter::GenerateSortedRuns(void) {
                 // so create a sorted temp file with current buffer contents
                 // then push "al" into fresh buffer
                 CreateSortedTempFile(buffer);
-                buffer = new vector<BamAlignment *>();
+                buffer = new vector<OGERead *>();
                 buffer->reserve( (size_t)(alignments_per_tempfile*1.1) );
                 buffer->push_back(al);
             }
@@ -149,7 +142,7 @@ bool ReadSorter::GenerateSortedRuns(void) {
                 // create a sorted temp file with current buffer contents
                 // then push "al" into fresh buffer
                 CreateSortedTempFile(buffer);
-                buffer = new vector<BamAlignment *>();
+                buffer = new vector<OGERead *>();
                 buffer->push_back(al);
             }
             if(read_count % 100000 == 0 && verbose)
@@ -171,7 +164,7 @@ bool ReadSorter::GenerateSortedRuns(void) {
     return true;
 }
 
-ReadSorter::TempFileWriteJob::TempFileWriteJob(ReadSorter * tool, vector<BamAlignment *> * buffer, string filename) :
+ReadSorter::TempFileWriteJob::TempFileWriteJob(ReadSorter * tool, vector<OGERead *> * buffer, string filename) :
 filename(filename), buffer(buffer), tool(tool)
 {
 }
@@ -199,7 +192,7 @@ void ReadSorter::TempFileWriteJob::runJob()
     delete buffer;
 }
 
-bool ReadSorter::CreateSortedTempFile(vector<BamAlignment* > * buffer) {
+bool ReadSorter::CreateSortedTempFile(vector<OGERead* > * buffer) {
     //make filename
     stringstream filename_ss;
     filename_ss << tmp_file_dir << m_tempFilenameStub << m_numberOfRuns;
@@ -211,20 +204,11 @@ bool ReadSorter::CreateSortedTempFile(vector<BamAlignment* > * buffer) {
     bool success = true;
     
     if(isNothreads()) {
-        vector<BamAlignment> sort_buffer;
-        sort_buffer.reserve(buffer->size());
-        for(size_t i = 0; i < buffer->size(); i++)
-        {
-            BamAlignment * al = buffer->at(i);
-            sort_buffer.push_back(*al);
-            delete al;
-        }
-        
         // do sorting
-        SortBuffer(sort_buffer);
+        SortBuffer(*buffer);
         
         // write sorted contents to temp file, store success/fail
-        success = WriteTempFile( sort_buffer, filename );
+        success = WriteTempFile( *buffer, filename );
         delete buffer;
         
     } else {
@@ -242,48 +226,24 @@ bool ReadSorter::MergeSortedRuns(void) {
     if(verbose)
         cerr << "Combining temp files for final output..." << endl;
 
-    vector<BamReader *> readers;
-    for(vector<string>::const_iterator i = m_tempFilenames.begin(); i != m_tempFilenames.end(); i++) {
-        readers.push_back(new BamReader());
-        
-        if(!readers.back()->Open(*i)) {
-            cerr << "Error opening reader for tempfile " << *i << endl;
-            exit(-1);
-        }
-        
-        readers.back()->GetHeader();
+    MultiReader readers;
+    
+    if(!readers.open(m_tempFilenames)) {
+        cerr << "Error opening reader for tempfiles: " << endl;
+
+        for (vector<string>::const_iterator tempIter = m_tempFilenames.begin() ; tempIter != m_tempFilenames.end(); ++tempIter )
+            cerr << "   " << *tempIter << endl;
+        exit(-1);
     }
 
-    multiset<SortedMergeElement> reads;
-    
-    // first, get one read from each queue
-    // make sure and deal with the case where one chain will never have any reads. TODO LCB
-    
-    for(int ctr = 0; ctr < readers.size(); ctr++)
-    {
-        BamAlignment * read = readers[ctr]->GetNextAlignment();
+    while(true) {
+        OGERead * a = readers.read();
         
-        if(!read) {
-            continue;
-        }
+        if(!a)
+            break;
         
-        reads.insert(SortedMergeElement(read, readers[ctr]));
-    }
-    
-    //now handle the steady state situation. When sources are done, We
-    // won't have a read any more in the reads pqueue.
-    while(!reads.empty()) {
-        SortedMergeElement el = *reads.begin();
-        reads.erase(reads.begin());
-        
-        putOutputAlignment(el.read);
-        
-        el.read = el.source->GetNextAlignment();
-        if(!el.read) {
-            continue;
-        }
-        
-        reads.insert(el);
+        putOutputAlignment(a);
+
         if(write_count % 100000 == 0 && verbose)
             cerr << "\rCombined " << write_count/1000 << "K reads (" << 100 * write_count / read_count << "%)." << flush;
     }
@@ -297,10 +257,7 @@ bool ReadSorter::MergeSortedRuns(void) {
     vector<string>::const_iterator tempIter = m_tempFilenames.begin();
     vector<string>::const_iterator tempEnd  = m_tempFilenames.end();
     for ( ; tempIter != tempEnd; ++tempIter ) {
-        const string& tempFilename = (*tempIter);
-        remove(tempFilename.c_str());
-        delete readers.back();
-        readers.pop_back();
+        remove(tempIter->c_str());
     }
 
     if(isVerbose())
@@ -337,63 +294,33 @@ void ReadSorter::SortBuffer(vector<T>& buffer) {
     }
 }
 
-bool ReadSorter::WriteTempFile(const vector<BamAlignment>& buffer,
+bool ReadSorter::WriteTempFile(const vector<OGERead *>& buffer,
                                                                      const string& tempFilename)
 {
     // open temp file for writing
-    BamWriter tempWriter;
+    BamSerializer<BgzfOutputStream> tempWriter;
     
     if(compress_temp_files)
-        tempWriter.SetCompressionMode(BamWriter::Compressed);
+        tempWriter.getOutputStream().setCompressionLevel(6);
     else
-        tempWriter.SetCompressionMode(BamWriter::Uncompressed);
+        tempWriter.getOutputStream().setCompressionLevel(0);
     
-    if ( !tempWriter.Open(tempFilename, m_header, m_references) ) {
-        cerr << "bamtools sort ERROR: could not open " << tempFilename
+    if ( !tempWriter.open(tempFilename, m_header) ) {
+        cerr << "ReadSorter ERROR: could not open tempfile " << tempFilename
         << " for writing." << endl;
-        return false;
+        exit(-1);
     }
     
     // write data
-    vector<BamAlignment>::const_iterator buffIter = buffer.begin();
-    vector<BamAlignment>::const_iterator buffEnd  = buffer.end();
+    vector<OGERead *>::const_iterator buffIter = buffer.begin();
+    vector<OGERead *>::const_iterator buffEnd  = buffer.end();
     for ( ; buffIter != buffEnd; ++buffIter )  {
-        const BamAlignment& al = (*buffIter);
-        tempWriter.SaveAlignment(al);
+        const OGERead * al = (*buffIter);
+        tempWriter.write(*al);
     }
     
     // close temp file & return success
-    tempWriter.Close();
-    return true;
-}
-
-bool ReadSorter::WriteTempFile(const vector<BamAlignment *>& buffer,
-                                                                     const string& tempFilename)
-{
-    // open temp file for writing
-    BamWriter tempWriter;
-    
-    if(compress_temp_files)
-        tempWriter.SetCompressionMode(BamWriter::Compressed);
-    else
-        tempWriter.SetCompressionMode(BamWriter::Uncompressed);
-    
-    if ( !tempWriter.Open(tempFilename, m_header, m_references) ) {
-        cerr << "bamtools sort ERROR: could not open " << tempFilename
-        << " for writing." << endl;
-        return false;
-    }
-    
-    // write data
-    vector<BamAlignment *>::const_iterator buffIter = buffer.begin();
-    vector<BamAlignment *>::const_iterator buffEnd  = buffer.end();
-    for ( ; buffIter != buffEnd; ++buffIter )  {
-        const BamAlignment * al = (*buffIter);
-        tempWriter.SaveAlignment(*al);
-    }
-    
-    // close temp file & return success
-    tempWriter.Close();
+    tempWriter.close();
     return true;
 }
 
@@ -402,8 +329,8 @@ SamHeader ReadSorter::getHeader()
     SamHeader header = source->getHeader();
 
     header.SortOrder = ( sort_order == SORT_NAME
-                          ? Constants::SAM_HD_SORTORDER_QUERYNAME
-                          : Constants::SAM_HD_SORTORDER_COORDINATE );
+                          ? BamTools::Constants::SAM_HD_SORTORDER_QUERYNAME
+                          : BamTools::Constants::SAM_HD_SORTORDER_COORDINATE );
     return header;
 }
 

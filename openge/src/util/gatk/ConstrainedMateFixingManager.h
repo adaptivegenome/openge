@@ -44,12 +44,12 @@
 
 #include "api/BamWriter.h"
 #include "api/SamHeader.h"
-#include "api/BamAlignment.h"
 #include "GenomeLoc.h"
 #include "GenomeLocParser.h"
 
 #include "api/algorithms/Sort.h"
 
+#include "../oge_read.h"
 #include "../thread_pool.h"
 
 #include <list>
@@ -87,7 +87,7 @@ private:
     int MAX_RECORDS_IN_MEMORY;
     
     typedef struct {
-        BamTools::BamAlignment * read;
+        OGERead * read;
         bool readWasModified;
         bool canFlush;
     } cmfm_read_t;
@@ -102,10 +102,10 @@ private:
     
     class SAMRecordHashObject {
     public:
-        BamTools::BamAlignment * record;
+        OGERead * record;
         bool wasModified;
         
-        SAMRecordHashObject(BamTools::BamAlignment * record, bool wasModified) 
+        SAMRecordHashObject(OGERead * record, bool wasModified) 
         : record(record), wasModified(wasModified)
         { }
         SAMRecordHashObject(const SAMRecordHashObject & o)
@@ -115,8 +115,7 @@ private:
     
     /** read.name -> records */
     std::map<std::string, SAMRecordHashObject> forMateMatching;
-    //std::less<BamTools::BamAlignment *> cmp;
-    typedef std::set<BamTools::BamAlignment *, BamTools::Algorithms::Sort::ByPosition> waitingReads_t;
+    typedef std::set<OGERead *, BamTools::Algorithms::Sort::ByPosition> waitingReads_t;
     waitingReads_t waitingReads;
 
     /**
@@ -134,28 +133,28 @@ public:
     bool canMoveReads(const GenomeLoc & earliestPosition) const;
     
 private:
-    bool noReadCanMoveBefore(int pos, const BamTools::BamAlignment & addedRead) const;
+    bool noReadCanMoveBefore(int pos, const OGERead & addedRead) const;
     
 public:
-    void addReads(const std::vector<BamTools::BamAlignment *> & newReads, const std::set<BamTools::BamAlignment *> & modifiedReads);
-    void addRead(BamTools::BamAlignment * newRead, bool readWasModified, bool canFlush);
+    void addReads(const std::vector<OGERead *> & newReads, const std::set<OGERead *> & modifiedReads);
+    void addRead(OGERead * newRead, bool readWasModified, bool canFlush);
 private:
     static void * addread_threadproc(void * data);
-    void addReadInternal( BamTools::BamAlignment * newRead, bool readWasModified, bool canFlush);
-    BamTools::BamAlignment * remove(waitingReads_t & treeSet);
-    void writeRead( BamTools::BamAlignment * read) const;
+    void addReadInternal( OGERead * newRead, bool readWasModified, bool canFlush);
+    OGERead * remove(waitingReads_t & treeSet);
+    void writeRead( OGERead * read) const;
     
     /**
      * @param read  the read
      * @return true if the read shouldn't be moved given the constraints of this SAMFileWriter
      */
 public:
-    bool iSizeTooBigToMove(const BamTools::BamAlignment & read) const;
-    static bool iSizeTooBigToMove(const BamTools::BamAlignment & read, int maxInsertSizeForMovingReadPairs);
+    bool iSizeTooBigToMove(const OGERead & read) const;
+    static bool iSizeTooBigToMove(const OGERead & read, int maxInsertSizeForMovingReadPairs);
     
 private:
     void purgeUnmodifiedMates();
-    bool pairedReadIsMovable(const BamTools::BamAlignment & read) const;
+    bool pairedReadIsMovable(const OGERead & read) const;
     
 public:
     void close();

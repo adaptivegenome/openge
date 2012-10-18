@@ -9,7 +9,6 @@ set ( InternalUtilsDir "${InternalDir}/utils" )
 
 set ( InternalUtilsSources
         ${InternalUtilsDir}/BamException_p.cpp
-        ${InternalUtilsDir}/BamThreadPool.cpp
 
         PARENT_SCOPE # <-- leave this last
 )

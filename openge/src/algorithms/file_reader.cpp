@@ -24,7 +24,6 @@
 
 #include "../util/read_stream_reader.h"
 
-using namespace BamTools;
 using namespace std;
 
 int FileReader::runInternal()
@@ -43,7 +42,7 @@ int FileReader::runInternal()
         header = reader.getHeader();
         open = true;
         
-        BamAlignment * al;
+        OGERead * al;
         
         while(true)
         {

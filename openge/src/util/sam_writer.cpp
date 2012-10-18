@@ -86,7 +86,7 @@ void SamWriter::close() {
     m_open = false;
 }
 
-bool SamWriter::write(const BamTools::BamAlignment & a) {
+bool SamWriter::write(const OGERead & a) {
     // tab-delimited
     // <QNAME> <FLAG> <RNAME> <POS> <MAPQ> <CIGAR> <MRNM> <MPOS> <ISIZE> <SEQ> <QUAL> [ <TAG>:<VTYPE>:<VALUE> [...] ]
     assert(m_open);
