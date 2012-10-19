@@ -125,7 +125,7 @@ ThreadJob * ThreadPool::startJob()
     if(0 != pthread_mutex_lock(&job_queue_mutex))
         perror("Error locking job queue mutex in startJob()");
     while(!threads_exit && jobs.empty()) {
-        if(0 != pthread_cond_timedwait(&job_queue_cond, &job_queue_mutex, &wait_time) && errno != 0)
+        if(0 != pthread_cond_timedwait(&job_queue_cond, &job_queue_mutex, &wait_time) && errno != 0 && errno != ETIMEDOUT)
             perror("Error waiting for job in startJob()");
     }
     

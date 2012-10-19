@@ -89,28 +89,16 @@ uint32_t inline CalculateMinimumBin(const int begin, int end) {
 template <class output_stream_t>
 bool BamSerializer<output_stream_t>::write(const OGERead & al) {
     // calculate char lengths
-    const unsigned int nameLength         = al.getName().size() + 1;
-    const unsigned int numCigarOperations = al.getCigarData().size();
-    const unsigned int queryLength        = al.getQueryBases().size();
-    const unsigned int tagDataLength      = al.getTagData().size();
+    const unsigned int nameLength         = al.getNameLength()+1;
+    const unsigned int numCigarOperations = al.getNumCigarOps();
+    const unsigned int queryLength        = al.getLength();
 
     // no way to tell if alignment's bin is already defined (there is no default, invalid value)
     // so we'll go ahead calculate its bin ID before storing
     const uint32_t alignmentBin = CalculateMinimumBin(al.getPosition(), al.GetEndPosition());
 
-    // create our packed cigar string
-    const unsigned int packedCigarLength = al.getCigarDataLength();
-    
-    // encode the query
-    const unsigned int encodedQueryLength = al.getQueryBasesLength();
-    
     // write the block size
-    const unsigned int dataBlockSize = nameLength +
-    packedCigarLength +
-    encodedQueryLength +
-    queryLength +
-    tagDataLength;
-    unsigned int blockSize = 32 + dataBlockSize;
+    unsigned int blockSize = al.getSupportData().getBlockLength();
     output_stream.write((char*)&blockSize, 4);
     
     // assign the BAM core data

@@ -138,7 +138,7 @@ OGERead * BamDeserializer<input_stream_t>::read() {
     OGERead * al = OGERead::allocate();
 
     // read in the 'block length' value, make sure it's not zero
-    char buffer[sizeof(uint32_t)];
+    char buffer[sizeof(uint32_t)] = {0};
 
     input_stream.read(buffer, sizeof(uint32_t));
     if(input_stream.eof())
@@ -152,9 +152,8 @@ OGERead * BamDeserializer<input_stream_t>::read() {
 
     uint32_t BlockLength = BamTools::UnpackUnsignedInt(buffer);
 
-    if ( BlockLength == 0 )
-        if ( BlockLength == 0 )
-            return NULL;
+    if ( BlockLength == 0  || BlockLength > 10000)
+        return NULL;
     
     // read in core alignment data, make sure the right size of data was read
     char x[32];

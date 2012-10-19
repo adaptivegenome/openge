@@ -139,7 +139,7 @@ namespace BamTools {
         uint16_t getMapQuality() const { return MapQuality; }
         uint32_t getAlignmentFlag() const { return AlignmentFlag; }
         const std::vector<CigarOp> & getCigarData() const { BuildCigarData(); return CigarData; }
-        uint32_t getCigarDataLength() const { return SupportData.getNumCigarOperations(); }
+        uint32_t getNumCigarOps() const { return SupportData.getNumCigarOperations(); }
         int32_t getMateRefID() const { return MateRefID; }
         int32_t getMatePosition() const { return MatePosition; }
         int32_t getInsertSize() const { return InsertSize; }
@@ -194,11 +194,12 @@ namespace BamTools {
                 AllCharData[0] = 0;
             }
             uint32_t getBlockLength() const { return AllCharData.size() + 32; }
+            void clear() { AllCharData.clear(); NumCigarOperations = 0; QueryNameLength = 0; QuerySequenceLength = 0; }
             
         protected:
             // convenience
             std::string::iterator beginName() { return AllCharData.begin(); }
-            std::string::iterator endName() { return AllCharData.begin() + QueryNameLength + 1; }
+            std::string::iterator endName() { return AllCharData.begin() + QueryNameLength; }
             std::string::iterator beginCigar() { return endName(); }
             std::string::iterator endCigar() { return beginCigar() + (NumCigarOperations * 4); }
             std::string::iterator beginSeq() { return endCigar(); }
@@ -210,7 +211,7 @@ namespace BamTools {
 
             std::string::const_iterator beginName() const { return AllCharData.begin(); }
             std::string::const_iterator endName() const { return AllCharData.begin() + QueryNameLength; }
-            std::string::const_iterator beginCigar() const { return endName() + 1; }
+            std::string::const_iterator beginCigar() const { return endName(); }
             std::string::const_iterator endCigar() const { return beginCigar() + (NumCigarOperations * 4); }
             std::string::const_iterator beginSeq() const { return endCigar(); }
             std::string::const_iterator endSeq() const { return beginSeq() + ((QuerySequenceLength + 1)/2); }
@@ -220,8 +221,8 @@ namespace BamTools {
             std::string::const_iterator endTagData() const { return AllCharData.end(); }
         public:
             //accessors (with encoding)
-            void setName(const std::string & name) { AllCharData.replace(beginName(), endName(), name.c_str(), name.size() + 1);  QueryNameLength = name.size(); }
-            const std::string getName() const { return std::string(beginName(), endName()); }
+            void setName(const std::string & name) { AllCharData.replace(beginName(), endName(), name.c_str(), name.size() + 1);  QueryNameLength = name.size()+1;}
+            const std::string getName() const { return std::string(&AllCharData[0], QueryNameLength-1); }
             
             void setCigar(const std::vector<CigarOp> & cigar);
             const std::vector<CigarOp> getCigar() const;

@@ -127,6 +127,7 @@ void BamAlignment::clear() {
     Qualities.clear();
     QueryBases.clear();
     TagData.clear();
+    SupportData.clear();
 }
 
 void DecodeSequenceData(const string & encoded_sequence, string & decoded_sequence, size_t size) {
@@ -336,6 +337,8 @@ bool BamAlignment::FindTag(const std::string& tag,
                            const unsigned int& tagDataLength,
                            unsigned int& numBytesParsed) const
 {
+    
+    BuildTagData();
 
     while ( numBytesParsed < tagDataLength ) {
 
@@ -863,6 +866,7 @@ void BamAlignment::BamAlignmentSupportData::setCigar(const std::vector<CigarOp> 
     string encoded_cigar;
     CreatePackedCigar(cigar, encoded_cigar);
     AllCharData.replace(beginCigar(), endCigar(), encoded_cigar);
+    NumCigarOperations = cigar.size();
 }
 
 const std::vector<CigarOp> BamAlignment::BamAlignmentSupportData::getCigar() const {
@@ -889,6 +893,7 @@ void BamAlignment::BamAlignmentSupportData::setSeq(const std::string & seq) {
     string encoded_seq;
     EncodeQuerySequence(seq, encoded_seq);
     AllCharData.replace(beginSeq(), endSeq(), encoded_seq);
+    QuerySequenceLength = seq.size();
 }
 
 const std::string BamAlignment::BamAlignmentSupportData::getSeq() const {
