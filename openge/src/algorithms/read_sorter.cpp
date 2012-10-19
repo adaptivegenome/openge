@@ -188,7 +188,7 @@ void ReadSorter::TempFileWriteJob::runJob()
     ogeNameThread("sort_tmp_cleanup");
 
     for(size_t i = 0; i < buffer->size(); i++)
-        delete (*buffer)[i];
+        OGERead::deallocate((*buffer)[i]);
     delete buffer;
 }
 

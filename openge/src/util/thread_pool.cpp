@@ -120,12 +120,13 @@ ThreadJob * ThreadPool::startJob()
     ThreadJob * job = NULL;
     
     struct timespec wait_time = {0};
-    wait_time.tv_nsec = 1e9;
+    wait_time.tv_sec = 1;
 
     if(0 != pthread_mutex_lock(&job_queue_mutex))
         perror("Error locking job queue mutex in startJob()");
     while(!threads_exit && jobs.empty()) {
-        if(0 != pthread_cond_timedwait(&job_queue_cond, &job_queue_mutex, &wait_time) && errno != 0 && errno != ETIMEDOUT)
+        if(0 != pthread_cond_wait(&job_queue_cond, &job_queue_mutex) && errno != 0 && errno != ETIMEDOUT)
+        //if(0 != pthread_cond_timedwait(&job_queue_cond, &job_queue_mutex, &wait_time) && errno != 0 && errno != ETIMEDOUT)
             perror("Error waiting for job in startJob()");
     }
     
