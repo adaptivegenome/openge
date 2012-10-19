@@ -198,7 +198,6 @@ OGERead * BamDeserializer<input_stream_t>::read() {
     }
 
     al->setBamStringData(char_buffer, BlockLength - 32, NumCigarOperations, QuerySequenceLength, QueryNameLength);
-    int len = al->getNameLength();
     assert(QueryNameLength == al->getNameLength());
     assert(al->getSupportData().getBlockLength() == BlockLength);
 

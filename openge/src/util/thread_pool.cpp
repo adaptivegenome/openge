@@ -17,7 +17,6 @@
 
 
 #include "thread_pool.h"
-#include <api/BamParallelismSettings.h>
 
 #include <cassert>
 #include <string>
@@ -217,7 +216,6 @@ int OGEParallelismSettings::availableCores()
 void OGEParallelismSettings::setNumberThreads(int threads)
 {
     m_configured_threads = threads;
-    BamParallelismSettings::setNumberThreads(threads);
 }
 
 int OGEParallelismSettings::getNumberThreads()
@@ -231,11 +229,9 @@ int OGEParallelismSettings::getNumberThreads()
 void OGEParallelismSettings::disableMultithreading()
 {
     m_multithreading_enabled = false;
-    BamParallelismSettings::disableMultithreading();
 }
 
 void OGEParallelismSettings::enableMultithreading()
 {
     m_multithreading_enabled = true;
-    BamParallelismSettings::enableMultithreading();
 }
