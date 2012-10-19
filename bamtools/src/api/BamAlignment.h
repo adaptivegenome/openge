@@ -313,7 +313,6 @@ namespace BamTools {
         // otherwise, convert value to string
         union { T value; char valueBuffer[sizeof(T)]; } un;
         un.value = value;
-#if 1
         
         // copy original tag data to temp buffer
         const std::string newTag = tag + type;
@@ -328,13 +327,9 @@ namespace BamTools {
         // store temp buffer back in TagData
         const char* newTagData = (const char*)originalTagData.Buffer;
         TagData.assign(newTagData, newTagDataLength);
-        
-#else
-        // there has to be a good reason not to do this instead..
-        TagData.append(tag);
-        TagData.append(type);
-        TagData.append(un.valueBuffer, sizeof(T));
-#endif
+
+        SupportData.setTagData(TagData);
+
         return true;
     }
     
@@ -368,8 +363,7 @@ namespace BamTools {
             // TODO: set error string?
             return false;
         }
-        
-#if 1   //switch in optimization to speed up tag data allocation
+
         // otherwise, copy tag data to temp buffer
         const std::string newTag = tag + type + value;
         const size_t newTagDataLength = tagDataLength + newTag.size() + 1; // leave room for null-term
@@ -382,11 +376,8 @@ namespace BamTools {
         // store temp buffer back in TagData
         const char* newTagData = (const char*)originalTagData.Buffer;
         TagData.assign(newTagData, newTagDataLength);
-#else
-        TagData.append(tag);
-        TagData.append(type);
-        TagData.append(value);
-#endif
+
+        SupportData.setTagData(TagData);
         return true;
     }
     
@@ -451,6 +442,9 @@ namespace BamTools {
         // store temp buffer back in TagData
         const char* newTagData = (const char*)originalTagData.Buffer;
         TagData.assign(newTagData, newTagDataLength);
+        
+        SupportData.setTagData(TagData);
+
         return true;
     }
     

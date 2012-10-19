@@ -21,6 +21,7 @@
 #include <cassert>
 #include "sam_reader.h"
 #include <errno.h>
+#include <climits>
 
 #include <fcntl.h>           /* For O_* constants */
 #include <sys/stat.h>        /* For mode constants */
@@ -426,6 +427,11 @@ OGERead * SamReader::ParseAlignment(const char * line_s) const
     // every time they are encountered.
     static const string typeZ("Z");
     static const string typei("i");
+    static const string types("s");
+    static const string typec("c");
+    static const string typeI("I");
+    static const string typeS("S");
+    static const string typeC("C");
     //optional attributes
     for (int i = 0; i < additional_parameters.size(); i++) {
         char * segment = additional_parameters[i];
@@ -444,7 +450,20 @@ OGERead * SamReader::ParseAlignment(const char * line_s) const
             case 'i': //int
             {
                 int i = atoi(value);
-                retval = alignment.AddTag(tag, typei, i);
+                if(i <= UCHAR_MAX && i >= 0)
+                    retval = alignment.AddTag(tag, typec, (int8_t)i);
+                else if(i <= SCHAR_MAX && i >= SCHAR_MIN)
+                    retval = alignment.AddTag(tag, typeC, (uint8_t)i);
+                else if(i <= SHRT_MAX && i >= SHRT_MIN)
+                    retval = alignment.AddTag(tag, types, (int16_t)i);
+                else if(i <= USHRT_MAX && i >= 0)
+                    retval = alignment.AddTag(tag, typeS, (uint16_t)i);
+                else if(i <= INT_MAX && i >= INT_MIN)
+                    retval = alignment.AddTag(tag, typei, (int32_t)i);
+                else if(i <= UINT_MAX && i >= 0)
+                    retval = alignment.AddTag(tag, typeI, (uint32_t)i);
+                else
+                    cerr << "Error: SAM file contains unparseable int parameter " << tag << ". Skipping. " << endl;
                 break;
             }
             case 'f': //floating point

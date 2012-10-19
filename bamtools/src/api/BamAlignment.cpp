@@ -646,6 +646,8 @@ void BamAlignment::RemoveTag(const std::string& tag) {
         // save modified tag data in alignment
         TagData.assign(newTagData.Buffer, beginningTagDataLength + endTagDataLength);
     }
+
+    SupportData.setTagData(TagData);
 }
 
 /*! \fn void BamAlignment::SetErrorString(const std::string& where, const std::string& what) const
