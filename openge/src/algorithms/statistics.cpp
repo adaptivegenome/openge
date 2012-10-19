@@ -79,9 +79,26 @@ int Statistics::runInternal()
     OGERead * pal;
     
     map<int, int> read_len_ct;
+    bool sorted = true;
+    int last_rid = -1;
+    int last_position = -1;
 
     while(NULL != (pal = getInputAlignment())) {
         OGERead & al = *pal;
+        
+        if(sorted) {
+            if(last_rid > al.getRefID())
+                sorted = false;
+            else if(last_rid < al.getRefID()) {
+                last_rid = al.getRefID();
+                last_position = -1;
+            } else  { //RID is equal
+                if(last_position > al.getPosition())
+                    sorted = false;
+                else
+                    last_position = al.getPosition();
+            }
+        }
 
         // increment total alignment counter
         ++m_numReads;
@@ -152,6 +169,8 @@ int Statistics::runInternal()
       cout << "Read 2:            " << setw(10) << m_numSecondMate << endl;
       cout << "Singletons:        " << setw(10) << m_numSingletons << " (" << setprecision(precision) << setw(field_width) << fixed << ((float)m_numSingletons/m_numPaired)*100 << "%)" << endl;
     }
+
+    cout << "Sorted:            " << setw(10) << (sorted ? "Yes" : "No") << endl;
     
     if (m_showLengthSummary) {
         cerr << "Read lengths:" << endl;
