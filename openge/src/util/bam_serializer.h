@@ -74,13 +74,22 @@ void BamSerializer<output_stream_t>::close() {
 
 // calculates minimum bin for a BAM alignment interval [begin, end)
 // Taken from BAM specification.
-uint32_t inline CalculateMinimumBin(const int begin, int end) {
+uint32_t inline CalculateMinimumBin(const int beg, int end) {
+    /*
     --end;
     if ( (begin >> 14) == (end >> 14) ) return 4681 + (begin >> 14);
     if ( (begin >> 17) == (end >> 17) ) return  585 + (begin >> 17);
     if ( (begin >> 20) == (end >> 20) ) return   73 + (begin >> 20);
     if ( (begin >> 23) == (end >> 23) ) return    9 + (begin >> 23);
     if ( (begin >> 26) == (end >> 26) ) return    1 + (begin >> 26);
+    return 0;
+     */
+    --end;
+    if (beg>>14 == end>>14) return ((1<<15)-1)/7 + (beg>>14);
+    if (beg>>17 == end>>17) return ((1<<12)-1)/7 + (beg>>17);
+    if (beg>>20 == end>>20) return ((1<<9)-1)/7  + (beg>>20);
+    if (beg>>23 == end>>23) return ((1<<6)-1)/7  + (beg>>23);
+    if (beg>>26 == end>>26) return ((1<<3)-1)/7  + (beg>>26);
     return 0;
 }
 
@@ -89,7 +98,7 @@ uint32_t inline CalculateMinimumBin(const int begin, int end) {
 template <class output_stream_t>
 bool BamSerializer<output_stream_t>::write(const OGERead & al) {
     // calculate char lengths
-    const unsigned int nameLength         = al.getNameLength()+1;
+    const unsigned int nameLength         = al.getNameLength();
     const unsigned int numCigarOperations = al.getNumCigarOps();
     const unsigned int queryLength        = al.getLength();
 

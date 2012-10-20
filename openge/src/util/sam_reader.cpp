@@ -451,17 +451,17 @@ OGERead * SamReader::ParseAlignment(const char * line_s) const
             {
                 int i = atoi(value);
                 if(i <= UCHAR_MAX && i >= 0)
-                    retval = alignment.AddTag(tag, typec, (int8_t)i);
-                else if(i <= SCHAR_MAX && i >= SCHAR_MIN)
                     retval = alignment.AddTag(tag, typeC, (uint8_t)i);
-                else if(i <= SHRT_MAX && i >= SHRT_MIN)
-                    retval = alignment.AddTag(tag, types, (int16_t)i);
+                else if(i <= SCHAR_MAX && i >= SCHAR_MIN)
+                    retval = alignment.AddTag(tag, typec, (int8_t)i);
                 else if(i <= USHRT_MAX && i >= 0)
                     retval = alignment.AddTag(tag, typeS, (uint16_t)i);
-                else if(i <= INT_MAX && i >= INT_MIN)
-                    retval = alignment.AddTag(tag, typei, (int32_t)i);
+                else if(i <= SHRT_MAX && i >= SHRT_MIN)
+                    retval = alignment.AddTag(tag, types, (int16_t)i);
                 else if(i <= UINT_MAX && i >= 0)
                     retval = alignment.AddTag(tag, typeI, (uint32_t)i);
+                else if(i <= INT_MAX && i >= INT_MIN)
+                    retval = alignment.AddTag(tag, typei, (int32_t)i);
                 else
                     cerr << "Error: SAM file contains unparseable int parameter " << tag << ". Skipping. " << endl;
                 break;
