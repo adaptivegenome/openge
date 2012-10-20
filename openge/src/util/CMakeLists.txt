@@ -1,6 +1,7 @@
 set(UTIL_DIR "util")
 
 set(OPENGE_UTIL_SOURCES 
+  ${UTIL_DIR}/bpipe.cpp
   ${UTIL_DIR}/bgzf_input_stream.cpp
   ${UTIL_DIR}/bgzf_output_stream.cpp
   ${UTIL_DIR}/fasta_reader.cpp

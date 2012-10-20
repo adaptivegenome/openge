@@ -128,11 +128,13 @@ OpenGECommand::OpenGECommand()
 OpenGECommand * CommandMarshall::commandWithName(const string name) {
     const char * cname = name.c_str();
     
-    if(!strcmp(cname, "compare"))
+    if(!strcmp(cname, "bpipe"))
+        return new BPipeCommand;
+    else if(!strcmp(cname, "compare"))
         return new CompareCommand;
-    if(!strcmp(cname, "count"))
+    else if(!strcmp(cname, "count"))
         return new CountCommand;
-    if(!strcmp(cname, "coverage"))
+    else if(!strcmp(cname, "coverage"))
         return new CoverageCommand;
     else if(!strcmp(cname, "dedup"))
         return new DedupCommand;

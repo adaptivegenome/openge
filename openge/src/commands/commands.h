@@ -83,6 +83,13 @@ protected:
 /////////////////////////////////
 // Actual commands
 
+class BPipeCommand : public OpenGECommand
+{
+protected:
+    void getOptions();
+    virtual int runCommand();
+};
+
 class CompareCommand : public OpenGECommand
 {
 protected:
