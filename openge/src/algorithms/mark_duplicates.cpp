@@ -135,7 +135,7 @@ int MarkDuplicates::getUnclippedEnd(const OGERead & rec) {
 short MarkDuplicates::getScore(const OGERead & rec) {
     short score = 0;
     for (int i = 0; i < rec.getQualities().size(); i++) {
-        uint8_t b = rec.getQualities()[i]-33;   //33 comes from the conversion in BamAlignment
+        uint8_t b = rec.getQualities()[i]-33;   //33 comes from the conversion in OGERead
         if (b >= 15) score += b;
     }
     

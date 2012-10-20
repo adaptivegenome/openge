@@ -46,6 +46,7 @@
 #include "api/BamAux.h"
 #include "api/SamSequenceDictionary.h"
 #include "GenomeLoc.h"
+#include "../oge_read.h"
 
 #include <string>
 
@@ -62,7 +63,7 @@ public:
     std::string getContig(const int index) const;
     GenomeLoc parseGenomeLoc(const std::string str) const;
 
-    GenomeLoc createGenomeLoc(const BamTools::BamAlignment & read) const;
+    GenomeLoc createGenomeLoc(const OGERead & read) const;
 
     GenomeLoc createGenomeLoc(const std::string contig, const int start, const int stop) const;    
     GenomeLoc createGenomeLoc(const std::string & contig, const int start, const int stop, bool mustBeOnReference) const;

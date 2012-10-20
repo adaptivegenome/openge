@@ -277,7 +277,7 @@ bool ReadSorter::RunSort(void) {
         return false;
 }
 
-//this function is designed to accept either BamAlignment or BamAlignment* as T
+//this function is designed to accept either OGERead or OGERead* as T
 template<class T>
 void ReadSorter::SortBuffer(vector<T>& buffer) {
     if(isNothreads())

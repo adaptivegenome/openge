@@ -479,9 +479,11 @@ public:
 class LocalRealignment::CleanJob : public ThreadJob
 {
     CleanAndEmitReadList * c;
+    bool self_delete;
 public:
-    CleanJob(CleanAndEmitReadList * c)
+    CleanJob(CleanAndEmitReadList * c, bool self_delete = false)
     : c(c)
+    , self_delete(self_delete)
     {}
 
     virtual void runJob()
@@ -501,7 +503,8 @@ public:
         
         c->lr.flushEmitQueue();
 
-        delete this;
+        if(self_delete)
+            delete this;
     }
 };
 
@@ -523,7 +526,7 @@ int LocalRealignment::map_func(OGERead * read, const ReadMetaDataTracker & metaD
         if(nothreads)
             CleanJob(read_list).runJob();
         else
-            ThreadPool::sharedPool()->addJob(new CleanJob(read_list));
+            ThreadPool::sharedPool()->addJob(new CleanJob(read_list, true));
         flushEmitQueue();
 
         do {
@@ -584,7 +587,7 @@ int LocalRealignment::map_func(OGERead * read, const ReadMetaDataTracker & metaD
         if(nothreads)
             CleanJob(read_list).runJob();
         else
-            ThreadPool::sharedPool()->addJob(new CleanJob(read_list));
+            ThreadPool::sharedPool()->addJob(new CleanJob(read_list, true));
         flushEmitQueue();
 
         do {

@@ -101,7 +101,7 @@ void OGERead::clearCachedAllocations() {
     ThreadPool::sharedPool()->waitForJobCompletion();
     allocator_spinlock.lock();
     while(!cached_allocations.empty()) {
-        BamAlignment * al = cached_allocations.back();
+        OGERead * al = cached_allocations.back();
         delete(al);
         cached_allocations.pop_back();
     }

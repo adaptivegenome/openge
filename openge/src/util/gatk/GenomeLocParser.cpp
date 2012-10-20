@@ -392,7 +392,7 @@ private int parsePosition(string pos) {
  */
 //@Requires("read != null")
 //@Ensures("result != null")
-GenomeLoc GenomeLocParser::createGenomeLoc(const BamAlignment & read) const {
+GenomeLoc GenomeLocParser::createGenomeLoc(const OGERead & read) const {
     if ( !read.IsMapped() && read.getRefID() == -1 )
         // read is unmapped and not placed anywhere on the genome
         return GenomeLoc::UNMAPPED;
