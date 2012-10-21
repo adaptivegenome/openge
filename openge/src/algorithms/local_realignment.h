@@ -458,13 +458,13 @@ private:
             
     void pushToEmitQueue(Emittable * e)
     {
-        bool emit_queue_full = false;
+        bool emit_queue_full = true;
         while(emit_queue_full) {
             if(0 != pthread_mutex_lock(&emit_mutex) ) {
                 perror("Error locking LR emit push mutex.");
                 exit(-1);
             }
-            emit_queue_full = emit_queue.size() > 10000;
+            emit_queue_full = emit_queue.size() > 100000;
             if(!emit_queue_full)
                 emit_queue.push(e);
             

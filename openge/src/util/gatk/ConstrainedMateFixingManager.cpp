@@ -165,13 +165,13 @@ void setMateInfo( OGERead & rec1, OGERead & rec2) {
         rec1.setMatePosition(rec2.getPosition());
         rec1.SetIsMateReverseStrand(rec2.IsReverseStrand());
         rec1.SetIsMateMapped(true);
-        rec1.AddTag("MQ", "i", rec2.getMapQuality());
+        rec1.AddTag("MQ", "S", rec2.getMapQuality());
         
         rec2.setMateRefID(rec1.getRefID());
         rec2.setMatePosition(rec1.getPosition());
         rec2.SetIsMateReverseStrand( rec1.IsReverseStrand() );
         rec2.SetIsMateMapped(true);
-        rec2.AddTag("MQ", "i", rec1.getMapQuality());
+        rec2.AddTag("MQ", "S", rec1.getMapQuality());
 
         // we should remove and readd the XT tag so that tag order in OGE matches tag order from GATK. This 
         // is just needed for the debug stage.

@@ -526,7 +526,7 @@ int LocalRealignment::map_func(OGERead * read, const ReadMetaDataTracker & metaD
         if(nothreads)
             CleanJob(read_list).runJob();
         else
-            ThreadPool::sharedPool()->addJob(new CleanJob(read_list, true));
+            ThreadPool::sharedPool()->addJob(new CleanJob(read_list));
         flushEmitQueue();
 
         do {
