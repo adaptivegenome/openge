@@ -679,8 +679,9 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     for(vector<GenomeLoc *>::const_iterator interval_it = intervalsFile.begin(); interval_it != intervalsFile.end(); interval_it++)
         delete *interval_it;
     
-    if(0 != pthread_mutex_destroy(&emit_mutex) ) {
-        perror("Error destroying LR emit mutex.");
+    int error = pthread_mutex_destroy(&emit_mutex);
+    if(0 != error ) {
+        cerr << "Error destroying LR emit mutex (error " << error << "). Aborting." << endl;
         exit(-1);
     }
 }

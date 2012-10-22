@@ -218,13 +218,25 @@ void BgzfOutputStream::close() {
     while(!job_queue.empty())
         usleep(20000);
     
+    if(0 != pthread_mutex_lock(&write_mutex))
+    {
+        perror("Error locking BGZF write mutex at close. Aborting.");
+        exit(-1);
+    }
+
     //write an empty block ("EOF marker")
 	static const uint8_t empty_block[29] = "\037\213\010\4\0\0\0\0\0\377\6\0\102\103\2\0\033\0\3\0\0\0\0\0\0\0\0\0";
     output_stream.write((const char *)empty_block, 28);
-    
+
     output_stream.close();
-    
-    if(0 != pthread_mutex_destroy(&write_mutex) ) {
-        perror("Error closing BGZF write mutex.");
+
+    if(0 != pthread_mutex_unlock(&write_mutex))
+    {
+        perror("Error unlocking BGZF write mutex at close. Aborting.");
+        exit(-1);
     }
+
+    int error = pthread_mutex_destroy(&write_mutex);
+    if(0 != error)
+        cerr << "Error closing BGZF write mutex (error " << error << "." << endl;
 }

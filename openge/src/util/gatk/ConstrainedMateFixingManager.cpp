@@ -280,8 +280,9 @@ ConstrainedMateFixingManager::ConstrainedMateFixingManager( LocalRealignment * w
 
 ConstrainedMateFixingManager::~ConstrainedMateFixingManager() {
     if(!output_module->isNothreads()) {
-        if(0 != pthread_mutex_destroy(&add_read_lock)) {
-            perror("Error closing ConstrainedMateFixingManager queueing mutex");
+        int error = pthread_mutex_destroy(&add_read_lock);
+        if(0 != error) {
+            cerr << "Error closing ConstrainedMateFixingManager queueing mutex (error " << error << endl;
             exit(-1);
         }
     }

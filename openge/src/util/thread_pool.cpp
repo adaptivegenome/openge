@@ -80,14 +80,17 @@ ThreadPool::~ThreadPool()
 	for(size_t thread_ctr = 0; thread_ctr < threads.size(); thread_ctr++)
 		pthread_join(threads[thread_ctr], NULL);
     
-	if(0 != pthread_mutex_destroy(&busy_mutex))
-        perror("Error destroying busy mutex");
+    int error = pthread_mutex_destroy(&busy_mutex);
+	if(0 != error)
+        cerr << "Error destroying TP busy mutex (error " << error << ")." << endl ;
 
-    if(0 !=pthread_cond_destroy(&job_queue_cond))
-        perror("Error destroying jobpool condition var");
+    error = pthread_cond_destroy(&job_queue_cond);
+    if(0 != error)
+        cerr << "Error destroying TP jobpool condition var (error " << error << ")." << endl ;
 
-    if(0 != pthread_mutex_destroy(&job_queue_mutex))
-        perror("Error destroying threadpool job queue mutex");
+    error = pthread_mutex_destroy(&job_queue_mutex);
+    if(0 != error)
+        cerr << "Error destroying TP job queue mutex (error " << error << ")." << endl ;
 }
 
 int ThreadPool::availableCores()
