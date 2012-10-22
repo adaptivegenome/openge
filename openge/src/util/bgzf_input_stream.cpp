@@ -153,6 +153,8 @@ bool BgzfInputStream::open(string filename) {
     if(filename == "stdin") {
         input_stream = &cin;
     } else {
+        ifstream_buffer.resize(4000000);
+        input_stream_real.rdbuf()->pubsetbuf(&ifstream_buffer[0], ifstream_buffer.size());
         input_stream = &input_stream_real;
         input_stream_real.open(filename.c_str());
     

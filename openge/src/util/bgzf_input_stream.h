@@ -55,6 +55,7 @@ protected:
     int cached_blocks_read, cache_misses;
 
     bool requestNextBlock();
+    std::vector<char> ifstream_buffer;
 };
 
 #endif
