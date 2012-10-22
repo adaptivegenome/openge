@@ -35,5 +35,8 @@ int main(int argc, const char ** argv)
     if(!command)
         return -1;
 
-    return command->runWithParameters(argc-1, &argv[1]);
+    int ret = command->runWithParameters(argc-1, &argv[1]);
+    delete command;
+
+    return ret;
 }

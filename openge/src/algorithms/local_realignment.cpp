@@ -378,6 +378,11 @@ void LocalRealignment::initialize() {
         if(verbose)
             cerr << "Parsed " << line_counter << " intervals from " << intervals_filename << "." << endl;
     }
+    
+    if(intervalsFile.empty()) {
+        cerr << "Error parsing intervals file. Aborting." << endl;
+        exit(-1);
+    }
 
     
     AlignedRead::NO_ORIGINAL_ALIGNMENT_TAGS = NO_ORIGINAL_ALIGNMENT_TAGS;
@@ -514,7 +519,7 @@ int LocalRealignment::map_func(OGERead * read, const ReadMetaDataTracker & metaD
     if ( !loading_interval_data->current_interval_valid ) {
         pushToEmitQueue(new EmittableRead(*this, loading_interval_data, read));
         loading_interval_data = new IntervalData(NULL);
-        loading_interval_data->readsToClean.initialize(loc_parser, sequence_dictionary);
+        loading_interval_data->readsToClean.initialize(loc_parser, &sequence_dictionary);
         return 0;
     }
     
@@ -535,7 +540,7 @@ int LocalRealignment::map_func(OGERead * read, const ReadMetaDataTracker & metaD
         } while ( interval_it != intervalsFile.end() );
         current_interval = NULL;
         loading_interval_data = new IntervalData(NULL);
-        loading_interval_data->readsToClean.initialize(loc_parser, sequence_dictionary);
+        loading_interval_data->readsToClean.initialize(loc_parser, &sequence_dictionary);
         
         sawReadInCurrentInterval = false;
         map_func(read, metaDataTracker);
@@ -577,7 +582,7 @@ int LocalRealignment::map_func(OGERead * read, const ReadMetaDataTracker & metaD
             }
             
             loading_interval_data = new IntervalData(current_interval);
-            loading_interval_data->readsToClean.initialize(loc_parser, sequence_dictionary);
+            loading_interval_data->readsToClean.initialize(loc_parser, &sequence_dictionary);
 
             sawReadInCurrentInterval = false;
         }
@@ -600,7 +605,7 @@ int LocalRealignment::map_func(OGERead * read, const ReadMetaDataTracker & metaD
             }
         } while ( current_interval != NULL && current_interval->isBefore(readLoc) );
         loading_interval_data = new IntervalData(current_interval);
-        loading_interval_data->readsToClean.initialize(loc_parser, sequence_dictionary);
+        loading_interval_data->readsToClean.initialize(loc_parser, &sequence_dictionary);
 
         sawReadInCurrentInterval = false;
         map_func( read, metaDataTracker);
@@ -666,7 +671,10 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     
     interval_data.knownIndelsToTry.clear();
     interval_data.indelRodsSeen.clear();
-    
+    if(!nothreads)
+    ThreadPool::sharedPool()->waitForJobCompletion();
+    manager->close();
+
 #ifdef LR_SUPPORT_ADDITIONAL_OUTPUT_FILES
     if ( write_out_indels )
         indelOutput.close();
@@ -675,9 +683,8 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     if ( write_out_snps ) 
         snpsOutput.close();
 #endif
-    if(!nothreads)
-    ThreadPool::sharedPool()->waitForJobCompletion();
-    manager->close();
+    
+    delete manager;
     
     for(vector<GenomeLoc *>::const_iterator interval_it = intervalsFile.begin(); interval_it != intervalsFile.end(); interval_it++)
         delete *interval_it;
@@ -1528,7 +1535,7 @@ int LocalRealignment::runInternal()
     interval_it = intervalsFile.begin();
 
     loading_interval_data = new IntervalData(intervalsFile.empty() ? NULL : intervalsFile.front());
-    loading_interval_data->readsToClean.initialize(loc_parser, sequence_dictionary);
+    loading_interval_data->readsToClean.initialize(loc_parser, &sequence_dictionary);
 
     while(true) {
         OGERead * al = getInputAlignment();

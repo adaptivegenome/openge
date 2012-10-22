@@ -331,7 +331,7 @@ private:
         std::string reference;
         GenomeLoc * loc;
         GenomeLocParser * loc_parser;
-        BamTools::SamSequenceDictionary sequences;
+        const BamTools::SamSequenceDictionary * sequences;
     public:
         ReadBin() 
         : loc(NULL)
@@ -342,7 +342,7 @@ private:
             clear();
         }
         
-        void initialize(GenomeLocParser * loc_parser, const BamTools::SamSequenceDictionary & sequence_dict) {
+        void initialize(GenomeLocParser * loc_parser, const BamTools::SamSequenceDictionary * sequence_dict) {
             this->loc_parser = loc_parser;
             sequences = sequence_dict;
         }
@@ -476,6 +476,9 @@ private:
             if(emit_queue_full)
                 usleep(20000);
         }
+
+        if(emit_queue_flush)
+            flushEmitQueue();
     }
     
 public:

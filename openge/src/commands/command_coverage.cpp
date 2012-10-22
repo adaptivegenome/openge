@@ -37,7 +37,9 @@ int CoverageCommand::runCommand()
 {
     MeasureCoverage coverage;
     FileReader reader;
-    
+
+    reader.setLoadStringData(false);
+
     coverage.setOutputFile(vm["out"].as<string>());
     coverage.setVerifyCorrectMapping(vm.count("verifymapping") > 0);
     coverage.setPrintZeroCoverageBases(vm.count("omituncoveredbases") == 0);

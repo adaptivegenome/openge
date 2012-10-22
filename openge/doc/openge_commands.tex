@@ -103,7 +103,7 @@ To summarize, the following methods are used to select file type (in order of pr
 \section {Commands}
 
 \subsection {compare}
-The compare command compares the reads present in two different files to detect when a file has reads that have changed, been added, or been removed.
+The compare command compares the reads present in two or more different files to detect when a file has reads that have changed, been added, or been removed. If more than two files are provided, the differences between the first and each subsequent file are also printed.
 
 \begin{center}
 \begin{tabular}{llp{3.5in}}
@@ -118,9 +118,11 @@ When no region is specified, the whole file is compared.
 
 Multiple regions may be provided- including overlapping regions. The region string format is described in the "Region string format" section below.
 
-Example:
+For example,
 \cmd{openge compare a.bam b.bam}
+prints the number of differences between the reads in a.bam and b.bam.
 \cmd{openge compare --print b.bam c.bam d.bam}
+prints between b.bam and c.bam, and then b.bam and d.bam, inluding printing out the location of each change. You can also limit the comparison to a specified region:
 \cmd{openge compare --print b.bam c.bam d.bam -r YHet:1..200 -r U:100..400}
 
 \subsection {count}

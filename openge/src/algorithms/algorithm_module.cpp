@@ -99,7 +99,8 @@ int AlgorithmModule::runChain()
     while(first_leaf->sinks.size() > 0)
         first_leaf = *(first_leaf->sinks.begin());
     
-    first_leaf->addSink(new BlackHoleModule);
+    BlackHoleModule * bh = new BlackHoleModule;
+    first_leaf->addSink(bh);
     
     AlgorithmModule * root_module = this;
     while(root_module->source)
@@ -110,8 +111,8 @@ int AlgorithmModule::runChain()
 
     finished_execution = true;
     
-    delete *(first_leaf->sinks.begin());
     
+    delete bh;
     return 0;
 }
 
@@ -124,6 +125,7 @@ int AlgorithmModule::startAsync()
 int AlgorithmModule::finishAsync()
 {
     pthread_join(thread, NULL);
+    pthread_detach(thread);
     return run_return_value;
 }
 
