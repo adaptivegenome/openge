@@ -317,15 +317,15 @@ namespace BamTools {
         // copy original tag data to temp buffer
         const std::string newTag = tag + type;
         const size_t newTagDataLength = tagDataLength + newTag.size() + sizeof(T); // leave room for new T
-        RaiiBuffer originalTagData(newTagDataLength);
-        memcpy(originalTagData.Buffer, TagData.c_str(), tagDataLength + 1);    // '+1' for TagData null-term
+        char * originalTagData = (char*) alloca(newTagDataLength);
+        memcpy(originalTagData, TagData.c_str(), tagDataLength + 1);    // '+1' for TagData null-term
         
         // append newTag
-        strcat(originalTagData.Buffer + tagDataLength, newTag.data());
-        memcpy(originalTagData.Buffer + tagDataLength + newTag.size(), un.valueBuffer, sizeof(T));
+        strcat(originalTagData + tagDataLength, newTag.data());
+        memcpy(originalTagData + tagDataLength + newTag.size(), un.valueBuffer, sizeof(T));
         
         // store temp buffer back in TagData
-        const char* newTagData = (const char*)originalTagData.Buffer;
+        const char* newTagData = (const char*)originalTagData;
         TagData.assign(newTagData, newTagDataLength);
 
         SupportData.setTagData(TagData);
@@ -367,14 +367,14 @@ namespace BamTools {
         // otherwise, copy tag data to temp buffer
         const std::string newTag = tag + type + value;
         const size_t newTagDataLength = tagDataLength + newTag.size() + 1; // leave room for null-term
-        RaiiBuffer originalTagData(newTagDataLength);
-        memcpy(originalTagData.Buffer, TagData.c_str(), tagDataLength + 1);    // '+1' for TagData null-term
+        char * originalTagData = (char *) alloca(newTagDataLength);
+        memcpy(originalTagData, TagData.c_str(), tagDataLength + 1);    // '+1' for TagData null-term
         
         // append newTag (removes original null-term, then appends newTag + null-term)
-        strcat(originalTagData.Buffer + tagDataLength, newTag.data());
+        strcat(originalTagData + tagDataLength, newTag.data());
         
         // store temp buffer back in TagData
-        const char* newTagData = (const char*)originalTagData.Buffer;
+        const char* newTagData = (const char*)originalTagData;
         TagData.assign(newTagData, newTagDataLength);
 
         SupportData.setTagData(TagData);
@@ -426,21 +426,21 @@ namespace BamTools {
         const size_t newTagDataLength = tagDataLength +
         Constants::BAM_TAG_ARRAYBASE_SIZE +
         numElements*sizeof(T);
-        RaiiBuffer originalTagData(newTagDataLength);
-        memcpy(originalTagData.Buffer, TagData.c_str(), tagDataLength+1); // '+1' for TagData's null-term
+        char * originalTagData = (char *) alloca(newTagDataLength);
+        memcpy(originalTagData, TagData.c_str(), tagDataLength+1); // '+1' for TagData's null-term
         
         // write newTagBase (removes old null term)
-        strcat(originalTagData.Buffer + tagDataLength, (const char*)newTagBase);
+        strcat(originalTagData + tagDataLength, (const char*)newTagBase);
         
         // add vector elements to tag
         int elementsBeginOffset = tagDataLength + Constants::BAM_TAG_ARRAYBASE_SIZE;
         for ( int i = 0 ; i < numElements; ++i ) {
             const T& value = values.at(i);
-            memcpy(originalTagData.Buffer + elementsBeginOffset + i*sizeof(T), &value, sizeof(T));
+            memcpy(originalTagData + elementsBeginOffset + i*sizeof(T), &value, sizeof(T));
         }
         
         // store temp buffer back in TagData
-        const char* newTagData = (const char*)originalTagData.Buffer;
+        const char* newTagData = (const char*)originalTagData;
         TagData.assign(newTagData, newTagDataLength);
         
         SupportData.setTagData(TagData);

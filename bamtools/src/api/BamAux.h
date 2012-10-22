@@ -437,35 +437,6 @@ API_EXPORT inline unsigned short UnpackUnsignedShort(const char* buffer) {
 API_EXPORT inline unsigned short UnpackUnsignedShort(char* buffer) {
     return UnpackUnsignedShort( (const char*)buffer );
 }
-
-// ----------------------------------------------------------------
-// 'internal' helper structs
-
-/*! \struct RaiiBuffer
-    \internal
-*/
-struct RaiiBuffer {
-
-    // data members
-    char* Buffer;
-    const size_t NumBytes;
-
-    // ctor & dtor
-    RaiiBuffer(const size_t n)
-        : Buffer( new char[n]() )
-        , NumBytes(n)
-    { }
-
-    ~RaiiBuffer(void) {
-        delete[] Buffer;
-    }
-
-    // add'l methods
-    void Clear(void) {
-        memset(Buffer, 0, NumBytes);
-    }
-};
-
 } // namespace BamTools
 
 #endif // BAMAUX_H

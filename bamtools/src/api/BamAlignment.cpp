@@ -623,14 +623,14 @@ void BamAlignment::RemoveTag(const std::string& tag) {
         return;
 
     // otherwise, remove it
-    RaiiBuffer newTagData(originalTagDataLength);
+    char *  newTagData = (char *) alloca(originalTagDataLength);
 
     // copy original tag data up til desired tag
     pTagData       -= 3;
     numBytesParsed -= 3;
     const unsigned int beginningTagDataLength = numBytesParsed;
     newTagDataLength += beginningTagDataLength;
-    memcpy(newTagData.Buffer, pOriginalTagData, numBytesParsed);
+    memcpy(newTagData, pOriginalTagData, numBytesParsed);
 
     // attemp to skip to next tag
     const char* pTagStorageType = pTagData + 2;
@@ -641,10 +641,10 @@ void BamAlignment::RemoveTag(const std::string& tag) {
         // squeeze remaining tag data
         const unsigned int skippedDataLength = (numBytesParsed - beginningTagDataLength);
         const unsigned int endTagDataLength = originalTagDataLength - beginningTagDataLength - skippedDataLength;
-        memcpy(newTagData.Buffer + beginningTagDataLength, pTagData, endTagDataLength );
+        memcpy(newTagData + beginningTagDataLength, pTagData, endTagDataLength );
 
         // save modified tag data in alignment
-        TagData.assign(newTagData.Buffer, beginningTagDataLength + endTagDataLength);
+        TagData.assign(newTagData, beginningTagDataLength + endTagDataLength);
     }
 
     SupportData.setTagData(TagData);
