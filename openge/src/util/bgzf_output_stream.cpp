@@ -144,9 +144,10 @@ void BgzfOutputStream::BgzfCompressJob::runJob() {
 }
 
 void BgzfOutputStream::flushQueue() {
-    if(0 != pthread_mutex_lock(&write_mutex))
+    int error = pthread_mutex_lock(&write_mutex);
+    if(0 != error)
     {
-        perror("Error locking BGZF write mutex. Aborting.");
+        cerr << "Error locking BGZF write mutex. Aborting. (" << error << ")" << endl;
         exit(-1);
     }
     
@@ -159,9 +160,10 @@ void BgzfOutputStream::flushQueue() {
         delete job;
     }
     
-    if(0 != pthread_mutex_unlock(&write_mutex))
+    error = pthread_mutex_unlock(&write_mutex);
+    if(0 != error)
     {
-        perror("Error unlocking BGZF write mutex. Aborting.");
+        cerr << "Error unlocking BGZF write mutex. Aborting. (" << error << ")" << endl;
         exit(-1);
     }
 }
@@ -172,8 +174,9 @@ bool BgzfOutputStream::open(std::string filename) {
     if(output_stream.fail())
         return false;
     
-    if(0 != pthread_mutex_init(&write_mutex, NULL) ) {
-        perror("Error opening BGZF write mutex.");
+    int ret = pthread_mutex_init(&write_mutex, NULL);
+    if(0 != ret) {
+        cerr << "Error opening BGZF write mutex. Aborting. (error " << ret << ")." << endl;
         exit(-1);
     }
     
@@ -218,9 +221,10 @@ void BgzfOutputStream::close() {
     while(!job_queue.empty())
         usleep(20000);
     
-    if(0 != pthread_mutex_lock(&write_mutex))
+    int ret = pthread_mutex_lock(&write_mutex);
+    if(0 != ret)
     {
-        perror("Error locking BGZF write mutex at close. Aborting.");
+        cerr << "Error locking BGZF write mutex at close. Aborting. (error " << ret << ")." << endl;
         exit(-1);
     }
 
@@ -230,13 +234,14 @@ void BgzfOutputStream::close() {
 
     output_stream.close();
 
-    if(0 != pthread_mutex_unlock(&write_mutex))
+    ret = pthread_mutex_unlock(&write_mutex);
+    if(0 != ret)
     {
-        perror("Error unlocking BGZF write mutex at close. Aborting.");
+        cerr << "Error unlocking BGZF write mutex at close. Aborting. (error " << ret << ")." << endl;
         exit(-1);
     }
 
-    int error = pthread_mutex_destroy(&write_mutex);
-    if(0 != error)
-        cerr << "Error closing BGZF write mutex (error " << error << "." << endl;
+    ret = pthread_mutex_destroy(&write_mutex);
+    if(0 != ret)
+        cerr << "Error closing BGZF write mutex (error " << ret << "." << endl;
 }

@@ -395,8 +395,9 @@ void LocalRealignment::initialize() {
         snpsOutput.open(OUT_SNPS.c_str());
 #endif
     
-    if(0 != pthread_mutex_init(&emit_mutex, 0) ) {
-        perror("Error creating LR emit mutex.");
+    int ret = pthread_mutex_init(&emit_mutex, 0);
+    if(0 != ret ) {
+        cerr << "Error creating LR emit mutex. Aborting. (error " << ret << ")." << endl;
         exit(-1);
     }
 }
@@ -634,15 +635,17 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     //wait for emits to finish
     bool finished = false;
     while(!finished) {
-        if(0 != pthread_mutex_lock(&emit_mutex) ) {
-            perror("Error locking LR emit mutex.");
+        int ret = pthread_mutex_lock(&emit_mutex);
+        if(0 != ret) {
+            cerr << "Error locking LR emit mutex. Aborting. (error " << ret << ")." << endl;
             exit(-1);
         }
         
         finished = emit_queue.empty();
         
-        if(0 != pthread_mutex_unlock(&emit_mutex) ) {
-            perror("Error unlocking LR emit mutex.");
+        ret = pthread_mutex_unlock(&emit_mutex);
+        if(0 != ret) {
+            cerr << "Error unlocking LR emit mutex. (error " << ret << ")." << endl;
             exit(-1);
         }
         if(!finished) {

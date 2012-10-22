@@ -22,11 +22,9 @@
 #include <string>
 #include <iostream>
 #include <stdio.h>
-#include <errno.h>
 
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <sys/errno.h>
 using namespace std;
 
 // We limit the number of jobs in the queue because in some cases where
@@ -47,22 +45,32 @@ jobs_current(0)
     
 	jobs_in_process = 0;
     
-    if(0 != pthread_cond_init(&job_queue_cond, NULL))
-        perror("Error creating job queue cond variable");
+    int ret = pthread_cond_init(&job_queue_cond, NULL);
+    if(0 != ret) {
+        cerr << "Error creating job queue cond variable. Aborting. (error " << ret << ")" << endl;
+        exit(-1);
+    }
     
-    if(0 != pthread_mutex_init(&job_queue_mutex, NULL))
-        perror("Error creating job queue cond variable");
+    ret = pthread_mutex_init(&job_queue_mutex, NULL);
+    if(0 != ret) {
+        cerr << "Error creating job queue cond variable. Aborting. (error " << ret << ")" << endl;
+        exit(-1);
+    }
 
-	if(0 != pthread_mutex_init(&busy_mutex,NULL))
-		perror("Error creating threadpool busy mutex");
-    
+    ret = pthread_mutex_init(&busy_mutex,NULL);
+	if(0 != ret) {
+		cerr << "Error creating threadpool busy mutex. Aborting. (error " << ret << ")" << endl;
+        exit(-1);
+    }
+
 	for(int thread_ctr = 0; thread_ctr < num_threads; thread_ctr++)
 	{
 		pthread_t thread;
 		int error_code = pthread_create(&thread, NULL, ThreadPool::thread_start, this);
-		if(0 != error_code)
-			perror("Error creating threadpool worker threads");
-		assert(0 == error_code);
+		if(0 != error_code) {
+			cerr << "Error creating threadpool worker threads. Aborting. (error " << error_code << ")" << endl;
+            exit(-1);
+        }
 		threads.push_back(thread);
 	}
 }
@@ -73,14 +81,15 @@ ThreadPool::~ThreadPool()
 	threads_exit = true;
 	
 	//now make the threads check for return signal
-	if(0 != pthread_cond_broadcast(&job_queue_cond))
-        perror("Error sending threadpool end signal");
+    int error = pthread_cond_broadcast(&job_queue_cond);
+	if(0 != error)
+        cerr << "Error sending threadpool end signal. (error " << error << ")" << endl;
 	
 	//wait for threads to return
 	for(size_t thread_ctr = 0; thread_ctr < threads.size(); thread_ctr++)
 		pthread_join(threads[thread_ctr], NULL);
     
-    int error = pthread_mutex_destroy(&busy_mutex);
+    error = pthread_mutex_destroy(&busy_mutex);
 	if(0 != error)
         cerr << "Error destroying TP busy mutex (error " << error << ")." << endl ;
 
@@ -110,8 +119,11 @@ bool ThreadPool::addJob(ThreadJob * job)
 	jobs.push(job);
     jobs_mutex.unlock();
 
-    if(0 != pthread_cond_signal(&job_queue_cond))
-        perror("Error signalling job threads on new job.");
+    int retval = pthread_cond_signal(&job_queue_cond);
+    if(0 != retval) {
+        cerr << "Error signalling job threads on new job. (error " << retval << ")." << endl ;
+        exit(-1);
+    }
 	return true;
 }
 
@@ -125,12 +137,18 @@ ThreadJob * ThreadPool::startJob()
     struct timespec wait_time = {0};
     wait_time.tv_sec = 1;
 
-    if(0 != pthread_mutex_lock(&job_queue_mutex))
-        perror("Error locking job queue mutex in startJob()");
+    int ret = pthread_mutex_lock(&job_queue_mutex);
+    if(0 != ret) {
+        cerr << "Error locking job queue mutex in startJob(). Aborting. (error " << ret << ")" << endl;
+        exit(-1);
+    }
+
     while(!threads_exit && jobs.empty()) {
-        if(0 != pthread_cond_wait(&job_queue_cond, &job_queue_mutex) && errno != 0 && errno != ETIMEDOUT)
-        //if(0 != pthread_cond_timedwait(&job_queue_cond, &job_queue_mutex, &wait_time) && errno != 0 && errno != ETIMEDOUT)
-            perror("Error waiting for job in startJob()");
+        int retval = pthread_cond_wait(&job_queue_cond, &job_queue_mutex);
+        if(0 != retval) {
+            cerr << "Error waiting for job in startJob(). Aborting. (error " << retval << ")." << endl ;
+            exit(-1);
+        }
     }
     
     if(!threads_exit) {
@@ -141,8 +159,11 @@ ThreadJob * ThreadPool::startJob()
         jobs_mutex.unlock();
     }
         
-    if(0 != pthread_mutex_unlock(&job_queue_mutex))
-        perror("Error unlocking job queue mutex in startJob()");
+    ret = pthread_mutex_unlock(&job_queue_mutex);
+    if(0 != ret) {
+        cerr << "Error unlocking job queue mutex in startJob(). Aborting. (error " << ret << ")." << endl;
+        exit(-1);
+    }
 
 	if(threads_exit)
 		return NULL;
@@ -163,15 +184,17 @@ void ThreadPool::stopJob(ThreadJob * job)
 
 void ThreadPool::waitForJobCompletion()
 {
-	if(0 != pthread_mutex_lock(&busy_mutex))
+    int ret = pthread_mutex_lock(&busy_mutex);
+	if(0 != ret)
     {
-        perror("Error locking busy mutex");
-        assert(0);
+        cerr << "Error locking jobs busy mutex. Aborting. (error " << ret << ")" << endl;
+        exit(-1);
     }
-    if(0 != pthread_mutex_unlock(&busy_mutex))
+    ret = pthread_mutex_unlock(&busy_mutex);
+    if(0 != ret)
     {
-        perror("Error unlocking busy mutex");
-        assert(0);
+        cerr << "Error unlocking jobs busy mutex. Aborting. (error " << ret << ")" << endl;
+        exit(-1);
     }
 }
 

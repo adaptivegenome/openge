@@ -37,16 +37,14 @@ SortedMerge::SortedMergeInputProxy::SortedMergeInputProxy(SortedMerge * parent)
     int retval = pthread_mutex_init(&merge_complete, NULL);
     
 	if(0 != retval) {
-		perror("Error opening sortedmerge completion mutex");
-        assert(0 == retval);
+		cerr << "Error opening sortedmerge completion mutex. Aborting. (error " << retval << ")" << endl;;
         exit(-1);
     }
     
     retval = pthread_mutex_lock(&merge_complete);    //hold this mutex until we are done.
     
 	if(0 != retval) {
-		perror("Error opening sortedmerge completion mutex");
-        assert(0 == retval);
+		cerr << "Error opening sortedmerge completion mutex. Aborting. (error " << retval << ")" << endl;
         exit(-1);
     }
 }
@@ -56,24 +54,21 @@ int SortedMerge::SortedMergeInputProxy::runInternal()
     int retval = pthread_mutex_lock(&merge_complete);
     
 	if(0 != retval) {
-		perror("Error locking completion mutex in SortedMergeInputProxy class");
-        assert(0 == retval);
+		cerr << "Error locking completion mutex in SortedMergeInputProxy class. Aborting. (error " << retval << ")" << endl;
         exit(-1);
     }
     
     retval = pthread_mutex_unlock(&merge_complete);
     
 	if(0 != retval) {
-		perror("Error locking completion mutex in SortedMergeInputProxy class");
-        assert(0 == retval);
+		cerr << "Error locking completion mutex in SortedMergeInputProxy class. Aborting. (error " << retval << ")" << endl;
         exit(-1);
     }
     
     retval = pthread_mutex_destroy(&merge_complete);
     
 	if(0 != retval) {
-		perror("Error destroying completion mutex in SortedMergeInputProxy class");
-        assert(0 == retval);
+		cerr << "Error destroying completion mutex in SortedMergeInputProxy class. Aborting. (error " << retval << ")" << endl;
         exit(-1);
     }
 
@@ -85,8 +80,7 @@ void SortedMerge::SortedMergeInputProxy::mergeDone()
     int retval = pthread_mutex_unlock(&merge_complete);
     
 	if(0 != retval) {
-		perror("Error unlocking completion mutex after merge completion");
-        assert(0 == retval);
+		cerr << "Error unlocking completion mutex after merge completion. Aborting. (error " << retval << ")" << endl;
         exit(-1);
     }
 }

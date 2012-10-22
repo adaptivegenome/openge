@@ -260,20 +260,21 @@ ConstrainedMateFixingManager::ConstrainedMateFixingManager( LocalRealignment * w
 {
     if(!output_module->isNothreads()) {
         int ret = pthread_create(&add_read_thread, NULL, addread_threadproc, this);
-        
         if(0 != ret) {
-            perror("Error creating ConstrainedMateFixingManager thread. Aborting.");
+            cerr << "Error creating ConstrainedMateFixingManager thread. Aborting. (error " << ret << ")." << endl;
             exit(-1);
         }
 
-        if(0 != pthread_mutex_init(&add_read_lock, NULL)) {
-            perror("Error opening ConstrainedMateFixingManager queueing mutex");
+        ret = pthread_mutex_init(&add_read_lock, NULL);
+        if(0 != ret) {
+            cerr << "Error opening ConstrainedMateFixingManager queueing mutex. Aborting. (error " << ret << ")." << endl;
             exit(-1);
         }
     }
     
-	if(0 != pthread_mutex_init(&add_read_lock, NULL)) {
-		perror("Error opening ConstrainedMateFixingManager queueing mutex");
+    int ret = pthread_mutex_init(&add_read_lock, NULL);
+	if(0 != ret) {
+		cerr << "Error opening ConstrainedMateFixingManager queueing mutex. Aborting. (error " << ret << ")." << endl;
         exit(-1);
     }
 }
@@ -319,9 +320,12 @@ void * ConstrainedMateFixingManager::addread_threadproc(void * data)
 }
 
 void ConstrainedMateFixingManager::addReads(const vector<OGERead *> & newReads, const set<OGERead *> & modifiedReads) {
-	if(!output_module->isNothreads() &&  0 != pthread_mutex_lock(&add_read_lock)) {
-		perror("Error locking ConstrainedMateFixingManager queueing mutex");
-        exit(-1);
+	if(!output_module->isNothreads()) {
+        int ret = pthread_mutex_lock(&add_read_lock);
+        if(0 != ret) {
+            cerr << "Error locking ConstrainedMateFixingManager queueing mutex. Aborting. (error " << ret << ")" << endl;
+            exit(-1);            
+        }
     }
 
     for (vector<OGERead *>::const_iterator newRead =  newReads.begin(); newRead != newReads.end(); newRead++ ) {
@@ -336,9 +340,12 @@ void ConstrainedMateFixingManager::addReads(const vector<OGERead *> & newReads, 
             addReadQueue.push(r);
     }
 
-	if(!output_module->isNothreads() && 0 != pthread_mutex_unlock(&add_read_lock)) {
-		perror("Error unlocking ConstrainedMateFixingManager queueing mutex");
-        exit(-1);
+	if(!output_module->isNothreads()) {
+        int ret = pthread_mutex_unlock(&add_read_lock);
+        if(0 != ret) {
+            cerr << "Error unlocking ConstrainedMateFixingManager queueing mutex. Aborting. (error " << ret << ")" << endl;
+            exit(-1);
+        }
     }
 }
 
@@ -347,17 +354,23 @@ void ConstrainedMateFixingManager::addRead(OGERead * newRead, bool readWasModifi
     r.read = newRead;
     r.readWasModified = readWasModified;
     r.canFlush = canFlush;
-	if(!output_module->isNothreads() && 0 != pthread_mutex_lock(&add_read_lock)) {
-		perror("Error locking ConstrainedMateFixingManager queueing mutex");
-        exit(-1);
+	if(!output_module->isNothreads()) {
+        int ret = pthread_mutex_lock(&add_read_lock);
+        if(0 != ret) {
+            cerr << "Error locking ConstrainedMateFixingManager queueing mutex. Aborting. (error " << ret << ")" << endl;
+            exit(-1);
+        }
     }
     if(output_module->isNothreads())
         addReadInternal(r.read, r.readWasModified, r.canFlush);
     else
         addReadQueue.push(r);
-	if(!output_module->isNothreads() && 0 != pthread_mutex_unlock(&add_read_lock)) {
-		perror("Error unlocking ConstrainedMateFixingManager queueing mutex");
-        exit(-1);
+	if(!output_module->isNothreads()) {
+        int ret = pthread_mutex_unlock(&add_read_lock);
+        if(0 != ret) {
+            cerr << "Error unlocking ConstrainedMateFixingManager queueing mutex. Aborting. (error " << ret << ")" << endl;
+            exit(-1);
+        }
     }
 }
 
@@ -511,10 +524,12 @@ void ConstrainedMateFixingManager::close() {
     cmfm_read_t r = {0};
     addReadQueue.push(r);
     
-    int ret = pthread_join(add_read_thread, NULL);
-    if(!output_module->isNothreads() && 0 != ret) {
-        perror("Error closing ConstrainedMateFixingManager thread.");
-        exit(-1);
+    if(!output_module->isNothreads()) {
+        int ret = pthread_join(add_read_thread, NULL);
+        if(0 != ret) {
+            cerr << "Error closing ConstrainedMateFixingManager thread. (error " << ret << ")." << endl ;
+            exit(-1);
+        }
     }
     // write out all of the remaining reads
     while ( ! waitingReads.empty() ) { // there's something in the queue
