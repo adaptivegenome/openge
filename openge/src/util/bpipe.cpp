@@ -74,6 +74,8 @@ public:
 
 class ParallelStageQueue : public StageQueue {
     StageQueue * q1, * q2;
+    bool t2_retval;
+    static void * thread_proc(void * data) ;
 public:
     ParallelStageQueue(StageQueue * q1, StageQueue * q2)
     : q1(q1)
@@ -81,9 +83,29 @@ public:
     {}
     
     virtual bool check(variable_storage_t & variables) { return q1->check(variables) && q2->check(variables); }
-    virtual bool execute() { return q1->execute() && q2->execute(); }
+    virtual bool execute();
     virtual void print() { cerr << "Parallel(";q1->print();cerr << ","; q2->print(); cerr << ")"; }
 };
+
+void * ParallelStageQueue::thread_proc(void * data) {
+    ParallelStageQueue * q = (ParallelStageQueue *) data;
+    q->t2_retval = q->q2->execute();
+    return NULL;
+}
+
+bool ParallelStageQueue::execute() {
+    pthread_t thread;
+    int pthread_ret = pthread_create(&thread, NULL, thread_proc, this);
+    if(0 != pthread_ret)
+        cerr << "ParallelStageQueue: error " << pthread_ret << " while creating worker thread." << endl;
+
+    bool t1_retval = q1->execute();
+    pthread_ret = pthread_join(thread, NULL);
+    if(0 != pthread_ret)
+        cerr << "ParallelStageQueue: error " << pthread_ret << " while joining worker thread." << endl;
+
+    return t1_retval && t2_retval;
+}
 
 class SerialStageQueue : public StageQueue {
     StageQueue * q1, * q2;
