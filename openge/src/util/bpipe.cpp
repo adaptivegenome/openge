@@ -25,6 +25,8 @@
 #include <map>
 #include <ctime>
 
+#include <sys/time.h>
+
 #include <boost/spirit/include/qi.hpp>
 
 #include <boost/fusion/include/adapt_struct.hpp>
@@ -485,20 +487,36 @@ void BPipe::print() {
 }
 
 bool BPipe::execute() {
-    time_t start_time = time(NULL);
-    char * start_time_str = ctime(&start_time);
-    start_time_str[24] = 0;
-    cerr << "=== Starting pipeline at " << start_time_str << " ===" << endl;
+    
+    timeval start_time_tv;
+    gettimeofday(&start_time_tv, NULL);
+    
+    {
+        time_t start_time = time(NULL);
+        char * start_time_str = ctime(&start_time);
+        start_time_str[24] = 0;
+        cerr << "=== Starting pipeline at " << start_time_str << " ===" << endl;
+    }
     bool ret = parser->run_task->execute();
     
     time_t stop_time = time(NULL);
     char * stop_time_str = ctime(&stop_time);
     stop_time_str[24] = 0;
     
-    if(!ret)
-        cerr << "=== Pipeline FAILED at " << stop_time_str << " ===" << endl;
+    //print cpu usage and time
+    timeval stop_time_tv;
+    gettimeofday(&stop_time_tv, NULL);
+    timeval real_time;
+    real_time.tv_sec = stop_time_tv.tv_sec - start_time_tv.tv_sec;
+    real_time.tv_usec = stop_time_tv.tv_usec - start_time_tv.tv_usec;
+    char duration[48];
+    sprintf(duration, "%ldm%06.3fs", real_time.tv_sec /60, float(real_time.tv_sec %60) + (1.e-6 * real_time.tv_usec) );
+    
+    if(!ret) {
+        cerr << "=== Pipeline " OGE_COLOR_BOLD_RED "FAILED" OGE_COLOR_RESET " at " << stop_time_str << " (" << duration << ") ===" << endl;
+    }
     else {
-        cerr << "=== Pipeline finished successfully at " << stop_time_str << " ===" << endl;
+        cerr << "=== Pipeline finished successfully at " << stop_time_str << " (" << duration << ") ===" << endl;
     }
     return ret;
 }
