@@ -1,6 +1,6 @@
 /*********************************************************************
  *
- * command_help.cpp: A high performance FASTA reader.
+ * FastaReader.cpp: A high performance FASTA reader.
  * Open Genomics Engine
  *
  * Author: Lee C. Baker, VBI

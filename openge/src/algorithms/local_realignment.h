@@ -464,7 +464,7 @@ private:
                 perror("Error locking LR emit push mutex.");
                 exit(-1);
             }
-            emit_queue_full = emit_queue.size() > 100000;
+            emit_queue_full = emit_queue.size() > 1000000;
             if(!emit_queue_full)
                 emit_queue.push(e);
             
@@ -476,9 +476,6 @@ private:
             if(emit_queue_full)
                 usleep(20000);
         }
-
-        if(emit_queue_flush)
-            flushEmitQueue();
     }
     
 public:
