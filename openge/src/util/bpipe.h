@@ -17,6 +17,7 @@
  *********************************************************************/
 
 #include <string>
+#include <map>
 
 template <typename Iterator> struct BpipeParser;
 
@@ -27,10 +28,12 @@ public:
     bool check(const std::string & input_filename);
     bool execute();
     void print();
+    void define(const std::string & var_name, const std::string & value);
 protected:
     std::string filename;
     std::string script_text;
     BpipeParser<std::string::const_iterator> * parser;
+    std::map<std::string,std::string> variables;
 };
 
 #endif

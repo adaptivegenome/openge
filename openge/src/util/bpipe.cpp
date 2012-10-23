@@ -15,6 +15,7 @@
  *********************************************************************/
 
 #include "bpipe.h"
+#include "terminal_colors.h"
 
 #include <iostream>
 #include <fstream>
@@ -265,8 +266,8 @@ struct BpipeParser : qi::grammar<Iterator, vector<stage>(), ascii::space_type>
             s.transform = val;
         //else if(attribute == "from")
         //    s.from = val;
-        //else if(attribute == "produce")
-        //    s.produce = val;
+        else if(attribute == "produce")
+            s.produce = val;
         else {
             cerr << "Error: attribute " << attribute << ") isn't supported." << endl;
             exit(-1);
@@ -294,8 +295,12 @@ struct BpipeParser : qi::grammar<Iterator, vector<stage>(), ascii::space_type>
         using qi::_1;
         using qi::_2;
         using qi::_3;
+        using qi::_4;
         using qi::space;
         using qi::alnum;
+        using qi::repeat;
+        using qi::on_error;
+        using qi::fail;
         using phoenix::ref;
         using phoenix::bind;
         using phoenix::construct;
@@ -308,23 +313,28 @@ struct BpipeParser : qi::grammar<Iterator, vector<stage>(), ascii::space_type>
 
         quoted_string.name("quoted_string");
         unquoted_string.name("unquoted_string");
+        doc_attribute_name.name("doc_attribute_name");
+        doc_statement.name("doc_statement");
+        stage_reference.name("stage_reference");
+        exec_statement.name("exec_statement");
         stage_block.name("stage_block");
         stage_filter.name("stage_filter");
         stage_generator.name("stage_generator");
         run_block.name("run_block");
         bpipe_file.name("bpipe_file");
+        var_assignment.name("var_assignment");
 
-        quoted_string = lexeme['"' >> +(char_ - '"') >> '"'];
+        quoted_string = lexeme['"' >> +(char_ - '"') >> '"'] | lexeme['\'' >> +(char_ - '\'') >> '\''] | lexeme[repeat(3)['"'] >> +(char_) >> repeat(3)['"']];
         unquoted_string %= +(lit("\\\"")[_val='"'] | lit("\\\\")[_val='\\'] | alnum);
         
         doc_attribute_name = lit("title") | lit("author") | lit("constraints") | lit("desc");
         doc_statement = lit("doc") >> (quoted_string | *(doc_attribute_name >> lit(":") >> quoted_string >> -lit(",")));
 
-        exec_statement = lit("exec") >> quoted_string >> -lit(";");
+        exec_statement = lit("exec") > quoted_string > -lit(";");
         msg_statement = lit("msg") >> quoted_string >> -lit(";");
-        stage_block = (lit('{')[_val = construct<stage>()]) >> +(doc_statement | msg_statement | exec_statement[_val = bind(&addExecLine, _1, _val)]) >> -(lit("forward") >> lit("input") >> -lit(";"))[_val = bind(&setForwardInput,_val)] >> '}' ;
+        stage_block = (lit('{')[_val = construct<stage>()]) >> +(doc_statement | msg_statement | exec_statement[_val = bind(&addExecLine, _1, _val)]) >> -(lit("forward") > lit("input") > -lit(";"))[_val = bind(&setForwardInput,_val)] >> '}' ;
 
-        stage_filter = ("{" >> unquoted_string >> lit("(") >> quoted_string >> lit(")") >> stage_generator >> "}")[_val = bind(&setStageAttribute, _1, _2, _3)];
+        stage_filter = ("{" >> unquoted_string >> lit("(") > quoted_string > lit(")") >> stage_generator >> "}")[_val = bind(&setStageAttribute, _1, _2, _3)];
         stage_assignment = (unquoted_string >> lit("=") >> stage_generator)[_val = bind(&setStageName, _1, _2)];
         stage_generator =  stage_filter | stage_block | stage_assignment;
         stage_definition = stage_generator[push_back(ref(stages), _1)];
@@ -337,13 +347,30 @@ struct BpipeParser : qi::grammar<Iterator, vector<stage>(), ascii::space_type>
         run_block.name("RunBlock");
 
         stage_reference = unquoted_string [_val = new_<StageReference>(_1, ref(stages))];
-        stage_serial_queue = (stage_parallel_queue | stage_reference)[_val = _1] >> *(('+' >> (stage_parallel_queue | stage_reference))[_val = new_<SerialStageQueue>(_val, _1)]);
-        stage_parallel_queue = '[' >> stage_queue[_val = _1] >> *((',' >> stage_queue)[_val = new_<ParallelStageQueue>(_val, _1)]) >> ']';
+        stage_serial_queue = (stage_parallel_queue | stage_reference)[_val = _1] > *(('+' >> (stage_parallel_queue | stage_reference))[_val = new_<SerialStageQueue>(_val, _1)]);
+        stage_parallel_queue = '[' >> stage_queue[_val = _1] > *((',' >> stage_queue)[_val = new_<ParallelStageQueue>(_val, _1)]) > ']';
         stage_queue %= (stage_parallel_queue | stage_serial_queue)[_val = _1];
         run_block = ((lit("Bpipe.run") | lit("run")) >> '{' >> stage_serial_queue >> '}')[ref(run_task) = _1] ;
         about_block = lit("about") >> lit("title") >> lit(":") >> quoted_string;
         bpipe_file %= *((stage_definition | var_assignment | about_block) >> -lit(";")) >> run_block;
         start %= bpipe_file;
+        
+        on_error<fail>
+        (
+         bpipe_file
+         , std::cout
+         << val("Error! Expecting ")
+         << _4                               // what failed?
+         << val(" here: \"")
+         << construct<std::string>(_3, _2)   // iterators to error-pos, end
+         << val("\"")
+         << std::endl
+         );
+#ifdef _DEBUG
+        debug(quoted_string);
+        debug(exec_statement);
+        debug(stage_reference);
+#endif
     }
 
     //stage definitions
@@ -422,6 +449,10 @@ bool BPipe::load(const string & filename) {
     return true;
 }
 
+void BPipe::define(const std::string & var_name, const std::string & value) {
+    variables[var_name] = value;
+}
+
 bool BPipe::check(const string & input_filename) {
     using qi::double_;
     using qi::phrase_parse;
@@ -432,16 +463,13 @@ bool BPipe::check(const string & input_filename) {
     parser = new BpipeParser<string::const_iterator>();
     vector<stage> result;
     bool r = phrase_parse( first, last, *parser, space, result);
-    
-    string::const_iterator p = first;
-    string::const_iterator q = script_text.begin();
-    int d = distance(q, p);
+
     if (first != last) { // fail if we did not get a full match
-        cerr << "Parsed up to " << string(script_text, d) << endl;
         return false;
     }
     else {
         variable_storage_t vars;
+        vars.insert(variables.begin(), variables.end());
         if(!input_filename.empty())
             vars["input"] = input_filename;
         vars.insert(parser->global_vars.begin(), parser->global_vars.end());
@@ -470,7 +498,7 @@ bool BPipe::execute() {
     if(!ret)
         cerr << "=== Pipeline FAILED at " << stop_time_str << " ===" << endl;
     else {
-        cerr << "=== Finished successfully at " << stop_time_str << " ===" << endl;
+        cerr << "=== Pipeline finished successfully at " << stop_time_str << " ===" << endl;
     }
     return ret;
 }
