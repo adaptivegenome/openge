@@ -863,7 +863,7 @@ string cigarToString(const vector<CigarOp> cigar)
     return string(ss.str());
 }
 
-#pragma mark BamAlignmentSupportData
+//#pragma mark BamAlignmentSupportData
 void BamAlignment::BamAlignmentSupportData::setCigar(const std::vector<CigarOp> & cigar) {
     string encoded_cigar;
     CreatePackedCigar(cigar, encoded_cigar);
@@ -914,7 +914,7 @@ void BamAlignment::BamAlignmentSupportData::setQual(const std::string & seq) {
 
 const std::string BamAlignment::BamAlignmentSupportData::getQual() const {
     string ret(beginQual(), endQual());
-    for(int i = 0; i < QuerySequenceLength; i++)
+    for(uint32_t i = 0; i < QuerySequenceLength; i++)
         ret[i] += 33;
     return ret;
 }
