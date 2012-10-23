@@ -8,9 +8,10 @@ hello = {
 	}
 }
 
-@Filter("bar")
 world = {
-	exec "cp $input $output"
+	filter("bar") {
+		exec "cp $input $output"
+	}
 }
 
 Bpipe.run {

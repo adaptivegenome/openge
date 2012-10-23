@@ -8,9 +8,10 @@ hello = {
 	}
 }
 
-@Transform("xml")
 world = {
-	exec "cp $input $output"
+	transform("xml") {
+		exec "cp $input $output"
+	}
 }
 
 Bpipe.run {

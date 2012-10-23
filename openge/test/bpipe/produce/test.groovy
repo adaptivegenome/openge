@@ -7,9 +7,10 @@ hello = {
 	}
 }
 
-@Produce("test.out_2")
 world = {
-	exec "cp $input $output"
+	produce("test.out_2") {
+		exec "cp $input $output"
+	}
 }
 
 Bpipe.run {
