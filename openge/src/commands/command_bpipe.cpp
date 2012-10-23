@@ -19,10 +19,17 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <cstring>
 #include <fstream>
 #include "../util/bpipe.h"
 using namespace std;
 namespace po = boost::program_options;
+
+
+//environ is a list of all environment variables
+#include <unistd.h>
+#include <cstdlib>
+extern char ** environ;
 
 void BPipeCommand::getOptions()
 {
@@ -50,7 +57,20 @@ int BPipeCommand::runCommand()
     string input_filename;
     if(input_filenames.size() > 1)
         input_filename = input_filenames[1];
+    
+    //set all environment variables as bpipe variables    
+    for(int i = 0; environ[i]; i++) {
+        char * eq_loc = strchr(environ[i], '=');
+        
+        if(!*eq_loc)
+            break;
+        string var(environ[i], eq_loc);
+        string value(eq_loc + 1);
 
+        pipe.define(var, value);
+    }
+
+    //set define
     if(vm.count("define")) {
         const vector<string> defines = vm["define"].as<vector<string> >();
         for(int i = 0; i < defines.size(); i++) {
