@@ -148,6 +148,8 @@ OpenGECommand * CommandMarshall::commandWithName(const string name) {
         return new LocalRealignCommand;
     else if(!strcmp(cname, "mergesort"))
         return new MergeSortCommand;
+    else if(!strcmp(cname, "repeatseq"))
+        return new RepeatseqCommand;
     else if(!strcmp(cname, "stats"))
         return new StatsCommand;
     else if(!strcmp(cname, "version"))

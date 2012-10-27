@@ -42,13 +42,14 @@ public:
     FastaReader();
     ~FastaReader();
     BamTools::SamSequenceDictionary getSequenceDictionary();
-    bool Open(const std::string filename);
-    std::string readSequence(std::string name, size_t start, size_t length) const;
-    std::string getSubsequenceAt(std::string name, size_t start, size_t stop) const;
+    bool open(const std::string filename);
+    size_t getSequenceLength(const std::string & name) const;
+    std::string readSequence(const std::string & name, size_t start, size_t length) const;
+    std::string getSubsequenceAt(const std::string & name, size_t start, size_t stop) const;
     std::string generateFastaIndex();
     bool readFastaIndex(std::string filename);
     std::string writeFastaIndex() const;
-    void Close();
+    void close();
 protected:
 };
 

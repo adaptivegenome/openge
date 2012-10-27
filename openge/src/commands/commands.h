@@ -149,6 +149,13 @@ protected:
     MergeSortCommandImplementation * impl;
 };
 
+class RepeatseqCommand: public OpenGECommand
+{
+protected:
+    virtual int runCommand();
+    void getOptions();
+};
+
 class StatsCommand: public OpenGECommand
 {
 protected:

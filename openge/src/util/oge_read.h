@@ -27,6 +27,9 @@
 
 #include "thread_pool.h"
 
+using BamTools::CigarOp;
+using BamTools::BamRegion;
+
 class OGERead : public BamTools::BamAlignment {
 public:
     // cached allocator functions

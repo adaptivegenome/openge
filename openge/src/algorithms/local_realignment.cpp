@@ -352,7 +352,7 @@ void LocalRealignment::initialize() {
 
     referenceReader = new FastaReader();
     assert(reference_filename.size() > 0);
-    if(!referenceReader->Open(reference_filename)) {
+    if(!referenceReader->open(reference_filename)) {
         cerr << "Error opening reference file " << reference_filename << endl;
         exit(-1);
     }

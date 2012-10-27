@@ -41,7 +41,7 @@ FastaReader::FastaReader()
 FastaReader::~FastaReader()
 {
     if(is_open)
-        Close();
+        close();
 }
 
 SamSequenceDictionary FastaReader::getSequenceDictionary()
@@ -68,10 +68,10 @@ bool fileExists(const std::string & filename)
     return ifstream(filename.c_str()).good();
 }
 
-bool FastaReader::Open(const string filename)
+bool FastaReader::open(const string filename)
 {
     //first determine file length
-    file = open(filename.c_str(), O_RDONLY);
+    file = ::open(filename.c_str(), O_RDONLY);
     if(-1 == file) {
         cerr << "Could not open file: " << filename << endl;
         perror("Reason:");
@@ -122,12 +122,23 @@ bool FastaReader::Open(const string filename)
     return true;
 }
 
-string FastaReader::getSubsequenceAt(string name, size_t start, size_t stop) const
+size_t FastaReader::getSequenceLength(const string & name) const {
+    map<string, fasta_sequence_t>::const_iterator i = sequences.find(name);
+    
+    if(i == sequences.end()) {
+        cerr << "Sequence " << name << " not found in FASTA. Aborting." << endl;
+        exit(-1);
+    }
+    
+    return i->second.length;
+}
+
+string FastaReader::getSubsequenceAt(const string & name, const size_t start, const size_t stop) const
 {
     return readSequence(name, start, stop - start);
 }
 
-string FastaReader::readSequence(string name, size_t start, size_t length) const
+string FastaReader::readSequence(const string & name, const size_t start, const size_t length) const
 {
     string read;
     
@@ -320,12 +331,12 @@ bool FastaReader::readFastaIndex(string filename)
     return true;
 }
 
-void FastaReader::Close()
+void FastaReader::close()
 {
     //remove file mapping
     munmap(file_data, file_length);
 
-    close(file);
+    ::close(file);
     file = 0;
 
     is_open = false;
