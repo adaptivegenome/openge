@@ -370,7 +370,7 @@ int Repeatseq::runInternal() {
         regions.push_back(line);
     
     BamTools::SamSequenceDictionary sequence_dictionary = getHeader().Sequences;
-    sort(regions.begin(), regions.end(), RegionStringComparator(sequence_dictionary));
+    ogeSortMt(regions.begin(), regions.end(), RegionStringComparator(sequence_dictionary));
 
     int num_jobs = regions.size();
     jobs.reserve(num_jobs);
