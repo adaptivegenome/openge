@@ -379,11 +379,11 @@ bool BamAlignment::FindTag(const std::string& tag,
 int BamAlignment::GetEndPosition(bool usePadded, bool closedInterval) const {
 
     // initialize alignment end to starting position
-    int alignEnd = Position;
+    int alignEnd = getPosition();
 
     // iterate over cigar operations
-    vector<CigarOp>::const_iterator cigarIter = CigarData.begin();
-    vector<CigarOp>::const_iterator cigarEnd  = CigarData.end();
+    vector<CigarOp>::const_iterator cigarIter = getCigarData().begin();
+    vector<CigarOp>::const_iterator cigarEnd  = getCigarData().end();
     for ( ; cigarIter != cigarEnd; ++cigarIter) {
         const CigarOp& op = (*cigarIter);
 
