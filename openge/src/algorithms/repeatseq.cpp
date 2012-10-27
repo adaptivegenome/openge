@@ -132,7 +132,9 @@ struct GT {
     double avgBQ;
     
     GT(int rl, int oc, int rev, int minF, double avg);
-    inline bool operator<(const GT & b) const { return (occurrences < b.occurrences); }
+    
+    //ordering should be in reverse order- largest to smallest for display.
+    inline bool operator<(const GT & b) const { return (occurrences > b.occurrences); }
 };
 
 GT::GT(int rl, int oc, int rev, int minF, double avgbq){
@@ -277,8 +279,10 @@ void Repeatseq::RepeatseqJob::runJob() {
     repeatseq->flushWrites();
 }
 
-bool readOverlapsRegion(const OGERead & read, const Region & region) {
-    if(read.GetEndPosition() >= region.startPos && read.getPosition() <= region.stopPos)
+bool readOverlapsRegion(const OGERead & read, const BamRegion & region) {
+    if(read.getRefID() != region.LeftRefID)
+        return false;
+    if(read.GetEndPosition() >= region.LeftPosition && read.getPosition() <= region.RightPosition)
         return true;
     return false;
 }
@@ -349,12 +353,20 @@ int Repeatseq::runInternal() {
         regions.push_back(line);
 
     int num_jobs = regions.size();
+    jobs.reserve(num_jobs);
     
     deque<OGERead *> read_buffer;
+    BamTools::SamSequenceDictionary sequence_dictionary = getHeader().Sequences;
     
     //set up threads to actually print the output
     for(int job_id = 0; job_id != num_jobs; job_id++) {
         const Region r(regions[job_id]);
+        if(!sequence_dictionary.Contains(r.startSeq)) {
+            cerr << "Sequence " << r.startSeq << " from regions file is not in BAM header. Quitting." << endl;
+            exit(-1);
+        }
+        int RID = sequence_dictionary.IndexOfString(r.startSeq);
+        const BamRegion btregion(RID, r.startPos, RID, r.stopPos);
         // add reads to a buffer until we are sure we have all reads that might be in this region
         while(true) {
             OGERead * read = getInputAlignment();
@@ -363,7 +375,7 @@ int Repeatseq::runInternal() {
                 break;
             read_buffer.push_front(read);
             
-            if(readOverlapsRegion(*read, r) || read->getPosition() < r.startPos)
+            if(read->getRefID() > RID || read->getPosition() > r.stopPos)
                 break;
         }
         
@@ -371,7 +383,7 @@ int Repeatseq::runInternal() {
         while(!read_buffer.empty()) {
             OGERead * back = read_buffer.back();
             
-            if(!readOverlapsRegion(*back, r) || back->getPosition() > r.startPos) {
+            if(back->getRefID() < RID || !readOverlapsRegion(*back, btregion) || (back->getRefID() == RID && back->GetEndPosition() < r.startPos) ) {
                 read_buffer.pop_back();
                 putOutputAlignment(back);
             } else
@@ -381,12 +393,18 @@ int Repeatseq::runInternal() {
         RepeatseqJob * job = new RepeatseqJob(this, job_id, regions[job_id]);
         
         //add all reads that overlap to the buffer
-        for(deque<OGERead *>::const_iterator i = read_buffer.begin(); i != read_buffer.end(); i++) {
-            OGERead * read = OGERead::allocate();
-            *read = **i;
-            job->reads.push_back(read);
+        for(deque<OGERead *>::const_reverse_iterator i = read_buffer.rbegin(); i != read_buffer.rend(); i++) {
+            if( readOverlapsRegion(**i, btregion)) {
+                OGERead * read = OGERead::allocate();
+                *read = **i;
+                job->reads.push_back(read);
+
+                //cerr << "Adding: " << read->getPosition() << ":" << read->GetEndPosition(false, false) << " " << read->getName() << endl;
+            }
         }
-        
+
+        //cerr << "Job: " << job->reads.size() << endl;
+
         //start the job
         ThreadPool::sharedPool()->addJob(job);
         jobs.push_back(job);
@@ -545,7 +563,7 @@ inline string parseCigar(stringstream &cigarSeq, string &alignedSeq, const strin
 	return temp; //return modified string
 }
 
-inline void Repeatseq::print_output(const string & region_line, stringstream &vcf,  stringstream &oFile, stringstream &callsFile, const vector<OGERead *> & reads) const {
+inline void Repeatseq::print_output(const string & region_line, stringstream &vcf_buffer,  stringstream &o_buffer, stringstream &calls_buffer, const vector<OGERead *> & reads) const {
 	
 	vector<string> insertions;
 	string sequence;                // holds reference sequence
@@ -575,45 +593,45 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 	if (target.startPos+target.length() > fasta_reader.getSequenceLength(target.startSeq)+1) throw "Target range is outside of chromosome.\n exiting..";
 	
 	//if asked to print entire sequence:
-	if (target.startPos == -1) sequence = fasta_reader.getSubsequenceAt(target.startSeq, 0, fasta_reader.getSequenceLength(target.startSeq));
+	if (target.startPos == -1) sequence = fasta_reader.readSequence(target.startSeq, 0, fasta_reader.getSequenceLength(target.startSeq));
 	
 	//when start position is exactly at the beginning of the chromosome:
 	else if (target.startPos == 1)
 		sequence = " "
-		+ fasta_reader.getSubsequenceAt(target.startSeq, target.startPos - 1, target.length())
+		+ fasta_reader.readSequence(target.startSeq, target.startPos - 1, target.length())
 		+ " "
-		+ fasta_reader.getSubsequenceAt(target.startSeq, target.startPos - 1 + target.length(), LR_CHARS_TO_PRINT);
+		+ fasta_reader.readSequence(target.startSeq, target.startPos - 1 + target.length(), LR_CHARS_TO_PRINT);
 	
 	//when start position is within 20 of beginning of chromosome:
 	else if (target.startPos < 1 + LR_CHARS_TO_PRINT)
-		sequence = fasta_reader.getSubsequenceAt(target.startSeq, 0, target.startPos - 1)
+		sequence = fasta_reader.readSequence(target.startSeq, 0, target.startPos - 1)
 		+ " "
-		+ fasta_reader.getSubsequenceAt(target.startSeq, target.startPos - 1, target.length())
+		+ fasta_reader.readSequence(target.startSeq, target.startPos - 1, target.length())
 		+ " "
-		+ fasta_reader.getSubsequenceAt(target.startSeq, target.startPos - 1 + target.length(), LR_CHARS_TO_PRINT);
+		+ fasta_reader.readSequence(target.startSeq, target.startPos - 1 + target.length(), LR_CHARS_TO_PRINT);
 	
 	
 	//when end position is exactly at the end of chromosome:
 	else if (target.startPos+target.length() ==  fasta_reader.getSequenceLength(target.startSeq)+1)
-		sequence = fasta_reader.getSubsequenceAt(target.startSeq, target.startPos - 1 - LR_CHARS_TO_PRINT, LR_CHARS_TO_PRINT)
+		sequence = fasta_reader.readSequence(target.startSeq, target.startPos - 1 - LR_CHARS_TO_PRINT, LR_CHARS_TO_PRINT)
 		+ " "
-		+ fasta_reader.getSubsequenceAt(target.startSeq, target.startPos - 1, target.length())
+		+ fasta_reader.readSequence(target.startSeq, target.startPos - 1, target.length())
 		+ " ";
 	
 	//when end position is within 20 of end of chromosome:
 	else if (target.startPos+target.length()+LR_CHARS_TO_PRINT > fasta_reader.getSequenceLength(target.startSeq)+1)
-		sequence = fasta_reader.getSubsequenceAt(target.startSeq, target.startPos - 1 - LR_CHARS_TO_PRINT, LR_CHARS_TO_PRINT)
+		sequence = fasta_reader.readSequence(target.startSeq, target.startPos - 1 - LR_CHARS_TO_PRINT, LR_CHARS_TO_PRINT)
 		+ " "
-		+ fasta_reader.getSubsequenceAt(target.startSeq, target.startPos - 1, target.length())
+		+ fasta_reader.readSequence(target.startSeq, target.startPos - 1, target.length())
 		+ " "
-		+ fasta_reader.getSubsequenceAt(target.startSeq, target.startPos - 1 + target.length(), fasta_reader.getSequenceLength(target.startSeq)-target.startPos-target.length()+1);
+		+ fasta_reader.readSequence(target.startSeq, target.startPos - 1 + target.length(), fasta_reader.getSequenceLength(target.startSeq)-target.startPos-target.length()+1);
 	
 	//all other cases:
-	else sequence = fasta_reader.getSubsequenceAt(target.startSeq, target.startPos - 1 - LR_CHARS_TO_PRINT, LR_CHARS_TO_PRINT)
+	else sequence = fasta_reader.readSequence(target.startSeq, target.startPos - 1 - LR_CHARS_TO_PRINT, LR_CHARS_TO_PRINT)
 		+ " "
-		+ fasta_reader.getSubsequenceAt(target.startSeq, target.startPos - 1, target.length())
+		+ fasta_reader.readSequence(target.startSeq, target.startPos - 1, target.length())
 		+ " "
-		+ fasta_reader.getSubsequenceAt(target.startSeq, target.startPos - 1 + target.length(), LR_CHARS_TO_PRINT);
+		+ fasta_reader.readSequence(target.startSeq, target.startPos - 1 + target.length(), LR_CHARS_TO_PRINT);
 	
 	int firstSpace = sequence.find(' ',0);
 	int secondSpace = sequence.find(' ',firstSpace+1);
@@ -1009,12 +1027,12 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 	sort(vectorGT.begin(), vectorGT.end());
 	
 	//output header line
-	oFile << "~" << region << " ";
-	oFile << secondColumn;
-	oFile << " REF:" << target.length();
-	oFile << " A:";
+	o_buffer << "~" << region << " ";
+	o_buffer << secondColumn;
+	o_buffer << " REF:" << target.length();
+	o_buffer << " A:";
 	if (!vectorGT.size()) {
-		oFile << "NA ";
+		o_buffer << "NA ";
 		concordance = -1;
 		majGT = -1;
 	}
@@ -1023,18 +1041,18 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 			if (numReads == 1) {
 				concordance = -1;
 				majGT = vectorGT.begin()->readlength;
-				oFile << "NA ";
+				o_buffer << "NA ";
 			}
 			else {
 				concordance = 1;
 				majGT = vectorGT.begin()->readlength;
-				oFile << vectorGT.begin()->readlength << " ";
+				o_buffer << vectorGT.begin()->readlength << " ";
 				//oFile << "(" << vectorGT.begin()->avgBQ << ")"; //temp
 			}
 		}
 		else {
 			for (vector<GT>::iterator it=vectorGT.begin(); it < vectorGT.end(); it++) {
-				oFile << it->readlength << "[" << it->occurrences << "] " ;
+				o_buffer << it->readlength << "[" << it->occurrences << "] " ;
 				//oFile << "(" << it->avgBQ << ") ";
 				if (it->occurrences >= occurMajGT) {
 					occurMajGT = it->occurrences;
@@ -1047,37 +1065,37 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 	}
 	
 	//concordance = # of reads that support the majority GT / total number of reads
-	if (concordance < 0) oFile << "C:NA";
-	else oFile << "C:" << concordance;
+	if (concordance < 0) o_buffer << "C:NA";
+	else o_buffer << "C:" << concordance;
 	
-	oFile << " D:" << depth << " R:" << numReads << " S:" << numStars;
-	if (avgMapQ >= 0) oFile << " M:" << float(int(100*avgMapQ))/100;
-	else oFile << " M:NA";
+	o_buffer << " D:" << depth << " R:" << numReads << " S:" << numStars;
+	if (avgMapQ >= 0) o_buffer << " M:" << float(int(100*avgMapQ))/100;
+	else o_buffer << " M:NA";
 	
-	oFile << " GT:";
-	callsFile << region << "\t" << secondColumn << "\t";
+	o_buffer << " GT:";
+	calls_buffer << region << "\t" << secondColumn << "\t";
 	vector<int> vGT;
 	double conf = 0;
 	if (vectorGT.size()  == 0) {
-		oFile << "NA L:NA" << endl;
-		callsFile << "NA\tNA\n";
+		o_buffer << "NA L:NA" << endl;
+		calls_buffer << "NA\tNA\n";
 	}
     else if (vectorGT.size() > 9){          // if more than 9 GTs are present
-        oFile << "NA L:NA" << endl;
-        callsFile << "NA\tNA\n";
+        o_buffer << "NA L:NA" << endl;
+        calls_buffer << "NA\tNA\n";
     }
     else if (concordance >= 0.99){          //no need to compute confidence if all the reads agree
-        oFile << majGT << " L:50" << endl;
-        callsFile << majGT << "L:50" << endl;
+        o_buffer << majGT << " L:50" << endl;
+        calls_buffer << majGT << "L:50" << endl;
     }
 	else {
 		vGT = printGenoPerc(vectorGT, target.length(), unitLength, conf, mode);
 		if (numReads <= 1){ conf = 0; }
 		//write genotypes to calls & repeats file
 		if (vGT.size() == 0) { throw "vGT.size() == 0.. ERROR!\n"; }
-		else if (vGT.size() == 1 && conf > 3.02) { oFile << vGT[0] << " L:" << conf << "\n"; callsFile << vGT[0] << '\t' << conf << '\n'; }
-		else if (vGT.size() == 2 && conf > 3.02) { oFile << vGT[0] << "h" << vGT[1] << " L:" << conf << "\n"; callsFile << vGT[0] << "h" << vGT[1] << '\t' << conf << '\n'; }
-		else{ oFile << "NA L:" << conf << endl; callsFile << "NA\tNA\n"; }
+		else if (vGT.size() == 1 && conf > 3.02) { o_buffer << vGT[0] << " L:" << conf << "\n"; calls_buffer << vGT[0] << '\t' << conf << '\n'; }
+		else if (vGT.size() == 2 && conf > 3.02) { o_buffer << vGT[0] << "h" << vGT[1] << " L:" << conf << "\n"; calls_buffer << vGT[0] << "h" << vGT[1] << '\t' << conf << '\n'; }
+		else{ o_buffer << "NA L:" << conf << endl; calls_buffer << "NA\tNA\n"; }
 	}
 	
 	// Set info for printing VCF file
@@ -1098,7 +1116,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 		
 		for (vector<STRING_GT>::iterator it=toPrint.begin(); it < toPrint.end(); it++) {
 			// print .repeats file:
-			oFile << it->reads.preSeq << " " << it->reads.alignedSeq << " " << it->reads.postSeq << it->print;
+			o_buffer << it->reads.preSeq << " " << it->reads.alignedSeq << " " << it->reads.postSeq << it->print;
 			
 			// finished printing to .repeats file.
 			if (vGT.size() != 0 && conf > 3.02){
@@ -1110,7 +1128,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 						
 						// the read represents one of our genotypes..
 						string vcfRecord = getVCF(it->reads.alignedSeq, REF, target.startSeq, target.startPos, *(leftReference.end()-1), homo, INFO);
-						vcf << vcfRecord;
+						vcf_buffer << vcfRecord;
 						
 						//remove the genotype from the genotype list..
 						vGT.erase( tempgt );

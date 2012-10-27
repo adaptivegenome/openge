@@ -83,7 +83,7 @@ protected:
     virtual int runInternal();
     void flushWrites();
 
-    void print_output(const std::string &, std::stringstream &vcf,  std::stringstream &oFile, std::stringstream &callsFile, const std::vector<OGERead *> & reads) const;
+    void print_output(const std::string &, std::stringstream &vcf_buffer,  std::stringstream &o_buffer, std::stringstream &calls_buffer, const std::vector<OGERead *> & reads) const;
     
     class RepeatseqJob : public ThreadJob {
     public:
