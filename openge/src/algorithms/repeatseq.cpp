@@ -282,7 +282,7 @@ void Repeatseq::RepeatseqJob::runJob() {
 bool readOverlapsRegion(const OGERead & read, const BamRegion & region) {
     if(read.getRefID() != region.LeftRefID)
         return false;
-    if(read.GetEndPosition() >= region.LeftPosition && read.getPosition() <= region.RightPosition)
+    if(read.GetEndPosition() >= region.LeftPosition && read.getPosition() < region.RightPosition)
         return true;
     return false;
 }
@@ -299,9 +299,9 @@ void Repeatseq::flushWrites() {
         
         if(jobs[i]->complete) {
             //flush
-            if (makeRepeatseqFile){ oFile << jobs[i]->oFile.rdbuf(); }
-            if (makeCallsFile){ callsFile << jobs[i]->callsFile.rdbuf(); }
-            vcfFile << jobs[i]->vcfFile.rdbuf();
+            if (makeRepeatseqFile){ oFile << jobs[i]->oFile.str(); }
+            if (makeCallsFile){ callsFile << jobs[i]->callsFile.str(); }
+            vcfFile << jobs[i]->vcfFile.str();
             
             //delete
             delete jobs[i];
@@ -317,6 +317,23 @@ void Repeatseq::flushWrites() {
     busy = false;
 }
 
+struct RegionStringComparator {
+    const BamTools::SamSequenceDictionary & d;
+    RegionStringComparator(const BamTools::SamSequenceDictionary & d)
+    : d(d)
+    {}
+    
+    bool operator() (string a, string b) {
+        const Region r1(a);
+        const Region r2(b);
+        int rid1 = d.IndexOfString(r1.startSeq);
+        int rid2 = d.IndexOfString(r2.startSeq);
+        if(rid1 != rid2)
+            return rid1 < rid2;
+        return r1.startPos < r2.startPos;
+    }
+};
+
 int Repeatseq::runInternal() {
 
     srand( time(NULL) );
@@ -330,9 +347,9 @@ int Repeatseq::runInternal() {
     }
 
     //create index filepaths & output filepaths (ensuring output is to current directory):
-    string output_filename = setToCD(output_filename_base + paramString + ".oge.repeatseq");
-    string calls_filename = setToCD(output_filename_base + paramString + ".oge.calls");
-    string vcf_filename = setToCD(output_filename_base + paramString + ".oge.vcf");
+    string output_filename = setToCD(output_filename_base + paramString + ".repeatseq");
+    string calls_filename = setToCD(output_filename_base + paramString + ".calls");
+    string vcf_filename = setToCD(output_filename_base + paramString + ".vcf");
     
     //open input & output filestreams:
     if (makeRepeatseqFile){ oFile.open(output_filename.c_str()); }
@@ -351,12 +368,14 @@ int Repeatseq::runInternal() {
     string line;
     while(getline(range_file,line))
         regions.push_back(line);
+    
+    BamTools::SamSequenceDictionary sequence_dictionary = getHeader().Sequences;
+    sort(regions.begin(), regions.end(), RegionStringComparator(sequence_dictionary));
 
     int num_jobs = regions.size();
     jobs.reserve(num_jobs);
     
     deque<OGERead *> read_buffer;
-    BamTools::SamSequenceDictionary sequence_dictionary = getHeader().Sequences;
     
     //set up threads to actually print the output
     for(int job_id = 0; job_id != num_jobs; job_id++) {
@@ -373,9 +392,13 @@ int Repeatseq::runInternal() {
             
             if(!read)   //have read the whole file, we are done.
                 break;
+            if(read->getRefID() < RID || (read->getRefID() == RID && read->GetEndPosition()+1 < r.startPos) ) {
+                putOutputAlignment(read);
+                continue;
+            }
             read_buffer.push_front(read);
             
-            if(read->getRefID() > RID || read->getPosition() > r.stopPos)
+            if(read->getRefID() > RID || (read->getRefID() == RID && read->getPosition() > r.stopPos+1))
                 break;
         }
         
@@ -383,7 +406,7 @@ int Repeatseq::runInternal() {
         while(!read_buffer.empty()) {
             OGERead * back = read_buffer.back();
             
-            if(back->getRefID() < RID || !readOverlapsRegion(*back, btregion) || (back->getRefID() == RID && back->GetEndPosition() < r.startPos) ) {
+            if(back->getRefID() < RID || (back->getRefID() == RID && back->GetEndPosition()+1 < r.startPos) ) {
                 read_buffer.pop_back();
                 putOutputAlignment(back);
             } else
@@ -394,16 +417,13 @@ int Repeatseq::runInternal() {
         
         //add all reads that overlap to the buffer
         for(deque<OGERead *>::const_reverse_iterator i = read_buffer.rbegin(); i != read_buffer.rend(); i++) {
-            if( readOverlapsRegion(**i, btregion)) {
+            if((*i)->GetEndPosition() >= btregion.LeftPosition && (*i)->getPosition() < btregion.RightPosition) {
+            //if( readOverlapsRegion(**i, btregion)) {
                 OGERead * read = OGERead::allocate();
                 *read = **i;
                 job->reads.push_back(read);
-
-                //cerr << "Adding: " << read->getPosition() << ":" << read->GetEndPosition(false, false) << " " << read->getName() << endl;
             }
         }
-
-        //cerr << "Job: " << job->reads.size() << endl;
 
         //start the job
         ThreadPool::sharedPool()->addJob(job);
@@ -683,7 +703,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 		int gtBonus = 0;
 		
         const vector<CigarOp> & cigar_data = al.getCigarData();
-		if (cigar_data.begin()==cigar_data.end()) {
+		if (cigar_data.empty()) {
 			numStars++;
 			continue;
 			//if CIGAR is not there, it's * case..
@@ -1144,20 +1164,12 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 	return;
 }
 
-// This should be a faster/better way to calculate factorial
-inline double fact(int n) {
-    return gamma(n+1);
-}
-/*
-double fact ( int n ){
+inline double fact ( int n ){
     double fact = 1;
     while (n > 1) fact *= n--;
     return fact;
 }
- */
 
-// this could be written to work with bigger numbers as
-// exp(lgamma(n+1) - lgamma(r+1) - lgamma(n-r+1));
 inline int nCr (int n, int r){
     return fact(n)/fact(r)/fact(n-r);
 }
