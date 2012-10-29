@@ -21,6 +21,9 @@
 
 #include "../util/read_stream_reader.h"
 
+#include <inttypes.h>
+#include <stdint.h>
+
 #include <algorithm>
 using BamTools::CigarOp;
 using BamTools::SamHeader;
@@ -28,20 +31,18 @@ using BamTools::SamReadGroupDictionary;
 using BamTools::SamReadGroup;
 using namespace std;
 
-MarkDuplicates::MarkDuplicates()
+MarkDuplicates::MarkDuplicates(string temp_directory)
 : numDuplicateIndices(0)
 , nextLibraryId(1)
 , removeDuplicates(false)
 {
-    char filename[48];
-    sprintf(filename, "/tmp/dedup_%8x.bam",  (uint32_t)(0xffffffff & (uint64_t)this));
+    char filename[64];
+    pid_t pid = getpid();
+    // we must include the pointer just in case there are multiple mark_duplicates calls in one OGE process-
+    // for instance, if we split by chromosome.
+    sprintf(filename, "/oge_dedup_%d_%016" PRIxPTR ".bam",  pid, (uintptr_t)this);
 
-    setBufferFileName(string(filename));
-}
-
-string MarkDuplicates::getBufferFileName()
-{
-    return bufferFilename;
+    bufferFilename = (temp_directory + string(filename));
 }
 
 /////////////////
@@ -189,7 +190,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
     SamHeader header = source->getHeader();
 
     BamSerializer<ofstream> writer;
-    writer.open(getBufferFileName(), header);
+    writer.open(bufferFilename, header);
     
     while (true) {
         OGERead * prec = getInputAlignment();
@@ -433,7 +434,7 @@ int MarkDuplicates::runInternal() {
     
     MultiReader in;
 
-    in.open(getBufferFileName());
+    in.open(bufferFilename);
 
     // Now copy over the file while marking all the necessary indexes as duplicates
     long recordInFileIndex = 0;
@@ -468,7 +469,7 @@ int MarkDuplicates::runInternal() {
 
     in.close();
 
-    remove(getBufferFileName().c_str());
+    remove(bufferFilename.c_str());
     
     return 0;
 }

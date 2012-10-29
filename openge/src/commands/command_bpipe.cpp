@@ -34,7 +34,7 @@ extern char ** environ;
 void BPipeCommand::getOptions()
 {
     options.add_options()
-    ("test,t", "Reads and checks a bpipe pipeline without actually running the commands.")
+    ("test,t", "Reads and checks a scripts' pipeline without actually running the commands.")
     ("print", "Print the commands that will be executed by the pipeline.")
     ("print_execution,x", "Print the execution structure of the pipeline.")
     ("define,p", po::value<vector<string> >(), "Define a variable var=value")
@@ -44,14 +44,14 @@ void BPipeCommand::getOptions()
 int BPipeCommand::runCommand()
 {
     if(input_filenames.size() != 1 && input_filenames.size() != 2) {
-        cerr << "One input bpipe script is required." << endl;
+        cerr << "One input execute script is required." << endl;
         exit(-1);
     }
     
     BPipe pipe;
     
     if(!pipe.load(input_filenames[0].c_str())) {
-        cerr << "Error loading bpipe file " << input_filenames[0] << endl;
+        cerr << "Error loading execute file " << input_filenames[0] << endl;
         exit(-1);
     }
     string input_filename;
