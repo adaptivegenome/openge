@@ -25,7 +25,7 @@ int HelpCommand::runCommand()
 {
     if(1 != vm.count("command")) {
         cerr << "Usage: openge help command" << endl;
-        cerr << "Valid commands are: count coverage dedup help mergesort stats version view" << endl;
+        cerr << "Valid commands are: count coverage dedup execute help mergesort stats version view" << endl;
         return 0;
     }
     
@@ -34,7 +34,6 @@ int HelpCommand::runCommand()
     OpenGECommand * command = CommandMarshall::commandWithName(command_name);
     
     if(!command) {
-        cerr << "Invalid command \"" << command << "\"." << endl;
         return 0;
     }
     

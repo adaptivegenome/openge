@@ -133,9 +133,7 @@ OpenGECommand::~OpenGECommand() {}
 OpenGECommand * CommandMarshall::commandWithName(const string name) {
     const char * cname = name.c_str();
     
-    if(!strcmp(cname, "bpipe"))
-        return new BPipeCommand;
-    else if(!strcmp(cname, "compare"))
+    if(!strcmp(cname, "compare"))
         return new CompareCommand;
     else if(!strcmp(cname, "count"))
         return new CountCommand;
@@ -143,6 +141,8 @@ OpenGECommand * CommandMarshall::commandWithName(const string name) {
         return new CoverageCommand;
     else if(!strcmp(cname, "dedup"))
         return new DedupCommand;
+    else if(!strcmp(cname, "execute"))
+        return new BPipeCommand;
     else if(!strcmp(cname, "help"))
         return new HelpCommand;
     else if(!strcmp(cname, "history"))
