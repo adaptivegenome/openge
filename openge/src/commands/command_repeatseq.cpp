@@ -38,6 +38,7 @@ void RepeatseqCommand::getOptions() {
     ("calls", "write .calls file")
     ("tag", po::value<string>(), "include user-defined tag in the output filename")
     ("flank", po::value<int>()->default_value(8), "number of flanking bases to output from each read")
+    ("outfile", po::value<string>(), "When using stdin as input, set output filename")
     ;
     
     /*
@@ -72,10 +73,17 @@ int RepeatseqCommand::runCommand() {
     //SETTINGS:
     string paramString;
     
-    if(input_filenames.empty()) {
-        cerr << "At least one input file is required. Quitting." << endl;
-        exit(-1);
+    if(input_filenames.size() == 1 && input_filenames[0] == "stdin") {
+        if(!vm.count("outfile")) {
+            cerr << "Error. When using stdin as input, the --outfile parameter is required to name the output files." << endl;
+            exit(-1);
+        }
+        reader.addFile("stdin");
+        repeatseq.setOutputFilename(vm["outfile"].as<string>());
     } else {
+        if(vm.count("outfile")) {
+            cerr << "Warning. The --outfile parameter is only used when using stdin for input." << endl;
+        }
         reader.addFiles(input_filenames);
         repeatseq.setOutputFilename(input_filenames[0]);
     }
