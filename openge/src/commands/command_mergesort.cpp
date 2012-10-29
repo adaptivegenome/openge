@@ -77,7 +77,7 @@ int MergeSortCommand::runCommand()
         FileReader reader;
         Filter filter;
         ReadSorter sort_reads;
-        MarkDuplicates mark_duplicates;
+        MarkDuplicates mark_duplicates(tmpdir);
         FileWriter writer;
         
         reader.setLoadStringData(false);
@@ -150,16 +150,12 @@ int MergeSortCommand::runCommand()
         // each iteration of this loop forms one chain inside the split
         for(int ctr = 0; ctr < num_chains; ctr++)
         {  
-            MarkDuplicates * mark_duplicates = new MarkDuplicates;
+            MarkDuplicates * mark_duplicates = new MarkDuplicates(tmpdir);
             duplicate_markers.push_back(mark_duplicates);
             merge.addSource(mark_duplicates);
             split.addSink(mark_duplicates);
 
             mark_duplicates->removeDuplicates = do_remove_duplicates;
-
-            char filename[48];
-            sprintf(filename, "/dedup_%8x.bam",  (uint32_t)(0xffffffff & (uint64_t)mark_duplicates));
-            mark_duplicates->setBufferFileName(tmpdir + string(filename));
         }
 
         sort_reads.setSortBy(sort_by_names ? SORT_NAME : SORT_POSITION);

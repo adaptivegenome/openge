@@ -39,10 +39,7 @@ protected:
     
 public:
     bool removeDuplicates;
-    MarkDuplicates();
-
-    std::string getBufferFileName();
-    void setBufferFileName(std::string filename) { bufferFilename = filename; }
+    MarkDuplicates(std::string temp_directory);
 
 protected:
     /////////////////

@@ -39,11 +39,11 @@ class ReadSorter : public AlgorithmModule
 public:
     ReadSorter()
     : m_tempFilenameStub("oge_sort_")
+    , m_numberOfRuns(0)
     , m_numberOfAlignments(0)
     , sort_order (SORT_POSITION)
     , compress_temp_files (false)
     , alignments_per_tempfile(200000)
-    , m_numberOfRuns(0)
     {
         char buffer[16];
         pid_t pid = getpid();
