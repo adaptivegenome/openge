@@ -46,8 +46,11 @@ int OpenGECommand::runWithParameters(int argc, const char ** argv)
     
     try {
         po::store(po::command_line_parser(argc, argv).options(options).positional(options_positional).run(), vm) ;
-        po::notify(vm);    
-    } catch( boost::exception & e )
+        po::notify(vm);
+    } catch (program_options::error_with_option_name e) {
+        cerr << "Error: " << e.what() << endl << endl << "Valid options are:" << endl << options << endl;
+        return -1;
+    }catch( boost::exception & e )
     {
         cerr << "Unrecognized parameters." << endl << endl << "Valid options are:" << endl << options << endl;
         return -1;
