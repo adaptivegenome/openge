@@ -13,8 +13,6 @@
 
 #include "api/api_global.h"
 #include "api/BamAlignment.h"
-#include "api/BamReader.h"
-#include "api/BamMultiReader.h"
 #include <cassert>
 #include <algorithm>
 #include <functional>
@@ -212,134 +210,7 @@ struct API_EXPORT Sort {
         inline bool operator()(const BamTools::BamAlignment&, const BamTools::BamAlignment&) {
             return false;   // returning false tends to retain insertion order
         }
-
-        // used by BamMultiReader internals
-        static inline bool UsesCharData(void) { return false; }
     };
-
-    /*! Sorts a std::vector of alignments (in-place), using the provided compare function.
-
-        \code
-            std::vector<BamAlignemnt> a;
-            // populate data
-
-            // sort our alignment list by edit distance
-            Sort::SortAlignments(a, Sort::ByTag<int>("NM"));
-        \endcode
-
-        \param[in,out] data vector of alignments to be sorted
-        \param[in]     comp comparison function object
-    */
-    template<typename Compare>
-    static inline void SortAlignments(std::vector<BamAlignment>& data,
-                                      const Compare& comp = Compare())
-    {
-        std::sort(data.begin(), data.end(), comp);
-    }
-
-    /*! Returns a sorted copy of the input alignments, using the provided compare function.
-
-        \code
-            std::vector<BamAlignemnt> a;
-            // populate data
-
-            // get a copy of our original data, sorted by edit distance (descending order)
-            std::vector<BamAligment> sortedData;
-            sortedData = Sort::SortAlignments(a, Sort::ByTag<int>("NM", Sort::DescendingOrder));
-        \endcode
-
-        \param[in] input vector of alignments to be sorted
-        \param[in] comp  comparison function object
-        \return sorted copy of the input data
-    */
-    template<typename Compare>
-    static inline std::vector<BamAlignment> SortAlignments(const std::vector<BamAlignment>& input,
-                                                           const Compare& comp = Compare())
-    {
-        std::vector<BamAlignment> output(input);
-        SortAlignments(output, comp);
-        return output;
-    }
-
-    /*! Reads a region of alignments from a position-sorted BAM file,
-        then sorts by the provided compare function
-
-        \code
-            BamReader reader;
-            // open BAM file & index file
-
-            BamRegion region;
-            // define a region of interest (i.e. a exon or some other feature)
-
-            // get all alignments covering that region, sorted by read group name
-            std::vector<BamAlignments> a;
-            a = Sort::GetSortedRegion(reader, region, Sort::ByTag<std::string>("RG"));
-        \endcode
-
-        \param[in] reader BamReader opened on desired BAM file
-        \param[in] region desired region-of-interest
-        \param[in] comp   comparison function object
-        \return sorted vector of the region's alignments
-    */
-    template<typename Compare>
-    static std::vector<BamAlignment> GetSortedRegion(BamReader& reader,
-                                                     const BamRegion& region,
-                                                     const Compare& comp = Compare())
-    {
-        // return empty container if unable to find region
-        if ( !reader.IsOpen() )          return std::vector<BamAlignment>();
-        if ( !reader.SetRegion(region) ) return std::vector<BamAlignment>();
-
-        // iterate through region, grabbing alignments
-        BamAlignment al;
-        std::vector<BamAlignment> results;
-        while ( reader.GetNextAlignment(al) )
-            results.push_back(al);
-
-        // sort & return alignments
-        SortAlignments(results, comp);
-        return results;
-    }
-
-    /*! Reads a region of alignments from position-sorted BAM files,
-        then sorts by the provided compare function
-
-        \code
-            BamMultiReader reader;
-            // open BAM files & index files
-
-            BamRegion region;
-            // define a region of interest (i.e. a exon or some other feature)
-
-            // get all alignments covering that region, sorted by read group name
-            std::vector<BamAlignments> a;
-            a = Sort::GetSortedRegion(reader, region, Sort::ByTag<std::string>("RG"));
-        \endcode
-
-        \param[in] reader BamMultiReader opened on desired BAM files
-        \param[in] region desired region-of-interest
-        \param[in] comp   comparison function object
-        \return sorted vector of the region's alignments
-    */
-    template<typename Compare>
-    static std::vector<BamAlignment> GetSortedRegion(BamMultiReader& reader,
-                                                     const BamRegion& region,
-                                                     const Compare& comp = Compare())
-    {
-        // return empty container if unable to find region
-        if ( !reader.HasOpenReaders() )  return std::vector<BamAlignment>();
-        if ( !reader.SetRegion(region) ) return std::vector<BamAlignment>();
-
-        // iterate through region, grabbing alignments
-        BamAlignment al;
-        std::vector<BamAlignment> results;
-        while ( reader.GetNextAlignment(al) )
-            results.push_back(al);
-
-        // sort & return alignments
-        SortAlignments(results, comp);
-        return results;
-    }
 };
 
 } // namespace Algorithms
