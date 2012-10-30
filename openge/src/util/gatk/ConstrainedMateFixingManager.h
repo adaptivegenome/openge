@@ -42,7 +42,6 @@
 #ifndef OpenGE_ConstrainedMateFixingManager_h
 #define OpenGE_ConstrainedMateFixingManager_h
 
-#include "api/BamWriter.h"
 #include "api/SamHeader.h"
 #include "GenomeLoc.h"
 #include "GenomeLocParser.h"
