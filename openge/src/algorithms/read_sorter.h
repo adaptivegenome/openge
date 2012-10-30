@@ -37,8 +37,8 @@ typedef enum {
 class ReadSorter : public AlgorithmModule
 {
 public:
-    ReadSorter()
-    : m_tempFilenameStub("oge_sort_")
+    ReadSorter(const std::string & temp_directory)
+    : m_tempFilenameStub("/oge_sort_")
     , m_numberOfRuns(0)
     , m_numberOfAlignments(0)
     , sort_order (SORT_POSITION)
@@ -48,7 +48,7 @@ public:
         char buffer[16];
         pid_t pid = getpid();
         sprintf(buffer, "%d", pid);
-        m_tempFilenameStub += buffer;
+        m_tempFilenameStub = temp_directory + m_tempFilenameStub + buffer;
     }
     
     ~ReadSorter(void) { }
@@ -72,7 +72,6 @@ protected:
     // data members
 private:
     std::string m_tempFilenameStub;
-    std::string tmp_file_dir;
     int m_numberOfRuns;
     int64_t m_numberOfAlignments;
     BamTools::SamHeader m_header;
@@ -104,13 +103,8 @@ protected:
     virtual BamTools::SamHeader getHeader();
     
 public:
-    class MergeSortCommandImplementation;
-    MergeSortCommandImplementation * impl;
-
     sorting_t getSortBy() { return sort_order; }
     void setSortBy(sorting_t sort_order) { this->sort_order = sort_order; }
-    
-    void setTmpFileDirectory(const std::string & dir) { tmp_file_dir = dir; }
 
     bool getCompressTempFiles() { return compress_temp_files; }
     void setCompressTempFiles(bool compress_temp_files) { this->compress_temp_files = compress_temp_files; }

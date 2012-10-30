@@ -195,7 +195,7 @@ void ReadSorter::TempFileWriteJob::runJob()
 bool ReadSorter::CreateSortedTempFile(vector<OGERead* > * buffer) {
     //make filename
     stringstream filename_ss;
-    filename_ss << tmp_file_dir << "/" << m_tempFilenameStub << "_" << m_numberOfRuns << ".bam";
+    filename_ss << m_tempFilenameStub << "_" << m_numberOfRuns << ".bam";
     string filename = filename_ss.str();
     m_tempFilenames.push_back(filename);
 

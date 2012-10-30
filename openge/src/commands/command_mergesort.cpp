@@ -76,7 +76,7 @@ int MergeSortCommand::runCommand()
         
         FileReader reader;
         Filter filter;
-        ReadSorter sort_reads;
+        ReadSorter sort_reads(tmpdir);
         MarkDuplicates mark_duplicates(tmpdir);
         FileWriter writer;
         
@@ -126,7 +126,7 @@ int MergeSortCommand::runCommand()
         SortedMerge merge;
         SplitByChromosome split;
         FileWriter writer;
-        ReadSorter sort_reads;
+        ReadSorter sort_reads(tmpdir);
 
         vector<MarkDuplicates *> duplicate_markers;
         
@@ -161,7 +161,6 @@ int MergeSortCommand::runCommand()
         sort_reads.setSortBy(sort_by_names ? SORT_NAME : SORT_POSITION);
         sort_reads.setCompressTempFiles(compresstempfiles);
         sort_reads.setAlignmentsPerTempfile(alignments_per_tempfile);
-        sort_reads.setTmpFileDirectory(tmpdir);
         
         reader.addFiles(input_filenames);
         writer.setFilename(vm["out"].as<string>());
