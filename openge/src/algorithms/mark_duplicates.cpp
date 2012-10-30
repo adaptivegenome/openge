@@ -21,9 +21,6 @@
 
 #include "../util/read_stream_reader.h"
 
-#include <inttypes.h>
-#include <stdint.h>
-
 #include <algorithm>
 using BamTools::CigarOp;
 using BamTools::SamHeader;
@@ -40,7 +37,7 @@ MarkDuplicates::MarkDuplicates(string temp_directory)
     pid_t pid = getpid();
     // we must include the pointer just in case there are multiple mark_duplicates calls in one OGE process-
     // for instance, if we split by chromosome.
-    sprintf(filename, "/oge_dedup_%d_%016" PRIxPTR ".bam",  pid, (uintptr_t)this);
+    sprintf(filename, "/oge_dedup_%d_%lx.bam",  pid, (uintptr_t)this);
 
     bufferFilename = (temp_directory + string(filename));
 }
