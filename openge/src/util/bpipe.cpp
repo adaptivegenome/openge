@@ -26,6 +26,7 @@
 #include <ctime>
 
 #include <sys/time.h>
+#include <sys/stat.h>
 
 #include <boost/spirit/include/qi.hpp>
 
@@ -225,6 +226,18 @@ void str_replace(std::string& str, const std::string& oldStr, const std::string&
     }
 }
 
+bool isModifiedBefore(const string & filename1, const string & filename2) {
+    struct stat buffer1, buffer2;
+    int ret = stat(filename1.c_str(), &buffer1);
+    if(ret) return false;
+    ret = stat(filename2.c_str(), &buffer2);
+    if(ret) return false;
+    
+    if(buffer1.st_mtimespec.tv_sec == buffer2.st_mtimespec.tv_sec)
+        return buffer1.st_mtimespec.tv_nsec < buffer2.st_mtimespec.tv_nsec;
+    return buffer1.st_mtimespec.tv_sec < buffer2.st_mtimespec.tv_sec;
+}
+
 bool StageExecAction::check(variable_storage_t & variables) {
     //find variables and substitute in values
     //variables may be in the form $VAR or ${VAR}, so we must handle both
@@ -301,12 +314,17 @@ bool StageReference::check(variable_storage_t & variables) {
             variables["output"] = variables["output"].insert(ext_start, "." + s->filter);
         }
     }
-    
-    for(vector<StageAction *>::const_iterator e = s->actions.begin(); e != s->actions.end(); e++) {
-        StageAction * action = (*e)->instantiate(variables);
-        if(!action)
-            return false;
-        actions.push_back(action);
+    //actions.push_back(new StageMsgAction("Input: " + variables["input"]));
+    //actions.push_back(new StageMsgAction("Output: " + variables["output"]));
+    if(isModifiedBefore(variables["input"], variables["output"]))
+        actions.push_back(new StageMsgAction("Note: Skipping stage execution as the output is newer than the input"));
+    else {
+        for(vector<StageAction *>::const_iterator e = s->actions.begin(); e != s->actions.end(); e++) {
+            StageAction * action = (*e)->instantiate(variables);
+            if(!action)
+                return false;
+            actions.push_back(action);
+        }
     }
 
     //TODO if (not forward input)
@@ -604,7 +622,7 @@ bool BPipe::execute() {
     sprintf(duration, "%ldm%06.3fs", real_time.tv_sec /60, float(real_time.tv_sec %60) + (1.e-6 * real_time.tv_usec) );
     
     if(!ret) {
-        cerr << "=== Pipeline " OGE_COLOR_BOLD_RED "FAILED" OGE_COLOR_RESET " at " << stop_time_str << " (" << duration << ") ===" << endl;
+        cerr << "=== Pipeline FAILED at " << stop_time_str << " (" << duration << ") ===" << endl;
     }
     else {
         cerr << "=== Pipeline finished successfully at " << stop_time_str << " (" << duration << ") ===" << endl;
