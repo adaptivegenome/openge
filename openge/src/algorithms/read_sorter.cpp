@@ -56,8 +56,7 @@ bool ReadSorter::Run(void)
 {
     // options
     if(!isNothreads()) {
-        thread_pool = new ThreadPool();
-        sort_thread_pool = new ThreadPool();
+        thread_pool = new ThreadPool(OGEParallelismSettings::availableCores());
     } else if(isVerbose())
         cerr << "Thread pool use disabled." << endl;
     
@@ -70,7 +69,6 @@ bool ReadSorter::Run(void)
 
     if(!isNothreads()) {
         delete thread_pool;
-        delete sort_thread_pool;
     }
     
     return sort_retval && merge_retval;

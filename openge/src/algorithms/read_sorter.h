@@ -79,7 +79,6 @@ private:
     std::vector<std::string> m_tempFilenames;
     bool sort_retval, merge_retval;
     ThreadPool * thread_pool;
-    ThreadPool * sort_thread_pool;
     
     //options:
     sorting_t sort_order;
