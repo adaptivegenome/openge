@@ -41,18 +41,6 @@
 
 
 #include <iostream>
-/*
-package org.broadinstitute.sting.gatk.refdata;
-
-import net.sf.samtools.SAMRecord;
-import org.broadinstitute.sting.gatk.datasources.providers.RODMetaDataContainer;
-import org.broadinstitute.sting.gatk.refdata.utils.GATKFeature;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.GenomeLocParser;
-
-import java.util.*;
-
-*/
 #include "ReadMetaDataTracker.h"
 #include "RODMetaDataContainer.h"
 #include "GATKFeature.h"

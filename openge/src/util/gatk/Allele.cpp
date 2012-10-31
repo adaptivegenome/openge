@@ -44,14 +44,6 @@
 #include <string>
 #include <cstdlib>
 using namespace std;
-/*
-package org.broadinstitute.sting.utils.variantcontext;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
- */
 
 /**
  * Immutable representation of an allele

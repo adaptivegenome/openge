@@ -38,16 +38,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-/*
-package org.broadinstitute.sting.gatk.contexts;
 
-import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
-import net.sf.samtools.util.StringUtil;
-import org.broadinstitute.sting.utils.BaseUtils;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.GenomeLocParser;
-*/
 /**
  * The section of the reference that overlaps with the given
  * read / locus. 

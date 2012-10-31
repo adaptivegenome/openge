@@ -52,24 +52,6 @@
 using namespace BamTools;
 using namespace std;
 
-/*
-package org.broadinstitute.sting.utils;
-
-import com.google.java.contract.Ensures;
-import com.google.java.contract.Invariant;
-import com.google.java.contract.Requires;
-import com.google.java.contract.ThrowEnsures;
-import net.sf.picard.reference.ReferenceSequenceFile;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
-import org.apache.log4j.Logger;
-import org.broad.tribble.Feature;
-import org.broadinstitute.sting.utils.codecs.vcf.VCFConstants;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.variantcontext.VariantContext;
-*/
 /**
  * Factory class for creating GenomeLocs
  */
@@ -333,7 +315,7 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
 
     // is the contig valid?
     if (!contigIsInDictionary(contig)) {
-        cerr << "Contig '" << contig << "' does not match any contig in the GATK sequence dictionary derived from the reference; are you sure you are using the correct reference fasta file?" << endl;
+        cerr << "Contig '" << contig << "' does not match any contig in the sequence dictionary derived from the reference; are you sure you are using the correct reference fasta file?" << endl;
         assert(0);
     }
     

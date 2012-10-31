@@ -38,22 +38,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-/*
-package org.broadinstitute.sting.gatk.walkers.indels;
-
-import net.sf.picard.sam.SamPairUtil;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMRecordComparator;
-import net.sf.samtools.SAMRecordCoordinateComparator;
-import org.apache.log4j.Logger;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-
-import java.util.*; 
- */
 
 /**
  * A locally resorting, mate fixing sam file writer that supports an idiom where reads are only moved around if
