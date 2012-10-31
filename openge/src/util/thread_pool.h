@@ -27,6 +27,10 @@
 
 #include <unistd.h>
 
+#ifdef __APPLE__
+#include <libkern/OSAtomic.h>
+#endif
+
 #ifdef __linux__
 #include <sys/prctl.h>
 #define ogeNameThread(X) prctl(PR_SET_NAME,X,0,0,0)
@@ -49,25 +53,41 @@ public:
 protected:
 };
 
+#ifdef __APPLE__
 class Spinlock
 {
+    OSSpinLock m_lock;
 public:
     Spinlock()
-    : lock_holder(0) {}
-    // for an explanation of the locks used here, see
-    // http://stackoverflow.com/questions/1383363/is-my-spin-lock-implementation-correct-and-optimal
+    : m_lock(0)
+    {}
     void lock() {
-        while (__sync_lock_test_and_set(&lock_holder, 1))
-            while(lock_holder)
-                asm("nop");
-        
+        OSSpinLockLock(&m_lock);
     }
     void unlock() {
-        __sync_lock_release(&lock_holder);
+        OSSpinLockUnlock(&m_lock);
     }
-protected:
-    volatile char lock_holder;
 };
+#else
+class Spinlock
+{
+    pthread_spinlock_t m_lock;
+public:
+    Spinlock() {
+        pthread_spin_init(&m_lock, 0);
+    }
+    
+    void lock() {
+        pthread_spin_lock(&m_lock);
+    }
+    void unlock() {
+        pthread_spin_unlock(&m_lock);
+    }
+    ~Spinlock() {
+        pthread_spin_destroy(&m_lock);
+    }
+};
+#endif
 
 
 template <class T>
