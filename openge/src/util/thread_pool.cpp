@@ -238,7 +238,7 @@ void ThreadPool::waitForJobCompletion()
         }
     }
     
-    ret = pthread_mutex_unlock(&job_queue_mutex);
+    ret = pthread_mutex_unlock(&busy_mutex);
     if(0 != ret) {
         cerr << "Error unlocking busy mutex in waitForJobCompletion(). Aborting. (error " << ret << ")." << endl;
         exit(-1);

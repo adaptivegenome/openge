@@ -53,9 +53,12 @@ public:
 protected:
 };
 
-#ifdef __APPLE__
 class Spinlock
 {
+private:    //private copy-ctor and assignment operator ensure the lock never gets copied, which might cause issues.
+    Spinlock operator=(const Spinlock & asdf);
+    Spinlock(const Spinlock & asdf);
+#ifdef __APPLE__
     OSSpinLock m_lock;
 public:
     Spinlock()
@@ -67,10 +70,7 @@ public:
     void unlock() {
         OSSpinLockUnlock(&m_lock);
     }
-};
 #else
-class Spinlock
-{
     pthread_spinlock_t m_lock;
 public:
     Spinlock() {
@@ -86,8 +86,8 @@ public:
     ~Spinlock() {
         pthread_spin_destroy(&m_lock);
     }
-};
 #endif
+};
 
 
 template <class T>
