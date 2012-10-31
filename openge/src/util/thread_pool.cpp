@@ -51,6 +51,12 @@ jobs_current(0)
         exit(-1);
     }
     
+    ret = pthread_cond_init(&busy_cond, NULL);
+    if(0 != ret) {
+        cerr << "Error creating busy cond variable. Aborting. (error " << ret << ")" << endl;
+        exit(-1);
+    }
+    
     ret = pthread_mutex_init(&job_queue_mutex, NULL);
     if(0 != ret) {
         cerr << "Error creating job queue cond variable. Aborting. (error " << ret << ")" << endl;
@@ -97,6 +103,10 @@ ThreadPool::~ThreadPool()
     if(0 != error)
         cerr << "Error destroying TP jobpool condition var (error " << error << ")." << endl ;
 
+    error = pthread_cond_destroy(&busy_cond);
+    if(0 != error)
+        cerr << "Error destroying TP busy condition var (error " << error << ")." << endl ;
+
     error = pthread_mutex_destroy(&job_queue_mutex);
     if(0 != error)
         cerr << "Error destroying TP job queue mutex (error " << error << ")." << endl ;
@@ -110,18 +120,27 @@ int ThreadPool::availableCores()
 //add a job to the queue to be 
 bool ThreadPool::addJob(ThreadJob * job)
 {
-    jobs_mutex.lock();
+    int ret = pthread_mutex_lock(&job_queue_mutex);
+    if(0 != ret) {
+        cerr << "Error locking job queue mutex in addJob(). Aborting. (error " << ret << ")" << endl;
+        exit(-1);
+    }
 
-    if(jobs_current == 0)
-        pthread_mutex_lock(&busy_mutex);
+    jobs_mutex.lock();
+    
     jobs_current++;
     
 	jobs.push(job);
     jobs_mutex.unlock();
 
-    int retval = pthread_cond_signal(&job_queue_cond);
-    if(0 != retval) {
-        cerr << "Error signalling job threads on new job. (error " << retval << ")." << endl ;
+    ret = pthread_cond_signal(&job_queue_cond);
+    if(0 != ret) {
+        cerr << "Error signalling job threads on new job. (error " << ret << ")." << endl ;
+        exit(-1);
+    }
+    ret = pthread_mutex_unlock(&job_queue_mutex);
+    if(0 != ret) {
+        cerr << "Error unlocking job queue mutex in addJob(). Aborting. (error " << ret << ")." << endl;
         exit(-1);
     }
 	return true;
@@ -177,23 +196,51 @@ void ThreadPool::stopJob(ThreadJob * job)
     
 	jobs_in_process--;
     jobs_current--;
-	if(jobs_current == 0)
-		pthread_mutex_unlock(&busy_mutex);
+	if(jobs_current == 0) {
+        int ret = pthread_mutex_lock(&busy_mutex);
+        if(0 != ret) {
+            cerr << "Error locking job queue mutex in addJob(). Aborting. (error " << ret << ")" << endl;
+            exit(-1);
+        }
+        ret = pthread_cond_signal(&busy_cond);
+        if(0 != ret) {
+            cerr << "Error signalling job threads on new job. (error " << ret << ")." << endl ;
+            exit(-1);
+        }
+        ret = pthread_mutex_unlock(&busy_mutex);
+        if(0 != ret) {
+            cerr << "Error unlocking job queue mutex in addJob(). Aborting. (error " << ret << ")." << endl;
+            exit(-1);
+        }
+    }
 	jobs_mutex.unlock();
 }
 
 void ThreadPool::waitForJobCompletion()
 {
     int ret = pthread_mutex_lock(&busy_mutex);
-	if(0 != ret)
-    {
-        cerr << "Error locking jobs busy mutex. Aborting. (error " << ret << ")" << endl;
+    if(0 != ret) {
+        cerr << "Error locking job queue busy in waitForJobCompletion(). Aborting. (error " << ret << ")" << endl;
         exit(-1);
     }
-    ret = pthread_mutex_unlock(&busy_mutex);
-    if(0 != ret)
-    {
-        cerr << "Error unlocking jobs busy mutex. Aborting. (error " << ret << ")" << endl;
+    
+    while(true) {
+        jobs_mutex.lock();
+        bool empty = jobs.empty();
+        jobs_mutex.unlock();
+
+        if(empty) break;
+        
+        int retval = pthread_cond_wait(&busy_cond, &busy_mutex);
+        if(0 != retval) {
+            cerr << "Error waiting for busy condition variable in waitForJobCompletion(). Aborting. (error " << retval << ")." << endl ;
+            exit(-1);
+        }
+    }
+    
+    ret = pthread_mutex_unlock(&job_queue_mutex);
+    if(0 != ret) {
+        cerr << "Error unlocking busy mutex in waitForJobCompletion(). Aborting. (error " << ret << ")." << endl;
         exit(-1);
     }
 }

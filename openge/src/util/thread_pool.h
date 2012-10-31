@@ -211,7 +211,7 @@ protected:
 	ThreadJob * startJob();
 	void stopJob(ThreadJob * job);
     
-    pthread_cond_t job_queue_cond;
+    pthread_cond_t job_queue_cond, busy_cond;
     pthread_mutex_t job_queue_mutex;
 	
     std::queue<ThreadJob *> jobs;	//protected by jobs_mutex
