@@ -1,5 +1,16 @@
 Open Genomics Engine
 
+Version 0.3 - 31 October 2012
+* New multithreaded IO subsystem increases IO performance. Replaces bamtools-based IO.
+* Add repeatseq function for micro satellite detection. Implements repeatseq algorithm from original repeatseq program (https://github.com/adaptivegenome/repeatseq), with additional parallelization.
+* Add experimental execute function for execution of workflow scripts. Scripts describe a pipeline of commands to be run in serial or parallel, and checks to ensure that commands have run successfully. See the command reference documentation for more details.
+* Internal refactoring has improved performance of many command read/write operations
+* Remove most internal dependence on BamTools
+* Statistics command can now check if a file is properly sorted
+* The compare function can now use SAM files as input
+* Many other minor improvements
+* Other bug fixes
+
 Version 0.2 - 30 August 2012
 * Add localrealignment function to realign reads around known indels. Output is comparable to GATK's IndelRealigner, but execution may be up to 12x faster on some hardware.
 * Add compare function for comparing similar BAM files
