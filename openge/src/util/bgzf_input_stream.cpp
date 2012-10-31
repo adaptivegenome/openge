@@ -205,6 +205,13 @@ void BgzfInputStream::read(char * data, size_t len) {
                 return;
             }
             current_block_element = cache[current_block];
+
+            if(!current_block_element->loaded)
+                cache_misses++;
+            
+            //wait for element to be loaded if it isn't
+            while(!current_block_element->loaded)
+                usleep(10000);
         }
         
         size_t copy_len = min(len - copied_data_len, current_block_element->uncompressed_data.size() - current_offset);
