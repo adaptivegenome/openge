@@ -86,7 +86,7 @@ int Statistics::runInternal()
     while(NULL != (pal = getInputAlignment())) {
         OGERead & al = *pal;
         
-        if(sorted) {
+        if(sorted && al.getRefID() != -1 && al.getPosition() != -1) {
             if(last_rid > al.getRefID())
                 sorted = false;
             else if(last_rid < al.getRefID()) {
