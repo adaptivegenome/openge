@@ -17,6 +17,9 @@ Virginia Bioinformatics Institute \\
 leecb@vt.edu, david.mittelman@vt.edu}
 \maketitle
 
+\setcounter{tocdepth}{2}
+\tableofcontents
+
 \section {Introduction}
 The Open Genomics Engine (OpenGE) is an open software framework for manipulating and interpreting high-throughput sequencing data. This documentation describes core functions that are integrated into the official distribution of the framework. OpenGE is available as binaries for Linux and MacOS or as source. The source distribution contains further instructions for compiling and installing the software. OpenGE now includes Debian and RedHat packages for easier installation.
 
@@ -189,7 +192,7 @@ identifies duplicates in a.bam, and writes all reads to z.bam with duplicates id
 The execute function runs commands in a workflow script. For details of the capabilities of this function and syntax of the script, see the section \ref{pipeline_functionality}.
 
 \begin{center}
-\begin{tabular}{llp{3.5in}}
+\begin{tabular}{llp{4.5in}}
 \hline
 Flag&Long flag&Description\\ \hline
 -t&{-}{-}test&Read and check a workflow without actually executing any commands.\\
@@ -490,10 +493,11 @@ We can best demonstrate some workflow features and syntax with examples. For som
 A workflow is a series of stages, each with a single purpose. Outputs from earlier stages are passed to later stages as inputs in a chain; if any stage is not successful, the stages after it won't be executed and an error message will be printed on the command line.
 
 A stage is defined with a simple name, and an exec line:
-\cmd{
-index = \{\\
-\indent exec "samtools index \$input"\\
-\}}
+\begin{verbatim}
+index = {
+  exec "samtools index input"
+}
+\end{verbatim}
 
 The \$input variable will be automatically filled in during execution, as well as \$output. Output filenames are automatically generated from the \$input filename and the stage name. This output filename is both used in the current stage as \$output, as well as the \$input for the next stage.
 
@@ -502,20 +506,20 @@ If you don't specify otherwise (see the next section), the $output will simply b
 Stages are combined together in a run block in order to create a pipeline. To execute stages sequentially, join them with a plus sign:
 \begin{verbatim}
 run {
-        sort + index
+  sort + index
 }
 \end{verbatim}
 Run blocks allow you to easily configure your pipeline by adding and removing stages without having to worry about updating filenames. Putting the above together, we could come up with a script that will sort an input BAM or SAM file, and then index the BAM that mergesort generates:
 
 \begin{verbatim}
 sort = {
-        exec "./openge mergesort $input -o $output -v"
+  exec "./openge mergesort $input -o $output -v"
 }
 index = {
-        exec "samtools index $input"
+  exec "samtools index $input"
 }
 run {
-        sort + index
+  sort + index
 }
 \end{verbatim}
 
@@ -551,9 +555,9 @@ Often, the default \$output name isn't exactly what you want. Produce(), filter(
 
 \begin{verbatim}
 sort = {
-        filter("sort") {
-                exec "./openge mergesort $input -o $output -v"
-        }
+  filter("sort") {
+    exec "./openge mergesort $input -o $output -v"
+  }
 }
 \end{verbatim}
 
@@ -569,13 +573,20 @@ will produce a file called "some\_file.sorted.bam". This is best suited to stage
 \cmd{transform("vcf") \{ ... \} }
 will produce a file called "some\_file.sorted.vcf". This is most useful for stages that produce one file type from another, either by converting, the file, or by generating some derived data from the input file.
 \end{itemize}
+\subsubsection{Comments}
+Execute also uses C++-style comments. Comments can be added either between /* and */ symbols, or between a // symbol and the end of the line.
+\cmd{// this is a comment that lasts until the end of the line}
+\cmd{/* this is a comment that lasts until\newline this symbol: */}
 
 \subsubsection{Example source code}
 If we bring together all of the above concepts, we can construct useful workflow for analying genome data:
 \begin{verbatim}
+//at the top we define reference files that are used in the below stages...
 LRREF = "dmel.fa"
 LRINTERVALS = "801.bwa.merged.bam.sorted.bam.dedup.intervals"
 RSREGIONS = "fly.regions"
+
+/* now on to the actual code */
 sort = {
   filter("sort") {
     msg "Sorting file."
@@ -600,7 +611,7 @@ index = {
 }
 repeatseq = {
   transform("repeatseq") {
-    exec "..openge repeatseq index $input -R $LRREF -L $RSREGIONS --repeatseq --calls"
+    exec "./openge repeatseq $input -R $LRREF -L $RSREGIONS --repeatseq --calls"
   }
 }
 run {
@@ -608,61 +619,11 @@ run {
 }
 \end{verbatim}
 
-\subsection {Additional features}
-\begin{verbatim}
-NOTE: We should list some additional features that Bpipe doesn't have, so it doesn't 
-appear like our tool is inferior in every way to bpipe.
-
-Some ideas:
-* Superior generated reports
-* Eventually we can report that we add the command string to headers of BAM files
-\end{verbatim}
-
 \subsection {Bpipe compatibility}
-Our goal is to provide a high level of compatibility with the Bpipe tool and with existing workflow scripts. In later versions of OpenGE, we plan on introducing additional features that Bpipe provides; features that are currently included are listed below.
-\begin{verbatim}
-NOTE: I'll make a table or something here that looks better once I 
-have more completed on bpipe tomorrow.
-
-X Run exec statements
-  Print msg statements
-  If output files are newer than input files, don't execute stage
-  Execution resumes at beginning of last failed stage
-X Define variables
-X Substitute variables in exec statements
-X Handle $input and $output between stages
-X Support "forward input"
-X Optional semicolons at end of statements
-X Variables can be defined with -p on command line
-  Support """quoted string""" syntax
-X Shell variables imported
-  Support segments
-X Parallel execution
-X Serial execution
-X Nested serial/parallel blocks
-0 Annotation syntax for from() transform() filter() produce()
-  from()
-  from() with multiple inputs
-X transform()
-  transform() with multiple inputs
-X filter()
-  filter() with multiple inputs
-X produce()
-  produce() with multiple inputs
-  Generate HTML report if -r specified
-  Track files produced during execution
-  Delete temporary files on failed execution
-  * operator
-  Time execution
-  Track failures
-  Specify output folder with -d
-0 Trash folder
-0 Execution history
-? Colored terminal output
-\end{verbatim}
+Our goal is to provide a high level of compatibility with the Bpipe tool and with existing workflow scripts. In later versions of OpenGE, we plan on introducing additional features that Bpipe provides. Many new features are planned for future releases of OpenGE.
 
 \subsubsection {Compatibility matrix}
-Some notable features that are missing from OpenGE are listed below, along with suggestions for how to replace them:
+Some notable Bpipe features that we do not plan to bring OpenGE are listed below, along with suggestions for how to replace them:
 \begin{center}
 \begin{tabular}{p{1.9in}p{3.5in}}
 \hline
