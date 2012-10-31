@@ -43,9 +43,69 @@ namespace qi = boost::spirit::qi;
 namespace ascii = boost::spirit::ascii;
 namespace phoenix = boost::phoenix;
 
+typedef map<string,string> variable_storage_t;
+
+// A stage action is any task that occurrs as part of a stage's execution.
+// Currently, this is either an exec or msg statement.
+class StageAction {
+public:
+    virtual bool execute() = 0;
+    // this function should return an object that is unique to the set of variables- with variable values substituted in.
+    virtual StageAction * instantiate(variable_storage_t & variables) = 0;
+    virtual void print()  = 0;
+};
+
+class StageMsgAction : public StageAction {
+    string msg_text;
+public:
+    StageMsgAction(string msg_text)
+    : msg_text(msg_text)
+    {}
+    
+    virtual StageAction * instantiate(variable_storage_t & variables) { return this; }
+    
+    virtual bool execute() {
+        cout << msg_text << endl;
+        return true;
+    }
+    
+    virtual void print() {
+        cerr << "Msg(" << msg_text << ")" << endl;
+    }
+};
+
+class StageExecAction : public StageAction {
+    string command;
+public:
+    StageExecAction(string command)
+    : command(command)
+    {}
+    
+    bool check(variable_storage_t & variables);
+    
+    virtual StageAction * instantiate(variable_storage_t & variables) {
+        StageExecAction * ret = new StageExecAction(command);
+        bool success = ret->check(variables);
+        
+        if(!success) {
+            delete ret;
+            return NULL;
+        }
+        return ret;
+    }
+    
+    virtual bool execute() {
+        return system(command.c_str()) == 0;
+    }
+    
+    virtual void print() {
+        cerr << "Exec(" << command << ")" << endl;
+    }
+};
+
 struct stage {
     string name;
-    vector<string> exec_lines;
+    vector<StageAction *> actions;
     string filter, from, transform, produce;
     bool forward_input;
 
@@ -53,7 +113,7 @@ struct stage {
     
     stage(const stage & s)
     : name(s.name)
-    , exec_lines(s.exec_lines)
+    , actions(s.actions)
     , filter(s.filter)
     , from(s.from)
     , transform(s.transform)
@@ -62,8 +122,6 @@ struct stage {
     {}
     stage() {}
 };
-
-typedef map<string,string> variable_storage_t;
 
 class StageQueue {
 public:
@@ -122,7 +180,7 @@ public:
 class StageReference : public StageQueue {
     string name;
     vector<stage> & stages;
-    vector<string> commands;
+    vector<StageAction * > actions;
     stage * s;
 public:
     StageReference(string name, vector<stage> & stages)
@@ -133,7 +191,7 @@ public:
     
     virtual bool check(variable_storage_t & variables);
     virtual bool execute();
-    virtual void print() { cerr << name; }
+    virtual void print() { cerr << name << "("; for(vector<StageAction *>::const_iterator i = actions.begin(); i != actions.end(); i++) (*i)->print(); cerr << ")"; }
 };
 
 bool is_space(const int c) {
@@ -167,6 +225,48 @@ void str_replace(std::string& str, const std::string& oldStr, const std::string&
     }
 }
 
+bool StageExecAction::check(variable_storage_t & variables) {
+    //find variables and substitute in values
+    //variables may be in the form $VAR or ${VAR}, so we must handle both
+    vector<string> variable_name;
+    while(true) {
+        string::iterator dollar = find(command.begin(), command.end(), '$');
+        if(dollar == command.end())
+            break;
+        string::iterator var_end;
+        string var_name;
+        
+        if(*(dollar + 1) != '{') {
+            var_end = find_if(dollar+1, command.end(), is_not_var_name_char);
+            var_name = string(dollar + 1, var_end);
+            
+            //now find extensions that may be present after the var name.
+            if(var_name == "input") {
+                string::iterator ext_end = find_if(var_end, command.end(), is_space);
+                string exts(var_end, ext_end);
+                if(!str_has_suffix(variables["input"], exts)) {
+                    cerr << "Error: In stage " << variables["stage"] << ", expected $input to have extension '" << exts << "'." << endl;
+                    exit(-1);
+                }
+                var_end = ext_end;
+            }
+        } else {
+            var_end = find(dollar+2, command.end(), '}') + 1;
+            var_name = string(dollar + 2, var_end-1);
+        }
+        
+        if(variables.count(var_name) == 0) {
+            cerr << "Variable " << var_name << " is not defined in stage " << variables["stage"] << endl;
+            return false;
+        } else {
+            const string & val = variables[var_name];
+            command.replace(dollar, var_end, val.begin(), val.end());
+        }
+    }
+
+    return true;
+}
+
 bool StageReference::check(variable_storage_t & variables) {
     for(vector<stage>::iterator si = stages.begin(); si != stages.end(); si++)
         if(si->name == name) {
@@ -178,71 +278,35 @@ bool StageReference::check(variable_storage_t & variables) {
         cerr << "BPipe file error: stage name '" << name << "' didn't match any known stages." << endl;
         return false;
     }
+    variables["stage"] = name;
     
-    for(vector<string>::const_iterator e = s->exec_lines.begin(); e != s->exec_lines.end(); e++) {
-        string command = *e;
-        
-        // replace $input and $output
-        if(variables.count("input") != 0) {
-            variables["output"] = variables["input"] + "." + name;
-            if(!s->from.empty()) {
-                if(!str_has_suffix(variables["input"], s->from)) {
-                    cerr << "Stage " << name << " input " << variables["input"] << " should have extension " << s->from << endl;
-                    exit(-1);
-                }
-            }
-            if(!s->produce.empty())
-                variables["output"] = s->produce;
-            if(!s->transform.empty()) {
-                size_t ext_start = variables["input"].rfind(".");
-                variables["output"] = variables["input"].substr(0,ext_start) + "." + s->transform;
-            }
-            if(!s->filter.empty()) {
-                size_t ext_start = variables["input"].rfind(".");
-                variables["output"] = variables["input"];
-                variables["output"] = variables["output"].insert(ext_start, "." + s->filter);
+    // replace $input and $output
+    if(variables.count("input") != 0) {
+        variables["output"] = variables["input"] + "." + name;
+        if(!s->from.empty()) {
+            if(!str_has_suffix(variables["input"], s->from)) {
+                cerr << "Stage " << name << " input " << variables["input"] << " should have extension " << s->from << endl;
+                exit(-1);
             }
         }
-
-        //find variables and substitute in values
-        //variables may be in the form $VAR or ${VAR}, so we must handle both
-        vector<string> variable_name;
-        while(true) {
-            string::iterator dollar = find(command.begin(), command.end(), '$');
-            if(dollar == command.end())
-                break;
-            string::iterator var_end;
-            string var_name;
-
-            if(*(dollar + 1) != '{') {
-                var_end = find_if(dollar+1, command.end(), is_not_var_name_char);
-                var_name = string(dollar + 1, var_end);
-                
-                //now find extensions that may be present after the var name.
-                if(var_name == "input") {
-                    string::iterator ext_end = find_if(var_end, command.end(), is_space);
-                    string exts(var_end, ext_end);
-                    if(!str_has_suffix(variables["input"], exts)) {
-                        cerr << "Error: Stage " << name << " expected input to have extension '" << exts << "'." << endl;
-                        exit(-1);
-                    }
-                    var_end = ext_end;
-                }
-            } else {
-                var_end = find(dollar+2, command.end(), '}') + 1;
-                var_name = string(dollar + 2, var_end-1);
-            }
-
-            if(variables.count(var_name) == 0) {
-                cerr << "Variable " << var_name << " is not defined in stage " << name << endl;
-                return false;
-            } else {
-                const string & val = variables[var_name];
-                command.replace(dollar, var_end, val.begin(), val.end());
-            }
+        if(!s->produce.empty())
+            variables["output"] = s->produce;
+        if(!s->transform.empty()) {
+            size_t ext_start = variables["input"].rfind(".");
+            variables["output"] = variables["input"].substr(0,ext_start) + "." + s->transform;
         }
-        
-        commands.push_back(command);
+        if(!s->filter.empty()) {
+            size_t ext_start = variables["input"].rfind(".");
+            variables["output"] = variables["input"];
+            variables["output"] = variables["output"].insert(ext_start, "." + s->filter);
+        }
+    }
+    
+    for(vector<StageAction *>::const_iterator e = s->actions.begin(); e != s->actions.end(); e++) {
+        StageAction * action = (*e)->instantiate(variables);
+        if(!action)
+            return false;
+        actions.push_back(action);
     }
 
     //TODO if (not forward input)
@@ -258,17 +322,17 @@ bool StageReference::execute() {
     char * time_str = ctime(&now);
     time_str[24] = 0;
     cerr << "=== Stage " << name << " " << time_str << " ===" << endl;
-    int ret = 0;
-    for(vector<string>::const_iterator i = commands.begin(); i != commands.end() && ret == 0; i++) {
+    bool ret = true;
+    for(vector<StageAction *>::const_iterator i = actions.begin(); i != actions.end() && ret; i++) {
         
-        cerr << "Command: " << *i << endl;
-        ret = system(i->c_str());
+        bool success = (*i)->execute();
+        ret &= success;
     }
     
-    if(0 != ret)
-        cerr << "Execution of stage failed (" << ret << ")." << endl;
+    if(!ret)
+        cerr << "Execution of stage failed." << endl;
     
-    return 0 == ret;
+    return ret;
 }
 
 template <typename Iterator>
@@ -301,7 +365,12 @@ struct BpipeParser : qi::grammar<Iterator, vector<stage>(), ascii::space_type>
     }
     
     static stage & addExecLine(string exec, stage & s) {
-        s.exec_lines.push_back(exec);
+        s.actions.push_back(new StageExecAction(exec));
+        return s;
+    }
+    
+    static stage & addMsgLine(string exec, stage & s) {
+        s.actions.push_back(new StageMsgAction(exec));
         return s;
     }
     
@@ -356,7 +425,7 @@ struct BpipeParser : qi::grammar<Iterator, vector<stage>(), ascii::space_type>
 
         exec_statement = lit("exec") > quoted_string > -lit(";");
         msg_statement = lit("msg") >> quoted_string >> -lit(";");
-        stage_block = (lit('{')[_val = construct<stage>()]) >> +(doc_statement | msg_statement | exec_statement[_val = bind(&addExecLine, _1, _val)]) >> -(lit("forward") > lit("input") > -lit(";"))[_val = bind(&setForwardInput,_val)] >> '}' ;
+        stage_block = (lit('{')[_val = construct<stage>()]) >> +(doc_statement | msg_statement[_val = bind(&addMsgLine, _1, _val)] | exec_statement[_val = bind(&addExecLine, _1, _val)]) >> -(lit("forward") > lit("input") > -lit(";"))[_val = bind(&setForwardInput,_val)] >> '}' ;
 
         stage_filter = ("{" >> unquoted_string >> lit("(") > quoted_string > lit(")") >> stage_generator >> "}")[_val = bind(&setStageAttribute, _1, _2, _3)];
         stage_assignment = (unquoted_string >> lit("=") >> stage_generator)[_val = bind(&setStageName, _1, _2)];

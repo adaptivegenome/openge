@@ -25,10 +25,10 @@ function err() {
 
 # Convenience function to run the test
 function run() {
-	openge bpipe test.groovy $* > test.out 2>&1
+	openge execute test.groovy $* > test.out 2>&1
 }
 
 # Convenience function to run in test mode
 function runtest() {
-	openge bpipe test.groovy $* > test.out 2>&1
+	openge execute test.groovy $* > test.out 2>&1
 }
