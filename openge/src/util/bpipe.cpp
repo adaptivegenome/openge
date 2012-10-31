@@ -233,9 +233,15 @@ bool isModifiedBefore(const string & filename1, const string & filename2) {
     ret = stat(filename2.c_str(), &buffer2);
     if(ret) return false;
     
+    // OS X provides much better time resolution than Linux
+    // Linux stat struct doesn't have st_mtimespec.
+#ifdef __APPLE__
     if(buffer1.st_mtimespec.tv_sec == buffer2.st_mtimespec.tv_sec)
         return buffer1.st_mtimespec.tv_nsec < buffer2.st_mtimespec.tv_nsec;
     return buffer1.st_mtimespec.tv_sec < buffer2.st_mtimespec.tv_sec;
+#else
+    return buffer1.st_mtime < buffer2.st_mtime;
+#endif
 }
 
 bool StageExecAction::check(variable_storage_t & variables) {
