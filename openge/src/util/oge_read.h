@@ -37,9 +37,8 @@ public:
     static void deallocate(OGERead * al);
     static void clearCachedAllocations();
 protected:
-    static Spinlock allocator_spinlock;
-    static std::vector<OGERead *> cached_allocations;
-    static std::vector<OGERead *> cached_allocations_cleared;
+    static SynchronizedQueue<OGERead *> cached_allocations;
+    static SynchronizedQueue<OGERead *> cached_allocations_cleared;
     static bool clean_thread_running;
 };
 

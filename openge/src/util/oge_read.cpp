@@ -29,68 +29,41 @@ using std::vector;
 // until bamtools is replaced.
 class OGEReadClearJob : public ThreadJob {
 public:
-    vector<OGERead *> * cached_allocations, *cached_allocations_cleared;
+    SynchronizedQueue<OGERead *> * cached_allocations, *cached_allocations_cleared;
     Spinlock * allocator_spinlock;
     bool * clean_thread_running;
     virtual void runJob();
 };
 
 void OGEReadClearJob::runJob() {
-    vector<OGERead *> to_clear;    //thread private copy of to-be-cleared alignments
-    to_clear.reserve(100);
-    static int ct = 0;
-    while (true) {
-        allocator_spinlock->lock();
-        while(!cached_allocations->empty() && to_clear.size() < 100) {
-            OGERead * al = cached_allocations->back();
-            cached_allocations->pop_back();
-            ct++;
-            to_clear.push_back(al);
-        }
-        
-        allocator_spinlock->unlock();
-        
-        if(to_clear.empty()) break;
-        
-        for(vector<OGERead *>::iterator i = to_clear.begin(); i!= to_clear.end(); i++)
-            (*i)->clear();
-        
-        allocator_spinlock->lock();
-        for(vector<OGERead *>::iterator i = to_clear.begin(); i!= to_clear.end(); i++)
-            cached_allocations_cleared->push_back(*i);
-        allocator_spinlock->unlock();
-        
-        to_clear.clear();
+    while(!cached_allocations->empty()) {
+        OGERead * al = cached_allocations->pop();
+        al->clear();
+        cached_allocations_cleared->push(al);
     }
     *clean_thread_running = false;
 }
 
 OGERead * OGERead::allocate() {
     OGERead * ret = NULL;
-    allocator_spinlock.lock();
-    
+
     if(!cached_allocations_cleared.empty()) {
         ret = cached_allocations_cleared.back();
-        cached_allocations_cleared.pop_back();
+        cached_allocations_cleared.pop();
     }
-    
-    allocator_spinlock.unlock();
+
     if(!ret) ret = new OGERead();
-    //else ret->clear();
     
     return ret;
 }
 
 void OGERead::deallocate(OGERead * al) {
-    allocator_spinlock.lock();
-    cached_allocations.push_back(al);
-    allocator_spinlock.unlock();
+    cached_allocations.push(al);
     
     if(cached_allocations.size() > 100 && !clean_thread_running) {
         clean_thread_running = true;
         OGEReadClearJob * job = new OGEReadClearJob;
-        job->allocator_spinlock = &allocator_spinlock;
-        job->cached_allocations = & cached_allocations;
+        job->cached_allocations = &cached_allocations;
         job->clean_thread_running = &clean_thread_running;
         job->cached_allocations_cleared = &cached_allocations_cleared;
         ThreadPool::sharedPool()->addJob(job);
@@ -99,16 +72,20 @@ void OGERead::deallocate(OGERead * al) {
 
 void OGERead::clearCachedAllocations() {
     ThreadPool::sharedPool()->waitForJobCompletion();
-    allocator_spinlock.lock();
+
     while(!cached_allocations.empty()) {
-        OGERead * al = cached_allocations.back();
+        OGERead * al = cached_allocations.front();
         delete(al);
-        cached_allocations.pop_back();
+        cached_allocations.pop();
     }
-    allocator_spinlock.unlock();
+    
+    while(!cached_allocations_cleared.empty()) {
+        OGERead * al = cached_allocations_cleared.front();
+        delete(al);
+        cached_allocations_cleared.pop();
+    }
 }
 
-Spinlock OGERead::allocator_spinlock;
-std::vector<OGERead *> OGERead::cached_allocations;
-std::vector<OGERead *> OGERead::cached_allocations_cleared;
+SynchronizedQueue<OGERead *> OGERead::cached_allocations;
+SynchronizedQueue<OGERead *> OGERead::cached_allocations_cleared;
 bool OGERead::clean_thread_running = false;
