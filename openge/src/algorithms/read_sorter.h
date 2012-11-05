@@ -41,6 +41,7 @@ public:
     : m_tempFilenameStub("/oge_sort_")
     , m_numberOfRuns(0)
     , m_numberOfAlignments(0)
+    , header_loaded(false)
     , sort_order (SORT_POSITION)
     , compress_temp_files (false)
     , alignments_per_tempfile(200000)
@@ -74,6 +75,8 @@ private:
     std::string m_tempFilenameStub;
     int m_numberOfRuns;
     int64_t m_numberOfAlignments;
+    Spinlock m_header_access;
+    bool header_loaded;
     BamTools::SamHeader m_header;
     BamTools::RefVector m_references;
     std::vector<std::string> m_tempFilenames;

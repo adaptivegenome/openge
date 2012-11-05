@@ -73,7 +73,7 @@ void FileReader::addFiles(std::vector<std::string> filenames)
 }
 
 const BamTools::SamHeader & FileReader::getHeader() {
-    while (!open) {
+    while (true) {
         //wait for header to be loaded
         header_access.lock();
         bool ret = open;

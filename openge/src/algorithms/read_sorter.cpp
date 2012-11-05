@@ -56,14 +56,18 @@ bool ReadSorter::Run(void)
 {
     // options
     if(!isNothreads()) {
-        thread_pool = new ThreadPool(OGEParallelismSettings::availableCores());
+        thread_pool = new ThreadPool();
     } else if(isVerbose())
         cerr << "Thread pool use disabled." << endl;
     
+    m_header_access.lock();
     m_header = getHeader();
     m_header.SortOrder = ( sort_order == SORT_NAME
                           ? BamTools::Constants::SAM_HD_SORTORDER_QUERYNAME
                           : BamTools::Constants::SAM_HD_SORTORDER_COORDINATE );
+    
+    header_loaded = true;
+    m_header_access.unlock();
 
     RunSort();
 
@@ -79,11 +83,6 @@ bool ReadSorter::GenerateSortedRuns(void) {
     
     if(isVerbose())
         cerr << "Generating sorted temp files." << endl;
-
-    // get basic data that will be shared by all temp/output files
-    m_header.SortOrder = ( sort_order == SORT_NAME
-                          ? BamTools::Constants::SAM_HD_SORTORDER_QUERYNAME
-                          : BamTools::Constants::SAM_HD_SORTORDER_COORDINATE );
     
     // set up alignments buffer
     vector<OGERead *> * buffer = new vector<OGERead *>();
@@ -303,11 +302,13 @@ bool ReadSorter::WriteTempFile(const vector<OGERead *>& buffer,
     else
         tempWriter.getOutputStream().setCompressionLevel(0);
     
+    m_header_access.lock();
     if ( !tempWriter.open(tempFilename, m_header) ) {
         cerr << "ReadSorter ERROR: could not open tempfile " << tempFilename
         << " for writing." << endl;
         exit(-1);
     }
+    m_header_access.unlock();
     
     // write data
     vector<OGERead *>::const_iterator buffIter = buffer.begin();
@@ -324,11 +325,15 @@ bool ReadSorter::WriteTempFile(const vector<OGERead *>& buffer,
 
 const SamHeader & ReadSorter::getHeader()
 {
-    m_header = source->getHeader();
+    while(true) {
+        m_header_access.lock();
+        bool ret = header_loaded;
+        m_header_access.unlock();
+        
+        if(ret) break;
+        usleep(10000);
+    }
 
-    m_header.SortOrder = ( sort_order == SORT_NAME
-                          ? BamTools::Constants::SAM_HD_SORTORDER_QUERYNAME
-                          : BamTools::Constants::SAM_HD_SORTORDER_COORDINATE );
     return m_header;
 }
 
