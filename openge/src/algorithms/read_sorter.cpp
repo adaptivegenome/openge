@@ -322,14 +322,14 @@ bool ReadSorter::WriteTempFile(const vector<OGERead *>& buffer,
     return true;
 }
 
-SamHeader ReadSorter::getHeader()
+const SamHeader & ReadSorter::getHeader()
 {
-    SamHeader header = source->getHeader();
+    m_header = source->getHeader();
 
-    header.SortOrder = ( sort_order == SORT_NAME
+    m_header.SortOrder = ( sort_order == SORT_NAME
                           ? BamTools::Constants::SAM_HD_SORTORDER_QUERYNAME
                           : BamTools::Constants::SAM_HD_SORTORDER_COORDINATE );
-    return header;
+    return m_header;
 }
 
 int ReadSorter::runInternal()

@@ -167,7 +167,7 @@ OGERead * AlgorithmModule::getInputAlignment()
     return input_queue.pop();
 }
 
-SamHeader AlgorithmModule::getHeader()
+const SamHeader & AlgorithmModule::getHeader()
 {
     return source->getHeader();
 }

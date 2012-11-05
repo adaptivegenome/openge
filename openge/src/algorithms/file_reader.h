@@ -33,12 +33,13 @@ class FileReader : public AlgorithmModule
 protected:
     virtual int runInternal();
     std::vector<std::string> filenames;
+    Spinlock header_access;
     bool open;
     BamTools::SamHeader header;
     bool format_specified;
     bool load_string_data;
-    
-    virtual BamTools::SamHeader getHeader() { while (!open) usleep(10000); return header; }
+
+    virtual const BamTools::SamHeader & getHeader();
     
 public:
     FileReader() : open(false), format_specified(false), load_string_data(true) {}

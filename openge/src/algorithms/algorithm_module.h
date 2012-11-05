@@ -73,7 +73,7 @@ protected:
     OGERead * getInputAlignment();
 
 public:
-    virtual BamTools::SamHeader getHeader();
+    virtual const BamTools::SamHeader & getHeader();
     
     bool isVerbose() const { return AlgorithmModule::verbose; }
     bool isNothreads() const { return AlgorithmModule::nothreads; }

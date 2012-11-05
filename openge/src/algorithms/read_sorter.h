@@ -99,7 +99,7 @@ public:
 
 protected:
     virtual int runInternal();
-    virtual BamTools::SamHeader getHeader();
+    virtual const BamTools::SamHeader & getHeader();
     
 public:
     sorting_t getSortBy() { return sort_order; }

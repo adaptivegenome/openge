@@ -39,8 +39,10 @@ int FileReader::runInternal()
             exit(-1);
         }
 
+        header_access.lock();
         header = reader.getHeader();
         open = true;
+        header_access.unlock();
         
         OGERead * al;
         
@@ -68,4 +70,19 @@ void FileReader::addFile(std::string filename)
 void FileReader::addFiles(std::vector<std::string> filenames) 
 {
     this->filenames.insert(this->filenames.end(), filenames.begin(), filenames.end()); 
+}
+
+const BamTools::SamHeader & FileReader::getHeader() {
+    while (!open) {
+        //wait for header to be loaded
+        header_access.lock();
+        bool ret = open;
+        header_access.unlock();
+        
+        if(ret)
+            break;
+        else
+            usleep(10000);
+    }
+    return header;
 }
