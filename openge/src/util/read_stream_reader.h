@@ -49,6 +49,7 @@ ReadStreamReader::file_format_t ReadStreamReader::detectFileFormat(std::string f
         fp = fopen(filename.c_str(), "rb");
         
         if(!fp) {
+            perror("Read stream reader can't open a file");
             std::cerr << "Couldn't open file " << filename << std::endl;
             return FORMAT_UNKNOWN;
         }
@@ -56,6 +57,7 @@ ReadStreamReader::file_format_t ReadStreamReader::detectFileFormat(std::string f
     
     unsigned char data[2];
     if(2 != fread(data, 1,2, fp)) {
+        perror("Read stream reader can't read file");
         std::cerr << "Couldn't read from file " << filename << std::endl;
         return FORMAT_UNKNOWN;
     }
