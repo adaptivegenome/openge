@@ -109,6 +109,8 @@ int OpenGECommand::runWithParameters(int argc, const char ** argv)
     
     OGERead::clearCachedAllocations();
     
+    ThreadPool::closeSharedPool();
+    
     return ret;
 }
 
