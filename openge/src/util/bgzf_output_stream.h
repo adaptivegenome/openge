@@ -24,6 +24,7 @@
 class BgzfOutputStream {
     class BgzfCompressJob : public ThreadJob {
     public:
+        Spinlock data_access_lock;  //only needed to get rid of race detection warnings in ThreadSanitizer
         std::vector<char> compressed_data;
         std::vector<char> uncompressed_data;
         bool compressed;

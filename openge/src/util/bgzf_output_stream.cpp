@@ -34,6 +34,8 @@ const uint8_t  BGZF_BLOCK_FOOTER_LENGTH  = 8;
 void BgzfOutputStream::BgzfCompressJob::runJob() {
     
     ogeNameThread("ogeBgzfDeflate");
+    
+    data_access_lock.lock();
     compressed_data.resize(BGZF_BLOCK_SIZE);
 
     // initialize the gzip header
@@ -137,6 +139,8 @@ void BgzfOutputStream::BgzfCompressJob::runJob() {
     crc = crc32(crc, (Bytef*)&uncompressed_data[0], uncompressed_data.size());
     *((uint32_t *) &buffer[compressedLength - 8]) = crc;
     *((uint32_t *) &buffer[compressedLength - 4]) = uncompressed_data.size();
+    
+    data_access_lock.unlock();
 
     compressed = true;
     
@@ -144,17 +148,27 @@ void BgzfOutputStream::BgzfCompressJob::runJob() {
 }
 
 void BgzfOutputStream::flushQueue() {
-    int error = pthread_mutex_lock(&write_mutex);
+    int error = pthread_mutex_trylock(&write_mutex);
+    
+    //EBUSY = 16
+    if(16 == error)  //if another thread is working here, no use in us trying to do the same thing.
+        return;
     if(0 != error)
     {
         cerr << "Error locking BGZF write mutex. Aborting. (" << error << ")" << endl;
         exit(-1);
     }
     
-    while( !job_queue.empty() && job_queue.front()->compressed ) {
+    while( !job_queue.empty()) {
         BgzfCompressJob * job = job_queue.front();
 
+        job->data_access_lock.lock();
+        if(!job_queue.front()->compressed) {
+            job->data_access_lock.unlock();
+            break;
+        }
         output_stream.write(&job->compressed_data[0], job->compressed_data.size());
+        job->data_access_lock.unlock();
         
         job_queue.pop();
         delete job;
@@ -194,10 +208,12 @@ void BgzfOutputStream::write(const char * data, size_t len) {
     
     while(write_buffer.size() > block_write_size) {
         BgzfCompressJob * job = new BgzfCompressJob();
+        job->data_access_lock.lock();
         job->compression_level = compression_level;
         job->stream = this;
         job->uncompressed_data.insert(job->uncompressed_data.begin(), write_buffer.begin(), write_buffer.begin() + block_write_size);
         write_buffer.erase(write_buffer.begin(), write_buffer.begin() + block_write_size);
+        job->data_access_lock.unlock();
 
         job_queue.push(job);
         ThreadPool::sharedPool()->addJob(job);
@@ -208,18 +224,22 @@ void BgzfOutputStream::close() {
     //write last bit of data out
     if(!write_buffer.empty()) {
         BgzfCompressJob * job = new BgzfCompressJob();
+        job->data_access_lock.lock();
         job->compression_level = compression_level;
         job->stream = this;
         job->uncompressed_data.insert(job->uncompressed_data.begin(), write_buffer.begin(), write_buffer.end());
         write_buffer.clear();
+        job->data_access_lock.unlock();
 
         job_queue.push(job);
         ThreadPool::sharedPool()->addJob(job);
     }
     
     //wait for last write to be flushed before closing read.
-    while(!job_queue.empty())
+    while(!job_queue.empty()) {
         usleep(20000);
+        flushQueue();
+    }
     
     int ret = pthread_mutex_lock(&write_mutex);
     if(0 != ret)
