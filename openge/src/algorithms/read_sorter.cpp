@@ -61,7 +61,7 @@ bool ReadSorter::Run(void)
         cerr << "Thread pool use disabled." << endl;
     
     m_header_access.lock();
-    m_header = getHeader();
+    m_header = AlgorithmModule::getHeader();
     m_header.SortOrder = ( sort_order == SORT_NAME
                           ? BamTools::Constants::SAM_HD_SORTORDER_QUERYNAME
                           : BamTools::Constants::SAM_HD_SORTORDER_COORDINATE );
