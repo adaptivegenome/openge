@@ -30,10 +30,12 @@ public:
 protected:
     input_stream_t input_stream;
     BamTools::SamHeader header;
+    Spinlock read_lock;
 };
 
 template <class input_stream_t>
 bool BamDeserializer<input_stream_t>::open(const std::string & filename) {
+    read_lock.lock();
     input_stream.open(filename.c_str());
     
     if(input_stream.fail()) {
@@ -124,6 +126,7 @@ bool BamDeserializer<input_stream_t>::open(const std::string & filename) {
             exit(-1);
         }
     }
+        read_lock.unlock();
     
     return true;
 }
@@ -139,6 +142,8 @@ OGERead * BamDeserializer<input_stream_t>::read() {
 
     // read in the 'block length' value, make sure it's not zero
     char buffer[sizeof(uint32_t)] = {0};
+
+    read_lock.lock();
 
     input_stream.read(buffer, sizeof(uint32_t));
     if(input_stream.eof())
@@ -195,6 +200,8 @@ OGERead * BamDeserializer<input_stream_t>::read() {
         delete al;
         return NULL;
     }
+
+    read_lock.unlock();
 
     al->setBamStringData(char_buffer, BlockLength - 32, NumCigarOperations, QuerySequenceLength, QueryNameLength);
     assert(QueryNameLength == al->getNameLength());
