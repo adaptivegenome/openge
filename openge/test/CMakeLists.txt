@@ -1,5 +1,6 @@
 set( OPENGE_TEST_DATA ${PROJECT_SOURCE_DIR}/openge/test/data)
 set( OPENGE_TEST_SCRIPT ${PROJECT_SOURCE_DIR}/openge/test)
+set( OPENGE_TEST_TESTS ${PROJECT_SOURCE_DIR}/openge/test/tests)
 
 ## Test file formats
 # SAM
@@ -20,6 +21,7 @@ set_tests_properties(oge_bam_truncated oge_bam_samtools_truncated PROPERTIES WIL
 
 ## Test count command
 add_test(NAME oge_count COMMAND openge count ${OPENGE_TEST_DATA}/simple.bam)
+add_test(NAME oge_count_output COMMAND ${OPENGE_TEST_TESTS}/oge_count_output/run.sh)
 
 ## Test coverage command
 add_test(NAME oge_coverage COMMAND openge coverage ${OPENGE_TEST_DATA}/simple.bam)
@@ -38,6 +40,7 @@ add_test(NAME oge_help_view COMMAND openge help view)
 
 ## Test mergesort command
 add_test(NAME oge_mergesort COMMAND openge mergesort ${OPENGE_TEST_DATA}/simple.bam -o /dev/null)
+add_test(NAME oge_mergesort_output COMMAND ${OPENGE_TEST_TESTS}/oge_mergesort_output/run.sh)
 
 ## Test stats command
 add_test(NAME oge_stats COMMAND openge stats ${OPENGE_TEST_DATA}/simple.bam)
