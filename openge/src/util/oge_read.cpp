@@ -48,7 +48,7 @@ OGERead * OGERead::allocate() {
     OGERead * ret = NULL;
 
     if(!cached_allocations_cleared.empty()) {
-        ret = cached_allocations_cleared.back();
+        ret = cached_allocations_cleared.front();
         cached_allocations_cleared.pop();
     }
 
