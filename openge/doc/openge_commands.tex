@@ -51,6 +51,7 @@ view&View a filtered subset of an input dataset\\
 \end{center}
 
 \subsection {General}
+\label{general_options}
 The following flags are common for all OpenGE commands. Additional flags and parameters may be available for individual commands.
 \begin{center}
 \begin{tabular}{llp{3.5in}}
@@ -226,6 +227,7 @@ The history command prints out a list of commands from @PG records in a SAM or B
 There are no command line arguments for this command.
 
 \subsection {mergesort}
+\label{mergesort}
 This command generates a single file from one or more input files. The supplied input files are merged and then sorted by read position or region.
 
 Parameters:
@@ -473,6 +475,25 @@ The following formats can be used to
 \end{tabular}
 \end{center}
 
+\section {Performance tuning}
+
+\subsection {mergesort}
+\label{mergesort_tuning}
+When sorting larger files, mergesort stores intermediate results in a number of temporary files. The performance of reading and writing these files is the biggest contributor to mergesort's performance, and a few settings are available can tune mergesort to run better on your system.
+
+\begin{itemize}
+\item The \textbf{{-}{-}compresstempfiles} (section \ref{mergesort})  controls whether or not temporary files are compressed. Selecting this option reduces the space consumed by temporary files down by approximately 60\%, at the cost of extra CPU time. If performance is limited by disk speed, try this option.
+\item The \textbf{{-}{-}tempdir} (section \ref{general_options})  option allows you to specify a directory to store temporary files in. By default, /tmp is used. If you have a faster disk installed for temporary files (especially a SSD), putting the temporary files on that disk may increase performance.
+\item \textbf{{-}{-}n} (section \ref{mergesort}) allows you to specify a number of reads to put in each tempfile. This parameter affects both the number of temporary files, and the amount of RAM consumed while running.
+
+Typical values for this parameter will be about 500,000 for a laptop/desktop system, up to 5,000,000 or larger for a high-RAM system (50GB+).
+
+If this number is set to low, the number of temporary files will exceed the maximum number of files that you can have open, and a warning to this effect will be displayed. On linux, this limit can be found and increased (a bit) using: \cmd{ulimit -n 2048} See this page for more information:
+\cmd{\href{http://stackoverflow.com/questions/34588/how-do-i-change-the-number-of-open-files-limit-in-linux}{http://stackoverflow.com/questions/34588/how-do-i-change-the-number-of-open-files-limit-in-linux}}
+
+If the number is too high, openge will use all of your system's RAM.
+\end{itemize}
+
 \section {Workflow functionality}
 \subsection {Overview of functionality}
 \label{pipeline_functionality}
@@ -485,7 +506,7 @@ Workflow scripts are run as files passed to OpenGE's execute command:
 
 \cmd{openge execute \textit{workflow input\_file}}
 
-See the \ref{execute} section for more details on how to call the execute command.
+See the execute documentation (section \ref{execute}) for more details on how to call the execute command.
 
 We can best demonstrate some workflow features and syntax with examples. For some features, the Bpipe wiki (\url{http://code.google.com/p/bpipe/wiki/GettingStarted}) provides more details.
 
