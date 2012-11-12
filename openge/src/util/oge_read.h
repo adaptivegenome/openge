@@ -36,6 +36,7 @@ public:
     static OGERead * allocate();
     static void deallocate(OGERead * al);
     static void clearCachedAllocations();
+    static Spinlock allocate_lock;
 protected:
     static SynchronizedQueue<OGERead *> cached_allocations;
     static SynchronizedQueue<OGERead *> cached_allocations_cleared;

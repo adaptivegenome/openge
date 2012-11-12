@@ -45,16 +45,15 @@ void OGEReadClearJob::runJob() {
 }
 
 OGERead * OGERead::allocate() {
-    OGERead * ret = NULL;
-
+    allocate_lock.lock();
+    OGERead * read = NULL;
     if(!cached_allocations_cleared.empty()) {
-        ret = cached_allocations_cleared.front();
-        cached_allocations_cleared.pop();
+        read = cached_allocations_cleared.pop();
+    } else {
+        read = new OGERead();
     }
-
-    if(!ret) ret = new OGERead();
-    
-    return ret;
+    allocate_lock.unlock();
+    return read;
 }
 
 void OGERead::deallocate(OGERead * al) {
@@ -74,18 +73,17 @@ void OGERead::clearCachedAllocations() {
     ThreadPool::sharedPool()->waitForJobCompletion();
 
     while(!cached_allocations.empty()) {
-        OGERead * al = cached_allocations.front();
+        OGERead * al = cached_allocations.pop();
         delete(al);
-        cached_allocations.pop();
     }
     
     while(!cached_allocations_cleared.empty()) {
-        OGERead * al = cached_allocations_cleared.front();
+        OGERead * al = cached_allocations_cleared.pop();
         delete(al);
-        cached_allocations_cleared.pop();
     }
 }
 
 SynchronizedQueue<OGERead *> OGERead::cached_allocations;
 SynchronizedQueue<OGERead *> OGERead::cached_allocations_cleared;
 bool OGERead::clean_thread_running = false;
+Spinlock OGERead::allocate_lock;
