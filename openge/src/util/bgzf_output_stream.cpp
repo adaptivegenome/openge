@@ -140,9 +140,9 @@ void BgzfOutputStream::BgzfCompressJob::runJob() {
     *((uint32_t *) &buffer[compressedLength - 8]) = crc;
     *((uint32_t *) &buffer[compressedLength - 4]) = uncompressed_data.size();
     
-    data_access_lock.unlock();
-
     compressed = true;
+    
+    data_access_lock.unlock();
     
     stream->flushQueue();
 }
