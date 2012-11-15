@@ -53,11 +53,11 @@ protected:
     ////////////////
     // From Picard MarkDuplicates.java
     short getScore(const OGERead & rec);
-    ReadEnds * buildReadEnds(BamTools::SamHeader & header, long index, const OGERead & rec);
+    ReadEnds * buildReadEnds(BamHeader & header, long index, const OGERead & rec);
     readends_orientation_t getOrientationByte(bool read1NegativeStrand, bool read2NegativeStrand);
     void buildSortedReadEndLists();
-    short getLibraryId(BamTools::SamHeader & header, const OGERead & rec);
-    std::string getLibraryName(BamTools::SamHeader & header, const OGERead & rec);
+    short getLibraryId(BamHeader & header, const OGERead & rec);
+    std::string getLibraryName(BamHeader & header, const OGERead & rec);
     void generateDuplicateIndexes();
     bool areComparableForDuplicates(const ReadEnds & lhs, const ReadEnds & rhs, bool compareRead2);
     void addIndexAsDuplicate(long bamIndex);

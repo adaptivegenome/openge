@@ -20,7 +20,6 @@
 #include "fastq_writer.h"
 
 using namespace std;
-using BamTools::SamHeader;
 
 FastqWriter::FastqWriter() 
 : fwd_stream(&cout)
@@ -31,7 +30,7 @@ FastqWriter::FastqWriter()
     
 }
 
-bool FastqWriter::open(const string& filename, const SamHeader & samHeader) {
+bool FastqWriter::open(const string& filename, const BamHeader & samHeader) {
     this->filename = filename;
     
     if(filename != "stdout") {

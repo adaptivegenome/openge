@@ -28,7 +28,7 @@ public:
     : thread_job(this)
     {}
     virtual bool open(const std::string & filename) { read_finished = false; null_seen = false; return reader.open(filename); }
-    virtual const BamTools::SamHeader & getHeader() const { return reader.getHeader(); };
+    virtual const BamHeader & getHeader() const { return reader.getHeader(); };
     virtual void close() { return reader.close(); }
     virtual OGERead * read();
     virtual bool is_open() { return reader.is_open(); }

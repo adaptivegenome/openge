@@ -18,7 +18,6 @@
 #define OGE_SAMREADER_H
 #include <string>
 #include <vector>
-#include <api/SamHeader.h>
 #include <iostream>
 #include <queue>
 #include "thread_pool.h"
@@ -48,7 +47,7 @@ public:
     virtual OGERead * read();
 
     // returns the current file's header data
-    virtual const BamTools::SamHeader & getHeader(void) const;
+    virtual const BamHeader & getHeader(void) const;
 
     //read a single line of a SAM file
     OGERead * ParseAlignment(const char * line_s) const;
@@ -60,8 +59,7 @@ protected:
     // retrieves header text from SAM file
     void LoadHeaderData(void);
 
-    BamTools::SamHeader header;
-    BamTools::RefVector m_refData;
+    BamHeader header;
     std::string filename;
     
     // multithreading variables

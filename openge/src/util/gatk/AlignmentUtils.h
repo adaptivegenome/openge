@@ -64,13 +64,13 @@ public:
     static MismatchCount getMismatchCount(const OGERead * r, std::string refSeq, int refIndex);
     static MismatchCount getMismatchCount(const OGERead * r, std::string refSeq, int refIndex, int startOnRead, int nReadBases) ;
     
-    static std::vector<BamTools::CigarOp> leftAlignIndel( std::vector<BamTools::CigarOp> cigar, const std::string refSeq, const std::string readSeq, const int refIndex, const int readIndex);
+    static std::vector<CigarOp> leftAlignIndel( std::vector<CigarOp> cigar, const std::string refSeq, const std::string readSeq, const int refIndex, const int readIndex);
     
 private:
-    static std::vector<BamTools::CigarOp> moveCigarLeft(const std::vector<BamTools::CigarOp> & cigar, int indexOfIndel);
-    static bool cigarHasZeroSizeElement(const std::vector<BamTools::CigarOp> & c);
-    static std::vector<BamTools::CigarOp> cleanUpCigar(const std::vector<BamTools::CigarOp> & c);
-    static std::string createIndelString(const std::vector<BamTools::CigarOp> & cigar, const int indexOfIndel, const std::string refSeq, const std::string readSeq, int refIndex, int readIndex);
+    static std::vector<CigarOp> moveCigarLeft(const std::vector<CigarOp> & cigar, int indexOfIndel);
+    static bool cigarHasZeroSizeElement(const std::vector<CigarOp> & c);
+    static std::vector<CigarOp> cleanUpCigar(const std::vector<CigarOp> & c);
+    static std::string createIndelString(const std::vector<CigarOp> & cigar, const int indexOfIndel, const std::string refSeq, const std::string readSeq, int refIndex, int readIndex);
 };
 
 #endif

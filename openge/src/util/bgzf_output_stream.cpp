@@ -24,7 +24,7 @@
  ********************************************************************/
 
 #include "bgzf_output_stream.h"
-#include "api/api_global.h"
+//#include "api/api_global.h"
 #include "thread_pool.h"
 #include <zlib.h>
 #include <iostream>

@@ -29,11 +29,6 @@
 #include <vector>
 #include <string>
 
-typedef enum {
-    SORT_NAME,
-    SORT_POSITION
-} sorting_t;
-
 class ReadSorter : public AlgorithmModule
 {
 public:
@@ -42,7 +37,7 @@ public:
     , m_numberOfRuns(0)
     , m_numberOfAlignments(0)
     , header_loaded(false)
-    , sort_order (SORT_POSITION)
+    , sort_order (BamHeader::SORT_COORDINATE)
     , compress_temp_files (false)
     , alignments_per_tempfile(200000)
     {
@@ -77,14 +72,13 @@ private:
     int64_t m_numberOfAlignments;
     Spinlock m_header_access;
     bool header_loaded;
-    BamTools::SamHeader m_header;
-    BamTools::RefVector m_references;
+    BamHeader m_header;
     std::vector<std::string> m_tempFilenames;
     bool sort_retval, merge_retval;
     ThreadPool * thread_pool;
     
     //options:
-    sorting_t sort_order;
+    BamHeader::sort_order_t sort_order;
     bool compress_temp_files;
     size_t alignments_per_tempfile;
 
@@ -102,11 +96,11 @@ public:
 
 protected:
     virtual int runInternal();
-    virtual const BamTools::SamHeader & getHeader();
+    virtual const BamHeader & getHeader();
     
 public:
-    sorting_t getSortBy() { return sort_order; }
-    void setSortBy(sorting_t sort_order) { this->sort_order = sort_order; }
+    BamHeader::sort_order_t getSortBy() { return sort_order; }
+    void setSortBy(BamHeader::sort_order_t sort_order) { this->sort_order = sort_order; }
 
     bool getCompressTempFiles() { return compress_temp_files; }
     void setCompressTempFiles(bool compress_temp_files) { this->compress_temp_files = compress_temp_files; }

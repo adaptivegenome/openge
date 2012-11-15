@@ -85,7 +85,7 @@
 
 #include "../../algorithms/local_realignment.h"
 
-#include <api/algorithms/Sort.h>
+#include "../bamtools/Sort.h"
 
 #include <map>
 #include <string>
@@ -97,18 +97,16 @@
 #include <sstream>
 using namespace std;
 
-using BamTools::CigarOp;
-
 size_t getReferenceLength(const OGERead & read) {
     size_t length = 0;
     for (vector<CigarOp>::const_iterator i = read.getCigarData().begin(); i != read.getCigarData().end(); i++) {
-        switch (i->Type) {
+        switch (i->type) {
             case 'M':
             case 'D':
             case 'N':
             case '=':
             case 'X':
-                length += i->Length;
+                length += i->length;
                 break;
         }
     }

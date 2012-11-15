@@ -47,6 +47,7 @@
 #include <sstream>
 #include <cassert>
 #include "sam_writer.h"
+#include "bamtools/BamAux.h"
 
 using namespace std;
 using namespace BamTools;
@@ -59,7 +60,7 @@ SamWriter::SamWriter()
 }
 
 bool SamWriter::open(const string& filename,
-                     const SamHeader & samHeader) {
+                     const BamHeader & samHeader) {
     this->filename = filename;
 
     if(filename != "stdout") {
@@ -72,7 +73,7 @@ bool SamWriter::open(const string& filename,
         }
     }
     this->header = samHeader;
-    *output_stream << header.ToString();
+    *output_stream << header.toString();
     
     m_open = true;
     
@@ -96,8 +97,8 @@ bool SamWriter::write(const OGERead & a) {
     m_out << a.getName() << "\t" << a.getAlignmentFlag() << "\t";
     
     // write reference name
-    if ( (a.getRefID() >= 0) && (a.getRefID() < (int)header.Sequences.Size()) )
-        m_out << header.Sequences[a.getRefID()].Name << "\t";
+    if ( (a.getRefID() >= 0) && (a.getRefID() < (int)header.getSequences().size()) )
+        m_out << header.getSequences()[a.getRefID()].getName() << "\t";
     else 
         m_out << "*\t";
     
@@ -112,17 +113,17 @@ bool SamWriter::write(const OGERead & a) {
         vector<CigarOp>::const_iterator cigarEnd  = cigarData.end();
         for ( ; cigarIter != cigarEnd; ++cigarIter ) {
             const CigarOp& op = (*cigarIter);
-            m_out << op.Length << op.Type;
+            m_out << op.length << op.type;
         }
         m_out << "\t";
     }
     
     // write mate reference name, mate position, & insert size
-    if ( a.IsPaired() && (a.getMateRefID() >= 0) && (a.getMateRefID() < (int)header.Sequences.Size()) ) {
+    if ( a.IsPaired() && (a.getMateRefID() >= 0) && (a.getMateRefID() < (int)header.getSequences().size()) ) {
         if ( a.getMateRefID() == a.getRefID() )
             m_out << "=\t";
         else
-            m_out << header.Sequences[a.getMateRefID()].Name << "\t";
+            m_out << header.getSequences()[a.getMateRefID()].getName() << "\t";
         m_out << a.getMatePosition()+1 << "\t" << a.getInsertSize() << "\t";
     } 
     else

@@ -22,7 +22,7 @@
 template <class output_stream_t>
 class BamSerializer : public ReadStreamWriter {
 public:
-    virtual bool open(const std::string & filename, const BamTools::SamHeader & header);
+    virtual bool open(const std::string & filename, const BamHeader & header);
     virtual void close();
     virtual bool is_open() const { return output_stream.is_open(); }
 
@@ -36,7 +36,7 @@ protected:
 };
 
 template <class output_stream_t>
-bool BamSerializer<output_stream_t>::open(const std::string & filename, const BamTools::SamHeader & header) {
+bool BamSerializer<output_stream_t>::open(const std::string & filename, const BamHeader & header) {
     
     output_stream.open(filename.c_str());
     
@@ -46,20 +46,20 @@ bool BamSerializer<output_stream_t>::open(const std::string & filename, const Ba
     output_stream.write("BAM\1", 4);
     
     //header text
-    std::string header_txt = header.ToString();
+    std::string header_txt = header.toString();
     int header_size = header_txt.size();
     char zero = 0;
     output_stream.write((char *)&header_size, 4);
     output_stream.write(header_txt.c_str(), header_size);
     
     //references
-    int seq_size = header.Sequences.Size();
+    int seq_size = header.getSequences().size();
     output_stream.write((char *) &seq_size, sizeof(seq_size));
-    for(BamTools::SamSequenceConstIterator i = header.Sequences.Begin(); i != header.Sequences.End(); i++) {
-        int name_size = i->Name.size() + 1;
-        int length = atoi(i->Length.c_str());
+    for(BamSequenceRecords::const_iterator i = header.getSequences().begin(); i != header.getSequences().end(); i++) {
+        int name_size = i->getName().size() + 1;
+        int length = i->getLength();
         output_stream.write((char *)&name_size, 4);
-        output_stream.write(i->Name.c_str(), i->Name.size());
+        output_stream.write(i->getName().c_str(), i->getName().size());
         output_stream.write(&zero,1);
         output_stream.write((char *)&length,4);
     }

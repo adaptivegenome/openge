@@ -31,8 +31,6 @@
 #include "../util/bgzf_output_stream.h"
 
 using namespace std;
-using BamTools::SamHeader;
-using BamTools::SamProgram;
 
 //from http://stackoverflow.com/questions/874134/find-if-string-endswith-another-string-in-c
 bool hasEnding (std::string const &fullString, std::string const &ending)
@@ -73,21 +71,21 @@ int FileWriter::runInternal()
     ogeNameThread("am_FileWriter");
     
     file_format = getFileFormat();
-    SamHeader header = getHeader();
+    BamHeader header = getHeader();
     
     if(command_line_options.size() > 0) {
-        SamProgram pg;
-        pg.ID = string("openge");
-	pg.Version = string(OPENGE_VERSION_STRING);
+        BamProgramRecord pg;
+        pg.id = string("openge");
+        pg.version = string(OPENGE_VERSION_STRING);
 
-        for(int i = 2; header.Programs.Contains( pg.ID); i++) {
+        for(int i = 2; header.getPrograms().contains( pg.id); i++) {
             stringstream s;
             s << "openge-" << i;
-            pg.ID = s.str();
+            pg.id = s.str();
         }
 
-        pg.CommandLine = command_line_options;
-        header.Programs.Add(pg);
+        pg.commandLine = command_line_options;
+        header.getPrograms().add(pg);
     }
 
     switch(file_format) {

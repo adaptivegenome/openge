@@ -14,7 +14,6 @@
  *
  *********************************************************************/
 
-#include "api/api_global.h"
 #include "bgzf_input_stream.h"
 #include <zlib.h>
 

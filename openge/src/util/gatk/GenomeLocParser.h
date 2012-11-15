@@ -42,23 +42,22 @@
 #ifndef OpenGE_GenomeLocParser_h
 #define OpenGE_GenomeLocParser_h
 
-#include "api/BamAlignment.h"
-#include "api/BamAux.h"
-#include "api/SamSequenceDictionary.h"
+#include "../bamtools/BamAux.h"
 #include "GenomeLoc.h"
+#include "../bam_header.h"
 #include "../oge_read.h"
 
 #include <string>
 
 class GenomeLocParser {
 private:
-    BamTools::SamSequenceDictionary * contigInfo;
+    BamSequenceRecords * contigInfo;
 public:
-    GenomeLocParser( BamTools::SamSequenceDictionary seqDict);
+    GenomeLocParser( BamSequenceRecords seqDict);
     bool contigIsInDictionary(const std::string contig) const;
     bool indexIsInDictionary(const int index) const;
 
-    BamTools::SamSequence getContigInfo(std::string contig);
+    BamSequenceRecord getContigInfo(std::string contig);
     int getContigIndex(std::string contig) const;
     std::string getContig(const int index) const;
     GenomeLoc parseGenomeLoc(const std::string str) const;

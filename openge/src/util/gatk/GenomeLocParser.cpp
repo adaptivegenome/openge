@@ -70,8 +70,8 @@ public GenomeLocParser(ReferenceSequenceFile refFile) {
     this(refFile.getSequenceDictionary());
 }
 #endif
-GenomeLocParser::GenomeLocParser( SamSequenceDictionary seqDict) {
-    contigInfo = new SamSequenceDictionary(seqDict);
+GenomeLocParser::GenomeLocParser( BamSequenceRecords seqDict) {
+    contigInfo = new BamSequenceRecords(seqDict);
     /*
     cerr << "Prepared reference sequence contig dictionary" << endl;
     for (SamSequenceConstIterator contig = contigInfo->Begin(); contig != contigInfo->End(); contig++) {
@@ -87,16 +87,16 @@ GenomeLocParser::GenomeLocParser( SamSequenceDictionary seqDict) {
  * @return True if the contig is valid.  False otherwise.
  */
 bool GenomeLocParser::contigIsInDictionary(const string contig) const {
-    return contigInfo->Contains(contig);
+    return contigInfo->contains(contig);
 }
 
 bool GenomeLocParser::indexIsInDictionary(const int index) const {
-    return index >= 0 && index < contigInfo->Size();
+    return index >= 0 && index < contigInfo->size();
 }
 string GenomeLocParser::getContig(const int index) const
 {
-    assert(index >= 0 && index < contigInfo->Size());
-    return (*contigInfo)[index].Name;
+    assert(index >= 0 && index < contigInfo->size());
+    return (*contigInfo)[index].name;
 }
 
 /**
@@ -108,7 +108,7 @@ string GenomeLocParser::getContig(const int index) const
  */
 //@Ensures("result != null")
 //@ThrowEnsures({"UserException.MalformedGenomeLoc", "!contigIsInDictionary(contig) || contig == null"})
-SamSequence GenomeLocParser::getContigInfo(string contig) {
+BamSequenceRecord GenomeLocParser::getContigInfo(string contig) {
     if ( ! contigIsInDictionary(contig) )
         fprintf(stderr, "Contig %s given as location, but this contig isn't present in the Fasta sequence dictionary", contig.c_str());
     return (*contigInfo)[contig];
@@ -124,13 +124,13 @@ SamSequence GenomeLocParser::getContigInfo(string contig) {
 //@Ensures("result >= 0")
 //@ThrowEnsures({"UserException.MalformedGenomeLoc", "!contigIsInDictionary(contig) || contig == null"})
 int GenomeLocParser::getContigIndex(string contig) const {
-    return contigInfo->IndexOfString(contig);
+    return contigInfo->indexOfString(contig);
 }
 
 int GenomeLocParser::getContigIndexWithoutException(string contig) const {
-    if ( ! contigInfo->Contains(contig) )
+    if ( ! contigInfo->contains(contig) )
         return -1;
-    return contigInfo->IndexOfString(contig);
+    return contigInfo->indexOfString(contig);
 }
 
 // --------------------------------------------------------------------------------------------------------------
@@ -186,7 +186,7 @@ GenomeLoc GenomeLocParser::createGenomeLoc(const string & contig, int index, con
  * @return true if it's valid, false otherwise.  If exceptOnError, then throws a UserException if invalid
  */
 bool GenomeLocParser::validateGenomeLoc(const string contig, const int contigIndex, const int start, const int stop, const bool mustBeOnReference, const bool exceptOnError) const {
-    if ( ! contigInfo->Contains(contig) ) {
+    if ( ! contigInfo->contains(contig) ) {
         cerr << "validateGenomeLoc: Unknown contig " << contig << endl;
         assert(0);
         return false;
@@ -204,8 +204,8 @@ bool GenomeLocParser::validateGenomeLoc(const string contig, const int contigInd
         return false;
     }
     
-    if (contigIndex >= contigInfo->Size()) {
-        cerr << "validateGenomeLoc: The contig index " << contigIndex << " is greater than the stored sequence count (" << contigInfo->Size() << ")" << endl;
+    if (contigIndex >= contigInfo->size()) {
+        cerr << "validateGenomeLoc: The contig index " << contigIndex << " is greater than the stored sequence count (" << contigInfo->size() << ")" << endl;
         assert(0);
         return false;
     }
@@ -223,7 +223,7 @@ bool GenomeLocParser::validateGenomeLoc(const string contig, const int contigInd
             return false;
         }
 
-        int contigSize = atoi((*contigInfo)[contigIndex].Length.c_str());
+        int contigSize = (*contigInfo)[contigIndex].getLength();
         if (start > contigSize || stop > contigSize) {
             cerr << "validateGenomeLoc: The genome loc coordinates " << start << "-" << stop << " exceed the contig size (" << contigSize << ")" << endl;
             assert(0);
@@ -321,7 +321,7 @@ GenomeLoc GenomeLocParser::parseGenomeLoc(const string str) const {
     
     if (stop == INT_MAX)
         // lookup the actually stop position!
-        stop = strtol((*contigInfo)[contig].Length.c_str(), NULL, 10);
+        stop = (*contigInfo)[contig].getLength();
     delete [] line;
     
     return createGenomeLoc(contig, getContigIndex(contig), start, stop, true);
@@ -382,12 +382,12 @@ GenomeLoc GenomeLocParser::createGenomeLoc(const OGERead & read) const {
         // Use max to ensure that end >= start (Picard assigns the end to reads that are entirely within an insertion as start-1)
         int length = read.getQueryBases().size();
         for( vector <CigarOp>::const_iterator i = read.getCigarData().begin(); i != read.getCigarData().end(); i++) {
-            if(i->Type == 'D')
-                length += i->Length;
-            if(i->Type == 'I')
-                length -= i->Length;
-            if(i->Type == 'S' || i->Type == 'H')
-                length -= i->Length;
+            if(i->type == 'D')
+                length += i->length;
+            if(i->type == 'I')
+                length -= i->length;
+            if(i->type == 'S' || i->type == 'H')
+                length -= i->length;
         }
 
         int end = read.IsMapped() ? max(read.getPosition() + length, read.getPosition()):read.getPosition() ;

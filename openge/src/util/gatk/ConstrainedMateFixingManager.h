@@ -42,11 +42,10 @@
 #ifndef OpenGE_ConstrainedMateFixingManager_h
 #define OpenGE_ConstrainedMateFixingManager_h
 
-#include "api/SamHeader.h"
 #include "GenomeLoc.h"
 #include "GenomeLocParser.h"
 
-#include "api/algorithms/Sort.h"
+#include "../bamtools/Sort.h"
 
 #include "../oge_read.h"
 #include "../thread_pool.h"

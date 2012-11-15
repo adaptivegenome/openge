@@ -2,6 +2,8 @@ set(UTIL_DIR "util")
 
 set(OPENGE_UTIL_SOURCES 
   ${UTIL_DIR}/bam_deserializer.h
+  ${UTIL_DIR}/bam_header.h
+  ${UTIL_DIR}/bam_header.cpp
   ${UTIL_DIR}/bgzf_input_stream.h
   ${UTIL_DIR}/bgzf_input_stream.cpp
   ${UTIL_DIR}/bgzf_output_stream.h
@@ -26,6 +28,11 @@ set(OPENGE_UTIL_SOURCES
   ${UTIL_DIR}/sequential_reader_cache.h
   ${UTIL_DIR}/thread_pool.h
   ${UTIL_DIR}/thread_pool.cpp
+
+  ${UTIL_DIR}/bamtools/BamAlignment.h
+  ${UTIL_DIR}/bamtools/BamAlignment.cpp
+  ${UTIL_DIR}/bamtools/BamAux.h
+  ${UTIL_DIR}/bamtools/BamConstants.h
   PARENT_SCOPE )
 
 set(OPENGE_UTIL_GATK_SOURCES 
