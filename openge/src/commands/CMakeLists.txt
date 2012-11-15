@@ -1,6 +1,7 @@
 set(COMMANDS_DIR "commands")
 
 set(OPENGE_COMMANDS_SOURCES 
+  ${COMMANDS_DIR}/commands.h
   ${COMMANDS_DIR}/commands.cpp
   ${COMMANDS_DIR}/command_bpipe.cpp
   ${COMMANDS_DIR}/command_compare.cpp
