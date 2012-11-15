@@ -149,9 +149,11 @@ void BgzfOutputStream::BgzfCompressJob::runJob() {
     *((uint32_t *) &buffer[compressedLength - 8]) = crc;
     *((uint32_t *) &buffer[compressedLength - 4]) = uncompressed_data.size();
     
-    compressed = true;
-    
     data_access_lock.unlock();
+    
+    compressed_flag_lock.lock();
+    compressed = true;
+    compressed_flag_lock.unlock();
     
     stream->flushQueue();
 }
@@ -216,11 +218,14 @@ void * BgzfOutputStream::file_write_threadproc(void * data) {
         while( !stream->job_queue.empty()) {
             BgzfCompressJob * job = stream->job_queue.front();
 
-            job->data_access_lock.lock();
+            job->compressed_flag_lock.lock();
             if(!stream->job_queue.front()->compressed) {
-                job->data_access_lock.unlock();
+                job->compressed_flag_lock.unlock();
                 break;
             }
+            job->compressed_flag_lock.unlock();
+
+            job->data_access_lock.lock();
             stream->output_stream.write(&job->compressed_data[0], job->compressed_data.size());
             job->data_access_lock.unlock();
             
