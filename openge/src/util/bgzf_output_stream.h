@@ -38,6 +38,7 @@ class BgzfOutputStream {
 public:
     BgzfOutputStream()
     : compression_level(6)
+    , closing(false)
     {}
 
     bool open(std::string filename);
@@ -53,6 +54,11 @@ protected:
     std::vector<char> write_buffer;
     SynchronizedBlockingQueue<BgzfCompressJob *> job_queue;
     pthread_mutex_t write_mutex;
+    pthread_t write_thread;
+    pthread_mutex_t write_wait_mutex;
+    pthread_cond_t flush_signal;
+    bool closing;
+    static void * file_write_threadproc(void * data);
 };
 
 #endif
