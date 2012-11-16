@@ -2,10 +2,15 @@
 // BamAlignment.cpp (c) 2009 Derek Barnett
 // Marth Lab, Department of Biology, Boston College
 // ---------------------------------------------------------------------------
-// Last modified: 4 April 2012 (DB)
+// Last modified: 16 Nov 2012 (Lee Baker)
 // ---------------------------------------------------------------------------
 // Provides the BamAlignment data structure
 // ***************************************************************************
+//
+// This file originally comes from bamtools, where it is released under the
+// BSD license. It has been extensively modified as part of OpenGE to allow
+// lazy loading of data, among other things.
+//
 
 #include "BamAlignment.h"
 #include "BamConstants.h"
