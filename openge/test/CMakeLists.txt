@@ -42,6 +42,9 @@ add_test(NAME oge_help_view COMMAND openge help view)
 add_test(NAME oge_mergesort COMMAND openge mergesort ${OPENGE_TEST_DATA}/simple.bam -o /dev/null)
 add_test(NAME oge_mergesort_output COMMAND ${OPENGE_TEST_TESTS}/oge_mergesort_output/run.sh)
 
+## Test repeatseq command
+add_test(NAME oge_repeatseq_output COMMAND ${OPENGE_TEST_TESTS}/oge_repeatseq_output/run.sh)
+
 ## Test stats command
 add_test(NAME oge_stats COMMAND openge stats ${OPENGE_TEST_DATA}/simple.bam)
 add_test(NAME oge_stats_inserts COMMAND openge stats -I ${OPENGE_TEST_DATA}/simple.bam)
