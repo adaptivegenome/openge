@@ -186,12 +186,16 @@ OGERead * BamDeserializer<input_stream_t>::read() {
     al->setMateRefID(BamTools::UnpackSignedInt(&x[20]));
     al->setMatePosition(BamTools::UnpackSignedInt(&x[24]));
     al->setInsertSize(BamTools::UnpackSignedInt(&x[28]));
+    assert(al->getPosition() == BamTools::UnpackSignedInt(&x[4]));
     
     // read in character data - make sure proper data size was read
     bool readCharDataOK = false;
     const unsigned int dataLength = BlockLength - 32;
+    assert(al->getPosition() == BamTools::UnpackSignedInt(&x[4]));
     char * char_buffer = (char *) alloca(dataLength);
+    assert(al->getPosition() == BamTools::UnpackSignedInt(&x[4]));
     input_stream.read(char_buffer, dataLength);
+    assert(al->getPosition() == BamTools::UnpackSignedInt(&x[4]));
     if ( !input_stream.fail() ) {
         // set success flag
         readCharDataOK = true;
@@ -200,6 +204,8 @@ OGERead * BamDeserializer<input_stream_t>::read() {
         delete al;
         return NULL;
     }
+    
+    assert(al->getPosition() == BamTools::UnpackSignedInt(&x[4]));
 
     read_lock.unlock();
 

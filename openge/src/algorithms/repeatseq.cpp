@@ -17,7 +17,10 @@
 #include "repeatseq.h"
 #include "../util/fasta_reader.h"
 #include "../util/thread_pool.h"
+#include "../util/read_stream_reader.h"
 
+#include <numeric>
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <fstream>
@@ -26,32 +29,8 @@ using namespace std;
 
 //////////////////////
 // from structures.cpp
-struct Sequences {
-    bool insertions;
-    string preSeq;
-    string alignedSeq;
-    string postSeq;
-    
-    Sequences();
-    Sequences(string, string, string, bool);
-};
 
-struct STRING_GT {
-    string print;
-    Sequences reads;
-    int GT;
-    bool paired;
-    bool reverse;
-    int MapQ;
-    int minFlank;
-    double avgBQ;
-    
-    STRING_GT(string, Sequences, int, bool, int, int, bool, double);
-    STRING_GT();
-    bool operator<(const STRING_GT &other) const; //for sorting
-};
-
-STRING_GT::STRING_GT(string a, Sequences b, int c, bool d, int e, int f, bool g, double h){
+Repeatseq::STRING_GT::STRING_GT(string a, Sequences b, int c, bool d, int e, int f, bool g, double h){
 	GT = c;
 	reads = Sequences(b);
 	print = a;
@@ -62,7 +41,7 @@ STRING_GT::STRING_GT(string a, Sequences b, int c, bool d, int e, int f, bool g,
 	avgBQ = h;
 }
 
-STRING_GT::STRING_GT(){
+Repeatseq::STRING_GT::STRING_GT(){
 	print = "";
 	GT = 0;
 	paired = 0;
@@ -80,39 +59,26 @@ struct counter {
     counter();
 };
 
-//class for parsing region argument:
-class Region {
-public:
-    string startSeq;
-    int startPos;
-    int stopPos;
-    
-    Region(string& region);
-    string toString();
-    int length(void);
-};
-
 //overloaded for sorting
-bool STRING_GT::operator<(const STRING_GT &other) const {
+bool Repeatseq::STRING_GT::operator<(const STRING_GT &other) const {
 	if (minFlank >= other.minFlank) return false;
 	else return true;
 }
 
-Sequences::Sequences(string a, string b, string c, bool d){
+Repeatseq::Sequences::Sequences(string a, string b, string c, bool d){
 	preSeq = a;
 	alignedSeq = b;
 	postSeq = c;
 	insertions = d;
 }
 
-Sequences::Sequences(){
+Repeatseq::Sequences::Sequences(){
 	preSeq = "";
 	alignedSeq = "";
 	postSeq = "";
 	insertions = 0;
 }
 
-//structure to be passed to VCF-writing function:
 struct VCF_INFO {
     std::string chr;
     int start;
@@ -123,21 +89,7 @@ struct VCF_INFO {
     double confidence;
 };
 
-//to be used for printing GT: information to header line:
-struct GT {
-    int readlength;
-    int occurrences;
-    int reverse;
-    int avgMinFlank;
-    double avgBQ;
-    
-    GT(int rl, int oc, int rev, int minF, double avg);
-    
-    //ordering should be in reverse order- largest to smallest for display.
-    inline bool operator<(const GT & b) const { return (occurrences > b.occurrences); }
-};
-
-GT::GT(int rl, int oc, int rev, int minF, double avgbq){
+Repeatseq::GT::GT(int rl, int oc, int rev, int minF, double avgbq){
 	avgMinFlank = minF;
 	readlength = rl;
 	occurrences = oc;
@@ -152,7 +104,7 @@ counter::counter(){
 	numRepeats2 = 0;
 }
 
-Region::Region(string& region) {
+Repeatseq::Region::Region(string& region) {
 	startPos = -1;
 	stopPos = -1;
 	size_t foundFirstColon = region.find(":");
@@ -173,7 +125,7 @@ Region::Region(string& region) {
 	}
 }
 
-string Region::toString() {
+string Repeatseq::Region::toString() const {
     stringstream ret;
     ret << startSeq << ":" << startPos;
     if(startPos != stopPos)
@@ -181,7 +133,7 @@ string Region::toString() {
     return ret.str();
 }
 
-int Region::length(void) {
+int Repeatseq::Region::length(void) const {
 	if (stopPos > 0) {
 		return stopPos - startPos + 1;
 	} else {
@@ -198,7 +150,7 @@ int Region::length(void) {
  See "repeatseq.h" for function & custom data structure declarations
  
  This .cpp contains functions:
- (1) main() - Parse command line options, iterate line by line through the TRF file (calling
+ (1) runInternal() - Iterate line by line through the TRF file (calling
  print_output() on each region).
  
  (2) print_output() - This function is called for each repeat in the repeat file, and
@@ -257,7 +209,6 @@ double PhredToFloat(char);
 std::string setToCD (std::string);
 void printHeader(std::ofstream&);
 void printArguments();
-std::vector<int> printGenoPerc(std::vector<GT>, int, int, double&, int);
 
 //function to convert phred score to probability score
 inline double PhredToFloat(char chr){
@@ -270,7 +221,7 @@ double log_factorial[10000] = {};
 string VERSION = "0.6.4";
 
 void Repeatseq::RepeatseqJob::runJob() {
-    repeatseq->print_output(region, vcfFile, oFile, callsFile, reads);
+    repeatseq->print_output(region, vcfFile, oFile, callsFile, reads, somatic_reads);
     
     for(vector<OGERead *>::const_iterator i = reads.begin(); i != reads.end(); i++) {
         OGERead::deallocate(*i);
@@ -301,7 +252,7 @@ void Repeatseq::flushWrites() {
             //flush
             if (makeRepeatseqFile){ oFile << jobs[i]->oFile.str(); }
             if (makeCallsFile){ callsFile << jobs[i]->callsFile.str(); }
-            vcfFile << jobs[i]->vcfFile.str();
+            if (makeVcfFile) vcfFile << jobs[i]->vcfFile.str();
             
             //delete
             delete jobs[i];
@@ -317,22 +268,19 @@ void Repeatseq::flushWrites() {
     busy = false;
 }
 
-struct RegionStringComparator {
-    const BamTools::SamSequenceDictionary & d;
-    RegionStringComparator(const BamTools::SamSequenceDictionary & d)
-    : d(d)
-    {}
-    
-    bool operator() (string a, string b) {
-        const Region r1(a);
-        const Region r2(b);
-        int rid1 = d.IndexOfString(r1.startSeq);
-        int rid2 = d.IndexOfString(r2.startSeq);
-        if(rid1 != rid2)
-            return rid1 < rid2;
-        return r1.startPos < r2.startPos;
-    }
-};
+Repeatseq::RegionStringComparator::RegionStringComparator(const BamTools::SamSequenceDictionary & d)
+: d(d)
+{}
+
+bool Repeatseq::RegionStringComparator::operator() (string a, string b) const {
+    const Repeatseq::Region r1(a);
+    const Repeatseq::Region r2(b);
+    int rid1 = d.IndexOfString(r1.startSeq);
+    int rid2 = d.IndexOfString(r2.startSeq);
+    if(rid1 != rid2)
+        return rid1 < rid2;
+    return r1.startPos < r2.startPos;
+}
 
 int Repeatseq::runInternal() {
 
@@ -354,7 +302,7 @@ int Repeatseq::runInternal() {
     //open input & output filestreams:
     if (makeRepeatseqFile){ oFile.open(output_filename.c_str()); }
     if (makeCallsFile){ callsFile.open(calls_filename.c_str()); }
-    vcfFile.open(vcf_filename.c_str());
+    if (makeVcfFile) vcfFile.open(vcf_filename.c_str());
     ifstream range_file(intervals_filename.c_str());
     if (!range_file.is_open()) { throw "Unable to open input range file."; }
     
@@ -375,7 +323,11 @@ int Repeatseq::runInternal() {
     int num_jobs = regions.size();
     jobs.reserve(num_jobs);
     
-    deque<OGERead *> read_buffer;
+    MultiReader somatic_reader;
+    if(!somatic_input.empty())
+        somatic_reader.open(somatic_input);
+    
+    deque<OGERead *> read_buffer, read_buffer_somatic;
     
     //set up threads to actually print the output
     for(int job_id = 0; job_id != num_jobs; job_id++) {
@@ -386,6 +338,7 @@ int Repeatseq::runInternal() {
         }
         int RID = sequence_dictionary.IndexOfString(r.startSeq);
         const BamRegion btregion(RID, r.startPos, RID, r.stopPos);
+
         // add reads to a buffer until we are sure we have all reads that might be in this region
         while(true) {
             OGERead * read = getInputAlignment();
@@ -413,6 +366,36 @@ int Repeatseq::runInternal() {
                 break;
         }
         
+        if(!somatic_input.empty()) {
+            
+            // add reads to a buffer until we are sure we have all reads that might be in this region
+            while(true) {
+                OGERead * read = somatic_reader.read();
+                
+                if(!read)   //have read the whole file, we are done.
+                    break;
+                if(read->getRefID() < RID || (read->getRefID() == RID && read->GetEndPosition()+1 < r.startPos) ) {
+                    OGERead::deallocate(read);
+                    continue;
+                }
+                read_buffer_somatic.push_front(read);
+                
+                if(read->getRefID() > RID || (read->getRefID() == RID && read->getPosition() > r.stopPos+1))
+                    break;
+            }
+            
+            //remove reads from the left side that shouldn't be in this region
+            while(!read_buffer_somatic.empty()) {
+                OGERead * back = read_buffer_somatic.back();
+                
+                if(back->getRefID() < RID || (back->getRefID() == RID && back->GetEndPosition()+1 < r.startPos) ) {
+                    read_buffer_somatic.pop_back();
+                    OGERead::deallocate(back);
+                } else
+                    break;
+            }
+        }
+        
         RepeatseqJob * job = new RepeatseqJob(this, job_id, regions[job_id]);
         
         //add all reads that overlap to the buffer
@@ -424,11 +407,26 @@ int Repeatseq::runInternal() {
                 job->reads.push_back(read);
             }
         }
+        
+        if(!somatic_input.empty()) {
+            //add all reads that overlap to the buffer
+            for(deque<OGERead *>::const_reverse_iterator i = read_buffer_somatic.rbegin(); i != read_buffer_somatic.rend(); i++) {
+                if((*i)->GetEndPosition() >= btregion.LeftPosition && (*i)->getPosition() < btregion.RightPosition) {
+                    //if( readOverlapsRegion(**i, btregion)) {
+                    OGERead * read = OGERead::allocate();
+                    *read = **i;
+                    job->somatic_reads.push_back(read);
+                }
+            }
+        }
 
         //start the job
         ThreadPool::sharedPool()->addJob(job);
         jobs.push_back(job);
     }
+
+    if(!somatic_input.empty())
+        somatic_reader.close();
 
     //wait for all workers to finish
     ThreadPool::sharedPool()->waitForJobCompletion();
@@ -583,35 +581,12 @@ inline string parseCigar(stringstream &cigarSeq, string &alignedSeq, const strin
 	return temp; //return modified string
 }
 
-inline void Repeatseq::print_output(const string & region_line, stringstream &vcf_buffer,  stringstream &o_buffer, stringstream &calls_buffer, const vector<OGERead *> & reads) const {
-	
-	vector<string> insertions;
-	string sequence;                // holds reference sequence
-	
-	// parse region argument:
-	string secondColumn = region_line.substr(region_line.find('\t',0)+1,-1); // text string to the right of tab
-	if (secondColumn == "") cout << "missing information after the tab in region file for " << region_line << ".\ncontinuing..." << endl;
-	string region = region_line.substr(0,region_line.find('\t',0));          //erases all of region string after tab
-	
-	// parse secondColumn:
-	if (int(secondColumn.find('_',0)) == -1) {
-		cout << "improper second column found for " << region << ".\ncontinuing with next region..." << endl;
-		return;
-	}
-	int unitLength = atoi(secondColumn.substr(0,secondColumn.find('_',0)).c_str());
-	string UnitSeq = secondColumn.substr(secondColumn.rfind('_')+1);
-	
-	int pos = 0;
-	for (int i = 0; i < 3; ++i) pos = secondColumn.find('_',pos + 1);
-	++pos; //increment past fourth '_'
-	double purity = atof(secondColumn.substr(pos,secondColumn.find('_',pos)).c_str());
-	
-	Region target(region);
-	if (target.startPos > target.stopPos) throw "Invalid input file...";
-	
+std::string Repeatseq::getReference(const Region & target) const {
+    
 	//ensure target doesn't overrun end of chromosome
 	if (target.startPos+target.length() > fasta_reader.getSequenceLength(target.startSeq)+1) throw "Target range is outside of chromosome.\n exiting..";
 	
+	string sequence;                // holds reference sequence
 	//if asked to print entire sequence:
 	if (target.startPos == -1) sequence = fasta_reader.readSequence(target.startSeq, 0, fasta_reader.getSequenceLength(target.startSeq));
 	
@@ -652,44 +627,17 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 		+ fasta_reader.readSequence(target.startSeq, target.startPos - 1, target.length())
 		+ " "
 		+ fasta_reader.readSequence(target.startSeq, target.startPos - 1 + target.length(), LR_CHARS_TO_PRINT);
-	
-	int firstSpace = sequence.find(' ',0);
-	int secondSpace = sequence.find(' ',firstSpace+1);
-	
-	string leftReference, centerReference, rightReference;
-	if (firstSpace != 0) leftReference = sequence.substr(0,firstSpace);
-	else leftReference = "";
-	centerReference = sequence.substr(firstSpace+1,secondSpace-firstSpace-1);
-	if (secondSpace != -1) rightReference = sequence.substr(secondSpace+1,-1);
-	else rightReference = "";
-	
-	// ensure reference is all caps (for matching purposes):
-	std::transform(leftReference.begin(), leftReference.end(), leftReference.begin(), ::toupper);
-	std::transform(centerReference.begin(), centerReference.end(), centerReference.begin(), ::toupper);
-	std::transform(rightReference.begin(), rightReference.end(), rightReference.begin(), ::toupper);
-	
-	// define our region of interest:
-	// debug-cout << "region: " << target.startSeq << ":" << target.startPos-1 << "-" << target.stopPos-1 << endl;
-	//BamRegion bamRegion(reader.GetReferenceID(target.startSeq), target.startPos - 1,reader.GetReferenceID(target.startSeq), target.stopPos - 1);
-	//reader.SetRegion(bamRegion);
-	
-	// prep for getting alignment info
+    
+	std::transform(sequence.begin(), sequence.end(), sequence.begin(), ::toupper);
+    return sequence;
+}
+
+std::vector<Repeatseq::STRING_GT> Repeatseq::makeToPrint(const std::vector<OGERead *> reads, const Region & target, const std::string & leftReference, const std::string & centerReference, const std::string & rightReference, int & numStars, int & depth) const {
+    
 	stringstream ssPrint;                   //where data to print will be stored
 	string PreAlignedPost = "";             //contains all 3 strings to be printed
-	double concordance = 0;
-	int totalOccurrences = 0;
-	int majGT = 0;
-	int occurMajGT = 0;
-	int depth = 0;
-	int numReads = 0;
-	int numStars = 0;
-	
-	vector<GT> vectorGT;
-	vectorGT.reserve(100);
 	vector<STRING_GT> toPrint;
 	toPrint.reserve(100);
-	
-	string vcfPrint;
 	
 	//cout << "trying " << target.startSeq << ":" << target.startPos - 1 << "-" << target.stopPos - 1 << endl;
 	// iterate through alignments in this region,
@@ -697,7 +645,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
         
         const OGERead & al = **i;
 		//cout << " found\n";
-		insertions.clear();
+        vector<string> insertions;
 		ssPrint.str("");
 		stringstream cigarSeq;
 		int gtBonus = 0;
@@ -720,7 +668,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 		double avgBQ;
         string query_bases = al.getQueryBases();
         string qualities = al.getQualities();
-		PreAlignedPost = parseCigar(cigarSeq, query_bases, al.getQualities(), insertions, al.getPosition() + 1, target.startPos, LR_CHARS_TO_PRINT, avgBQ);
+		string PreAlignedPost = parseCigar(cigarSeq, query_bases, al.getQualities(), insertions, al.getPosition() + 1, target.startPos, LR_CHARS_TO_PRINT, avgBQ);
 		if (PreAlignedPost == ""){
 			//If an 'N' or other problem was found
 			cout << "N found-- Possible Error!\n";
@@ -809,8 +757,8 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 				if (readLengthMax && readSize > readLengthMax){ continue; }
                 
 				//Determine consecutive matching flanking bases (LEFT):
-				string::iterator i = PreSeq.end()-1;
-				string::iterator i2 = leftReference.end()-1;
+				string::const_iterator i = PreSeq.end()-1;
+				string::const_iterator i2 = leftReference.end()-1;
 				bool consStreak = 1;
 				numMatchesL = 0;
 				for (int ctr = 0; ctr < PreSeq.length(); ++ctr ) {      //-1 compensates for matching null character @ end of all strings
@@ -856,7 +804,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 				if (numMatchesR < consRightFlank) continue;
 				
 				//Print avgBQ:
-				ssPrint << "B:" << float(int(10000*avgBQ))/10000 << " ";
+				ssPrint << "B:" << double(int(10000*avgBQ))/10000 << " ";
                 
 				//FILTER based on MapQ, then print MapQ
 				if (al.getMapQuality() < MapQuality) continue;  //MapQuality Filter
@@ -898,17 +846,13 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 		}        //end if statements
 		
 	} //end while loop
-	
-	numReads = toPrint.size();
+    
+    
 	
 	//push reference sequences into vectors for expansion & printing:
 	toPrint.insert( toPrint.begin(), STRING_GT("\n", Sequences(leftReference, centerReference, rightReference, 0), 0, 0, 0, 0, 0, 0.0) );
 	
 	// If any of the reads have insertions, expand the reads without inserted bases so all reads are fully printed:
-	bool skip = 1;
-	for (vector<STRING_GT>::iterator it=toPrint.begin(); it < toPrint.end(); it++){
-		if (it->reads.insertions) skip = 0;
-	}
 	if (true){
 		//Handle PRE-SEQ:
 		for (int index = 0, limit = LR_CHARS_TO_PRINT + 1; index < limit; ++index){
@@ -999,7 +943,12 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 		}
 	}
     
-	
+    return toPrint;
+}
+
+vector<Repeatseq::GT> Repeatseq::makeGenotypeInformation(vector<STRING_GT> & toPrint) const {
+    vector<GT> vectorGT;
+	vectorGT.reserve(100);
 	// Build VectorGT from toPrint:
 	for (vector<STRING_GT>::iterator tP=toPrint.begin(); tP < toPrint.end(); ++tP) {
 		if (tP->GT == 0) continue; //ignore reference
@@ -1027,139 +976,354 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 			vectorGT.insert(vectorGT.end(), a);
 		}
 	}
+    
+	//sort vectorGT by occurrences..
+	sort(vectorGT.begin(), vectorGT.end());
+    
 	//average out BQs & flanks
 	for (vector<GT>::iterator it = vectorGT.begin(); it < vectorGT.end(); ++it) {
 		it->avgBQ /= it->occurrences;
 		it->avgMinFlank /= it->occurrences;
 	}
     
-	int tallyMapQ = 0;
-	int occ = 0;
-	double avgMapQ;
-	for (vector<STRING_GT>::iterator it=toPrint.begin(); it < toPrint.end(); ++it) {
-		tallyMapQ = tallyMapQ + it->MapQ;
-		++occ;
+    return vectorGT;
+}
+
+inline void Repeatseq::print_output(const string & region_line, stringstream &vcf_buffer,  stringstream &o_buffer, stringstream &calls_buffer, const vector<OGERead *> & reads, const vector<OGERead *> & reads_somatic) const {
+
+	// parse region argument:
+	string secondColumn = region_line.substr(region_line.find('\t',0)+1,-1); // text string to the right of tab
+	if (secondColumn == "") cout << "missing information after the tab in region file for " << region_line << ".\ncontinuing..." << endl;
+	string region = region_line.substr(0,region_line.find('\t',0));          //erases all of region string after tab
+	
+	// parse secondColumn:
+	if (int(secondColumn.find('_',0)) == -1) {
+		cout << "improper second column found for " << region << ".\ncontinuing with next region..." << endl;
+		return;
 	}
-	if (occ) avgMapQ = double(tallyMapQ)/double(occ);
-	else avgMapQ = -1;
+	int unitLength = atoi(secondColumn.substr(0,secondColumn.find('_',0)).c_str());
+	string UnitSeq = secondColumn.substr(secondColumn.rfind('_')+1);
 	
-	//sort vectorGT by occurrences..
-	sort(vectorGT.begin(), vectorGT.end());
+	int pos = 0;
+	for (int i = 0; i < 3; ++i) pos = secondColumn.find('_',pos + 1);
+	++pos; //increment past fourth '_'
+	double purity = atof(secondColumn.substr(pos,secondColumn.find('_',pos)).c_str());
 	
-	//output header line
-	o_buffer << "~" << region << " ";
-	o_buffer << secondColumn;
-	o_buffer << " REF:" << target.length();
-	o_buffer << " A:";
-	if (!vectorGT.size()) {
-		o_buffer << "NA ";
-		concordance = -1;
-		majGT = -1;
-	}
-	else {
-		if (vectorGT.size() == 1) {
-			if (numReads == 1) {
-				concordance = -1;
-				majGT = vectorGT.begin()->readlength;
-				o_buffer << "NA ";
-			}
-			else {
-				concordance = 1;
-				majGT = vectorGT.begin()->readlength;
-				o_buffer << vectorGT.begin()->readlength << " ";
-				//oFile << "(" << vectorGT.begin()->avgBQ << ")"; //temp
-			}
-		}
-		else {
-			for (vector<GT>::iterator it=vectorGT.begin(); it < vectorGT.end(); it++) {
-				o_buffer << it->readlength << "[" << it->occurrences << "] " ;
-				//oFile << "(" << it->avgBQ << ") ";
-				if (it->occurrences >= occurMajGT) {
-					occurMajGT = it->occurrences;
-					if (it->readlength > majGT) majGT = it->readlength;
-				}
-				totalOccurrences += it->occurrences;
-			}
-			concordance = double(double(occurMajGT)-1.00) / double(double(totalOccurrences)-1.00);
-		}
-	}
+	Region target(region);
+	if (target.startPos > target.stopPos) throw "Invalid input file...";
 	
-	//concordance = # of reads that support the majority GT / total number of reads
-	if (concordance < 0) o_buffer << "C:NA";
-	else o_buffer << "C:" << concordance;
+    string sequence = getReference(target);
 	
-	o_buffer << " D:" << depth << " R:" << numReads << " S:" << numStars;
-	if (avgMapQ >= 0) o_buffer << " M:" << float(int(100*avgMapQ))/100;
-	else o_buffer << " M:NA";
+	int firstSpace = sequence.find(' ',0);
+	int secondSpace = sequence.find(' ',firstSpace+1);
 	
-	o_buffer << " GT:";
-	calls_buffer << region << "\t" << secondColumn << "\t";
-	vector<int> vGT;
-	double conf = 0;
-	if (vectorGT.size()  == 0) {
-		o_buffer << "NA L:NA" << endl;
-		calls_buffer << "NA\tNA\n";
-	}
-    else if (vectorGT.size() > 9){          // if more than 9 GTs are present
-        o_buffer << "NA L:NA" << endl;
-        calls_buffer << "NA\tNA\n";
+	string leftReference, centerReference, rightReference;
+	if (firstSpace != 0) leftReference = sequence.substr(0,firstSpace);
+	else leftReference = "";
+	centerReference = sequence.substr(firstSpace+1,secondSpace-firstSpace-1);
+	if (secondSpace != -1) rightReference = sequence.substr(secondSpace+1,-1);
+	else rightReference = "";
+
+	// define our region of interest:
+	// debug-cout << "region: " << target.startSeq << ":" << target.startPos-1 << "-" << target.stopPos-1 << endl;
+	//BamRegion bamRegion(reader.GetReferenceID(target.startSeq), target.startPos - 1,reader.GetReferenceID(target.startSeq), target.stopPos - 1);
+	//reader.SetRegion(bamRegion);
+	
+	// prep for getting alignment info
+	int depth = 0;
+	int numStars = 0;
+	int depth_somatic = 0;
+	int numStars_somatic = 0;
+
+	vector<STRING_GT> toPrint = makeToPrint(reads, target, leftReference, centerReference, rightReference, numStars, depth);
+	vector<GT> vectorGT = makeGenotypeInformation(toPrint);
+    
+	vector<STRING_GT> toPrint_somatic;
+	vector<GT> vectorGT_somatic;
+    
+    if(error_model == ERROR_SOMATIC_A || error_model == ERROR_SOMATIC_B) {
+        toPrint_somatic = makeToPrint(reads_somatic, target, leftReference, centerReference, rightReference, numStars_somatic, depth_somatic);
+        vectorGT_somatic = makeGenotypeInformation(toPrint);
     }
-    else if (concordance >= 0.99){          //no need to compute confidence if all the reads agree
-        o_buffer << majGT << " L:50" << endl;
-        calls_buffer << majGT << "L:50" << endl;
+
+    {
+        int numReads = toPrint.size() - 1;  // subtract 1 for the reference.
+
+        double avgMapQ;
+        {
+            int occ = 0;
+            int tallyMapQ = 0;
+            for (vector<STRING_GT>::iterator it=toPrint.begin(); it < toPrint.end(); ++it) {
+                tallyMapQ = tallyMapQ + it->MapQ;
+                ++occ;
+            }
+            if (occ) avgMapQ = double(tallyMapQ)/double(occ);
+            else avgMapQ = -1;
+        }
+
+        int majGT = 0;
+        int occurMajGT = 0;
+        int totalOccurrences = 0;
+        double concordance = 0;
+        
+        //output header line
+        o_buffer << "~" << region << " ";
+        o_buffer << secondColumn;
+        o_buffer << " REF:" << target.length();
+        o_buffer << " A:";
+        if (!vectorGT.size()) {
+            o_buffer << "NA ";
+            concordance = -1;
+            majGT = -1;
+        }
+        else {
+            if (vectorGT.size() == 1) {
+                if (numReads == 1) {
+                    concordance = -1;
+                    majGT = vectorGT.begin()->readlength;
+                    o_buffer << "NA ";
+                }
+                else {
+                    concordance = 1;
+                    majGT = vectorGT.begin()->readlength;
+                    o_buffer << vectorGT.begin()->readlength << " ";
+                    //oFile << "(" << vectorGT.begin()->avgBQ << ")"; //temp
+                }
+            }
+            else {
+                for (vector<GT>::iterator it=vectorGT.begin(); it < vectorGT.end(); it++) {
+                    o_buffer << it->readlength << "[" << it->occurrences << "] " ;
+                    //oFile << "(" << it->avgBQ << ") ";
+                    if (it->occurrences >= occurMajGT) {
+                        occurMajGT = it->occurrences;
+                        if (it->readlength > majGT) majGT = it->readlength;
+                    }
+                    totalOccurrences += it->occurrences;
+                }
+                concordance = double(double(occurMajGT)-1.00) / double(double(totalOccurrences)-1.00);
+            }
+        }
+        
+        //concordance = # of reads that support the majority GT / total number of reads
+        if (concordance < 0) o_buffer << "C:NA";
+        else o_buffer << "C:" << concordance;
+        
+        o_buffer << " D:" << depth << " R:" << numReads << " S:" << numStars;
+        if (avgMapQ >= 0) o_buffer << " M:" << double(int(100*avgMapQ))/100;
+        else o_buffer << " M:NA";
+        
+        o_buffer << " GT:";
+        calls_buffer << region << "\t" << secondColumn << "\t";
+        vector<int> vGT;
+        double conf = 0;
+        if (vectorGT.size()  == 0) {
+            o_buffer << "NA L:NA" << endl;
+            calls_buffer << "NA\tNA\n";
+        }
+        else if (vectorGT.size() > 9){          // if more than 9 GTs are present
+            o_buffer << "NA L:NA" << endl;
+            calls_buffer << "NA\tNA\n";
+        }
+        else if (concordance >= 0.99){          //no need to compute confidence if all the reads agree
+            o_buffer << majGT << " L:50" << endl;
+            calls_buffer << majGT << "L:50" << endl;
+        }
+        else {
+            if(error_model == ERROR_SOMATIC_B)
+                vGT = somaticConfidence(vectorGT, vectorGT_somatic, target, error_model, conf);
+            else
+                vGT = printGenoPerc(vectorGT, target.length(), unitLength, conf, mode);
+
+            if (numReads <= 1){ conf = 0; }
+            //write genotypes to calls & repeats file
+            if (vGT.size() == 0) { throw "vGT.size() == 0.. ERROR!\n"; }
+            else if (vGT.size() == 1 && conf > 3.02) { o_buffer << vGT[0] << " L:" << conf << "\n"; calls_buffer << vGT[0] << '\t' << conf << '\n'; }
+            else if (vGT.size() == 2 && conf > 3.02) { o_buffer << vGT[0] << "h" << vGT[1] << " L:" << conf << "\n"; calls_buffer << vGT[0] << "h" << vGT[1] << '\t' << conf << '\n'; }
+            else{ o_buffer << "NA L:" << conf << endl; calls_buffer << "NA\tNA\n"; }
+        }
+        
+        // Set info for printing VCF file
+        //structure to be passed to VCF-writing function:
+        VCF_INFO INFO;
+        INFO.chr = target.startSeq;
+        INFO.start = target.startPos + 1;
+        INFO.unit = UnitSeq;
+        INFO.length = target.length();
+        INFO.purity = purity;
+        INFO.depth = numReads;
+        INFO.confidence = conf;
+        
+        // GO THROUGH VECTOR AND PRINT ALL REMAINING
+        if (toPrint.size()>1){ //if there are reads present..
+            string REF = toPrint[0].reads.alignedSeq;
+            bool homo = false;
+            if (vGT.size() == 1) homo = true;
+            
+            for (vector<STRING_GT>::iterator it=toPrint.begin(); it < toPrint.end(); it++) {
+                // print .repeats file:
+                o_buffer << it->reads.preSeq << " " << it->reads.alignedSeq << " " << it->reads.postSeq << it->print;
+                
+                // finished printing to .repeats file.
+                if (vGT.size() != 0 && conf > 3.02){
+                    if (vGT.size() > 1 || vGT[0] != target.length() /*there's been a mutation*/){
+                        // print .vcf file:
+                        vector<int>::iterator tempgt = std::find(vGT.begin(), vGT.end(), it->GT);
+                        if (tempgt != vGT.end() && it->GT != target.length()){
+                            //debug vcf << "VCF record for " << REF << " --> " << it->reads.alignedSeq << "..\n";
+                            
+                            // the read represents one of our genotypes..
+                            string vcfRecord = getVCF(it->reads.alignedSeq, REF, target.startSeq, target.startPos, *(leftReference.end()-1), homo, INFO);
+                            vcf_buffer << vcfRecord;
+                            
+                            //remove the genotype from the genotype list..
+                            vGT.erase( tempgt );
+                        }
+                        // finished printing to .vcf file.
+                    }
+                }
+                
+                // continue iterating through each read..
+            }
+        }
     }
-	else {
-		vGT = printGenoPerc(vectorGT, target.length(), unitLength, conf, mode);
-		if (numReads <= 1){ conf = 0; }
-		//write genotypes to calls & repeats file
-		if (vGT.size() == 0) { throw "vGT.size() == 0.. ERROR!\n"; }
-		else if (vGT.size() == 1 && conf > 3.02) { o_buffer << vGT[0] << " L:" << conf << "\n"; calls_buffer << vGT[0] << '\t' << conf << '\n'; }
-		else if (vGT.size() == 2 && conf > 3.02) { o_buffer << vGT[0] << "h" << vGT[1] << " L:" << conf << "\n"; calls_buffer << vGT[0] << "h" << vGT[1] << '\t' << conf << '\n'; }
-		else{ o_buffer << "NA L:" << conf << endl; calls_buffer << "NA\tNA\n"; }
-	}
-	
-	// Set info for printing VCF file
-	VCF_INFO INFO;
-	INFO.chr = target.startSeq;
-	INFO.start = target.startPos + 1;
-	INFO.unit = UnitSeq;
-	INFO.length = target.length();
-	INFO.purity = purity;
-	INFO.depth = numReads;
-	INFO.confidence = conf;
-	
-	// GO THROUGH VECTOR AND PRINT ALL REMAINING
-	if (toPrint.size()>1){ //if there are reads present..
-		string REF = toPrint[0].reads.alignedSeq;
-		bool homo = false;
-		if (vGT.size() == 1) homo = true;
-		
-		for (vector<STRING_GT>::iterator it=toPrint.begin(); it < toPrint.end(); it++) {
-			// print .repeats file:
-			o_buffer << it->reads.preSeq << " " << it->reads.alignedSeq << " " << it->reads.postSeq << it->print;
-			
-			// finished printing to .repeats file.
-			if (vGT.size() != 0 && conf > 3.02){
-				if (vGT.size() > 1 || vGT[0] != target.length() /*there's been a mutation*/){
-					// print .vcf file:
-					vector<int>::iterator tempgt = std::find(vGT.begin(), vGT.end(), it->GT);
-					if (tempgt != vGT.end() && it->GT != target.length()){
-						//debug vcf << "VCF record for " << REF << " --> " << it->reads.alignedSeq << "..\n";
-						
-						// the read represents one of our genotypes..
-						string vcfRecord = getVCF(it->reads.alignedSeq, REF, target.startSeq, target.startPos, *(leftReference.end()-1), homo, INFO);
-						vcf_buffer << vcfRecord;
-						
-						//remove the genotype from the genotype list..
-						vGT.erase( tempgt );
-					}
-					// finished printing to .vcf file.
-				}
-			}
-			
-			// continue iterating through each read..
-		}
-	}
+    
+    if(error_model == ERROR_SOMATIC_A || error_model == ERROR_SOMATIC_B)
+    {
+        int numReads = toPrint.size() - 1;  // subtract 1 for the reference.
+        
+        double avgMapQ;
+        {
+            int occ = 0;
+            int tallyMapQ = 0;
+            for (vector<STRING_GT>::iterator it=toPrint.begin(); it < toPrint.end(); ++it) {
+                tallyMapQ = tallyMapQ + it->MapQ;
+                ++occ;
+            }
+            if (occ) avgMapQ = double(tallyMapQ)/double(occ);
+            else avgMapQ = -1;
+        }
+        
+        int majGT = 0;
+        int occurMajGT = 0;
+        int totalOccurrences = 0;
+        double concordance = 0;
+        
+        //output header line
+        o_buffer << "~" << region << " ";
+        o_buffer << secondColumn;
+        o_buffer << " REF:" << target.length();
+        o_buffer << " A:";
+        if (!vectorGT.size()) {
+            o_buffer << "NA ";
+            concordance = -1;
+            majGT = -1;
+        }
+        else {
+            if (vectorGT.size() == 1) {
+                if (numReads == 1) {
+                    concordance = -1;
+                    majGT = vectorGT.begin()->readlength;
+                    o_buffer << "NA ";
+                }
+                else {
+                    concordance = 1;
+                    majGT = vectorGT.begin()->readlength;
+                    o_buffer << vectorGT.begin()->readlength << " ";
+                    //oFile << "(" << vectorGT.begin()->avgBQ << ")"; //temp
+                }
+            }
+            else {
+                for (vector<GT>::iterator it=vectorGT.begin(); it < vectorGT.end(); it++) {
+                    o_buffer << it->readlength << "[" << it->occurrences << "] " ;
+                    //oFile << "(" << it->avgBQ << ") ";
+                    if (it->occurrences >= occurMajGT) {
+                        occurMajGT = it->occurrences;
+                        if (it->readlength > majGT) majGT = it->readlength;
+                    }
+                    totalOccurrences += it->occurrences;
+                }
+                concordance = double(double(occurMajGT)-1.00) / double(double(totalOccurrences)-1.00);
+            }
+        }
+        
+        //concordance = # of reads that support the majority GT / total number of reads
+        if (concordance < 0) o_buffer << "C:NA";
+        else o_buffer << "C:" << concordance;
+        
+        o_buffer << " D:" << depth << " R:" << numReads << " S:" << numStars;
+        if (avgMapQ >= 0) o_buffer << " M:" << double(int(100*avgMapQ))/100;
+        else o_buffer << " M:NA";
+        
+        o_buffer << " GT:";
+        calls_buffer << region << "\t" << secondColumn << "\t";
+        vector<int> vGT;
+        double conf = 0;
+        if (vectorGT.size()  == 0) {
+            o_buffer << "NA L:NA" << endl;
+            calls_buffer << "NA\tNA\n";
+        }
+        else if (vectorGT.size() > 9){          // if more than 9 GTs are present
+            o_buffer << "NA L:NA" << endl;
+            calls_buffer << "NA\tNA\n";
+        }
+        else if (concordance >= 0.99){          //no need to compute confidence if all the reads agree
+            o_buffer << majGT << " L:50" << endl;
+            calls_buffer << majGT << "L:50" << endl;
+        }
+        else {
+            vGT = somaticConfidence(vectorGT_somatic, vectorGT, target, error_model, conf);
+            if (numReads <= 1){ conf = 0; }
+            //write genotypes to calls & repeats file
+            if (vGT.size() == 0) { throw "vGT.size() == 0.. ERROR!\n"; }
+            else if (vGT.size() == 1 && conf > 3.02) { o_buffer << vGT[0] << " L:" << conf << "\n"; calls_buffer << vGT[0] << '\t' << conf << '\n'; }
+            else if (vGT.size() == 2 && conf > 3.02) { o_buffer << vGT[0] << "h" << vGT[1] << " L:" << conf << "\n"; calls_buffer << vGT[0] << "h" << vGT[1] << '\t' << conf << '\n'; }
+            else{ o_buffer << "NA L:" << conf << endl; calls_buffer << "NA\tNA\n"; }
+        }
+        
+        // Set info for printing VCF file
+        //structure to be passed to VCF-writing function:
+        VCF_INFO INFO;
+        INFO.chr = target.startSeq;
+        INFO.start = target.startPos + 1;
+        INFO.unit = UnitSeq;
+        INFO.length = target.length();
+        INFO.purity = purity;
+        INFO.depth = numReads;
+        INFO.confidence = conf;
+        
+        // GO THROUGH VECTOR AND PRINT ALL REMAINING
+        if (toPrint.size()>1){ //if there are reads present..
+            string REF = toPrint[0].reads.alignedSeq;
+            bool homo = false;
+            if (vGT.size() == 1) homo = true;
+            
+            for (vector<STRING_GT>::iterator it=toPrint.begin(); it < toPrint.end(); it++) {
+                // print .repeats file:
+                o_buffer << it->reads.preSeq << " " << it->reads.alignedSeq << " " << it->reads.postSeq << it->print;
+                
+                // finished printing to .repeats file.
+                if (vGT.size() != 0 && conf > 3.02){
+                    if (vGT.size() > 1 || vGT[0] != target.length() /*there's been a mutation*/){
+                        // print .vcf file:
+                        vector<int>::iterator tempgt = std::find(vGT.begin(), vGT.end(), it->GT);
+                        if (tempgt != vGT.end() && it->GT != target.length()){
+                            //debug vcf << "VCF record for " << REF << " --> " << it->reads.alignedSeq << "..\n";
+                            
+                            // the read represents one of our genotypes..
+                            string vcfRecord = getVCF(it->reads.alignedSeq, REF, target.startSeq, target.startPos, *(leftReference.end()-1), homo, INFO);
+                            vcf_buffer << vcfRecord;
+                            
+                            //remove the genotype from the genotype list..
+                            vGT.erase( tempgt );
+                        }
+                        // finished printing to .vcf file.
+                    }
+                }
+                
+                // continue iterating through each read..
+            }
+        }
+    }
 	
 	return;
 }
@@ -1177,8 +1341,8 @@ inline int nCr (int n, int r){
 class tagAndRead{
 public:
     string m_name;
-    float m_pX;
-    tagAndRead(string a, float b){
+    double m_pX;
+    tagAndRead(string a, double b){
         m_name = a;
         m_pX = b;
     }
@@ -1200,7 +1364,185 @@ inline double retBetaMult(int* vector, int alleles){
 	
 }
 
-inline vector<int> printGenoPerc(vector<GT> vectorGT, int ref_length, int unit_size, double &confidence, int mode){
+inline double multinomial_beta(const vector<double> & alpha) {
+    double numerator = 1.;
+    for(vector<double>::const_iterator i = alpha.begin(); i != alpha.end(); i++)
+        numerator *= tgamma(*i);
+    
+    double alpha_sum = accumulate(alpha.begin(),alpha.end(),0);
+    
+    return numerator / tgamma(alpha_sum);
+}
+
+inline double dirichlet(const vector<double> & alpha, const vector<double> & x) {
+    assert(alpha.size() == x.size());
+    
+    double prod = 1.;
+    
+    for(int k = 0; k < alpha.size(); k++)
+        prod *= pow(x[k], alpha[k] - 1);
+    
+    return prod / multinomial_beta(alpha);
+}
+
+struct somatic_caller_data {
+    string name;
+    double p_x, p_x_gi, p_gi_x, p_gi;
+    vector<double> alpha;
+    vector<double> x;
+    somatic_caller_data(string name)
+    : name(name)
+    {}
+};
+
+inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vector<GT> & vectorGT_reference, const Region & target, error_model_t model, double &confidence) const {
+    
+    int total_x = 0, total_alpha = 0;
+    map<int,int> x_counts, alpha_counts;    //map of count# to occurrences
+    
+    for(vector<GT>::const_iterator i = vectorGT.begin(); i != vectorGT.end(); i++) {
+        total_x += i->occurrences;
+        x_counts[i->readlength] = i->occurrences;
+    }
+    for(vector<GT>::const_iterator i = vectorGT_reference.begin(); i != vectorGT_reference.end(); i++) {
+        total_alpha += i->occurrences;
+        alpha_counts[i->readlength] = i->occurrences;
+    }
+
+    vector<GT> vectorGT_union;
+    set_union(vectorGT.begin(), vectorGT.end(), vectorGT_reference.begin(), vectorGT_reference.end(), back_inserter(vectorGT_union));
+    
+    set<GT> allGTs(vectorGT_union.begin(), vectorGT_union.end());
+    
+    int n = total_x;
+
+	vector<somatic_caller_data> pXarray;
+	allGTs.insert(Repeatseq::GT(0,0,0,0,0.0)); //allows locus to be considered homozygous
+
+    
+    // STEP 2
+    for (set<GT>::const_iterator it = allGTs.begin(); it !=  allGTs.end(); ++it){
+        set<GT>::const_iterator itnext = it;
+        itnext++;
+        for (set<GT>::const_iterator jt = itnext; jt !=  allGTs.end(); ++jt){
+            set<GT>::const_iterator jtnext = jt;
+            if(jt->occurrences != 0 || jt->readlength != 0)
+                jtnext++;
+            for (set<GT>::const_iterator kt = jtnext; kt !=  allGTs.end(); ++kt){
+                int alleles = 1;
+                int alpha_error = total_alpha;
+                int x_error = total_x;
+
+                vector<double> alpha, x;
+                
+                stringstream tempss;
+                tempss << it->readlength;
+                if (jt->occurrences != 0) {
+                    tempss << "h" << jt->readlength;
+                    alleles++;
+                }
+                if (kt->occurrences != 0) {
+                    tempss << "h" << kt->readlength;
+                    alleles++;
+                }
+                
+                cerr << tempss.str() << ":";
+                
+                ///////////////////////////
+                // build alpha and X
+
+                if(it->readlength != 0 || it->occurrences != 0) {
+                    alpha.push_back(alpha_counts.count(it->readlength) ? it->occurrences : 0);
+                    x.push_back(x_counts.count(it->readlength) ? x_counts[it->readlength] : 0);
+                }
+                
+                if(jt->readlength != 0 || jt->occurrences != 0) {
+                    alpha.push_back(alpha_counts.count(jt->readlength) ? jt->occurrences : 0);
+                    x.push_back(x_counts.count(jt->readlength) ? x_counts[jt->readlength] : 0);
+                }
+                
+                if(kt->readlength != 0 || kt->occurrences != 0) {
+                    alpha.push_back(alpha_counts.count(kt->readlength) ? kt->occurrences : 0);
+                    x.push_back(x_counts.count(kt->readlength) ? x_counts[kt->readlength] : 0);
+                }
+                
+                for(vector<double>::const_iterator i = x.begin(); i != x.end(); i++)
+                    x_error -= *i;
+                for(vector<double>::const_iterator i = alpha.begin(); i != alpha.end(); i++)
+                    alpha_error -= *i;
+
+                x.push_back(x_error);
+                alpha.push_back(alpha_error);
+
+                assert(x.size() == alpha.size());
+                
+                pXarray.push_back(somatic_caller_data(tempss.str()));
+                pXarray.back().alpha = alpha;
+                pXarray.back().x = x;
+                
+                cerr << "alpha = [";
+                for(vector<double>::const_iterator i = alpha.begin(); i != alpha.end(); i++)
+                    cerr << " " << *i;
+                cerr << " ] ";
+                cerr << "x = [";
+                for(vector<double>::const_iterator i = x.begin(); i != x.end(); i++)
+                    cerr << " " << *i;
+                cerr << " ] ";
+                
+                cerr << endl;
+            }
+        }
+    }
+
+    //STEP 3
+    for(vector<somatic_caller_data>::iterator i = pXarray.begin(); i != pXarray.end(); i++) {
+        int k = i->alpha.size();
+
+        const vector<double> & alpha = i->alpha;
+        const vector<double> & x = i->x;
+        
+        //calculate p(gi), described under eq 3
+        i->p_gi = 1. / (double)k;
+        
+        //equation 2
+        vector<double> alpha_x_1(k);    //alpha + x + 1
+        for( int j = 0; j != k; j++)
+            alpha_x_1[j] = alpha[j] + x[j] + 1;
+        
+        vector<double> alpha_1(k);  //alpha + 1
+        for( int j = 0; j != k; j++)
+            alpha_1[j] = alpha[j] + 1;
+        
+        double prod_x_fact = 1; // product from j = 1..k of (xj)!
+        for( int j = 0; j != k; j++)
+            prod_x_fact *= fact(x[j]);
+        
+        i->p_x_gi = (multinomial_beta(alpha_x_1) / multinomial_beta(alpha_1)) * (fact(n) / prod_x_fact);
+    }
+
+    // sum from j = 1..k of pi(x|gj)*pi(gj)
+    double sum_pxgj_pgj = 0;
+    for(vector<somatic_caller_data>::const_iterator j = pXarray.begin(); j != pXarray.end(); j++)
+        sum_pxgj_pgj += j->p_x_gi * j->p_gi;
+
+    for(vector<somatic_caller_data>::iterator i = pXarray.begin(); i != pXarray.end(); i++) {
+        //equation 3
+        i->p_gi_x = (i->p_x_gi * i->p_gi) / sum_pxgj_pgj;
+        
+        //bayes theorem
+        i->p_x = i->p_gi * i->p_x_gi / i->p_gi_x;
+
+        cerr << "p(X) = " << i->p_x << endl;
+    }
+    
+    for(vector<somatic_caller_data>::const_iterator i = pXarray.begin(); i != pXarray.end(); i++)
+        cerr << "P(" << i->name << "): " << i->p_x << endl;
+
+    vector<int> ret;
+    return ret;
+}
+
+inline vector<int> Repeatseq::printGenoPerc(vector<GT> vectorGT, int ref_length, int unit_size, double &confidence, int mode) const {
 	if (ref_length > 70) ref_length = 70;
 	if (unit_size > 5) unit_size = 5;
 	else if (unit_size < 1) unit_size = 1;
@@ -1213,29 +1555,27 @@ inline vector<int> printGenoPerc(vector<GT> vectorGT, int ref_length, int unit_s
 	vector<tagAndRead> pXarray;
 	vector<int> gts;
 	stringstream toReturn;
-	extern int PHI_TABLE[5][5][5][2];
     
-	vectorGT.push_back(GT(0,0,0,0,0.0)); //allows locus to be considered homozygous
+	vectorGT.push_back(Repeatseq::GT(0,0,0,0,0.0)); //allows locus to be considered homozygous
     double pXtotal = 0;
     string name;
     
 	// Calculate LOCAL_PHI
     int mostCommon = 0, secondCommon = 0; double totalSum = 0;
-	for (vector<GT>::iterator it = vectorGT.begin(); it < vectorGT.end(); ++it){
+	for (vector<Repeatseq::GT>::iterator it = vectorGT.begin(); it < vectorGT.end(); ++it){
         int tempOccur = it->occurrences;
 		if (tempOccur > mostCommon) {secondCommon = mostCommon; mostCommon = tempOccur;}
         else if (tempOccur > secondCommon) {secondCommon = tempOccur;}
         totalSum += tempOccur;
     }
-	double LOCAL_PHI, ERROR;
-	if (mode == 1){ LOCAL_PHI = float(totalSum-mostCommon)/totalSum; }
-    else if (mode == 2){ LOCAL_PHI = float(totalSum-(mostCommon+secondCommon))/totalSum; }
+	double LOCAL_PHI;
+	if (mode == 1){ LOCAL_PHI = double(totalSum-mostCommon)/totalSum; }
+    else if (mode == 2){ LOCAL_PHI = double(totalSum-(mostCommon+secondCommon))/totalSum; }
 	else{ LOCAL_PHI = 0; }
 	
     for (vector<GT>::iterator it = vectorGT.begin(); it < vectorGT.end(); ++it){
         for (vector<GT>::iterator jt = it+1; jt < vectorGT.end(); ++jt){
             int alleles = 1, errorOccurrences = 0;
-            double CHANCE_error = 1;
             for (vector<GT>::iterator errt = vectorGT.begin(); errt < vectorGT.end(); ++errt){
                 if (errt != jt && errt != it) { errorOccurrences += errt->occurrences; }
             }
@@ -1332,6 +1672,13 @@ inline vector<int> printGenoPerc(vector<GT> vectorGT, int ref_length, int unit_s
 		gts.push_back( atoi(pXarray.begin()->m_name.substr(0, hpos).c_str()) );
 		gts.push_back( atoi(pXarray.begin()->m_name.substr(hpos+1, -1).c_str()) );
 	}
+    
+    cerr << "pX: ";
+    
+    for (vector<tagAndRead>::iterator it = pXarray.begin(); it < pXarray.end(); ++it) {
+        cerr << it->m_name << "(" << it->m_pX << ") ";
+    }
+    cerr << endl;
 	
 	// set confidence value
 	confidence = -10*log10(1-pXarray.begin()->m_pX);

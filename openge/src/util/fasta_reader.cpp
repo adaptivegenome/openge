@@ -141,6 +141,7 @@ string FastaReader::getSubsequenceAt(const string & name, const size_t start, co
 string FastaReader::readSequence(const string & name, const size_t start, const size_t length) const
 {
     string read;
+    read.reserve(length);
     
     map<string, fasta_sequence_t>::const_iterator i = sequences.find(name);
     

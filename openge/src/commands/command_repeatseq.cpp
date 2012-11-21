@@ -36,6 +36,8 @@ void RepeatseqCommand::getOptions() {
     ("haploid,H", "assume a haploid rather than diploid genome")
     ("repeatseq", "write .repeatseq file containing additional information about reads")
     ("calls", "write .calls file")
+    ("somaticA", po::value<string>(),"")
+    ("somaticB", po::value<string>(),"")
     ("tag", po::value<string>(), "include user-defined tag in the output filename")
     ("flank", po::value<int>()->default_value(8), "number of flanking bases to output from each read")
     ("outfile", po::value<string>(), "When using stdin as input, set output filename")
@@ -88,6 +90,19 @@ int RepeatseqCommand::runCommand() {
         repeatseq.setOutputFilename(input_filenames[0]);
     }
     
+    if(vm.count("somaticA") || vm.count("somaticB")) {
+        if(vm.count("calls") || vm.count("repeatseq")) {
+            cerr << "Somatic modes don't support calls or VCF output format. Quitting." << endl;
+            exit(-1);
+        }
+        
+        repeatseq.setSomaticInput(vm["somaticA"].as<string>());
+        if(vm.count("somaticA"))
+            repeatseq.setErrorModel(Repeatseq::ERROR_SOMATIC_A);
+        else
+            repeatseq.setErrorModel(Repeatseq::ERROR_SOMATIC_B);
+    }
+    
     if(vm.count("intervals")) {
         repeatseq.setIntervalsFilename(vm["intervals"].as<string>());
     }else {
@@ -138,8 +153,13 @@ int RepeatseqCommand::runCommand() {
         repeatseq.setLRCharsToPrint(vm["flank"].as<int>());
     }
 
-    if (vm.count("haploid"))
+    if (vm.count("haploid")) {
+        if(vm.count("somaticA") || vm.count("somaticB")) {
+            cerr << "Haploid genomes aren't allowed with the somatic error model. Quitting." << endl;
+            exit(-1);
+        }
         repeatseq.setHaploid(true);
+    }
 
     //FILTERS:
     if (vm.count("properlypaired")) {
