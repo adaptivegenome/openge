@@ -25,6 +25,7 @@ class BgzfOutputStream {
     class BgzfCompressJob : public ThreadJob {
     public:
         Spinlock data_access_lock;  //only needed to get rid of race detection warnings in ThreadSanitizer
+        Spinlock compressed_flag_lock;  //needed to syncronize access to this flag. Once we start using C++11, we can use std::atomic<bool> or something
         std::vector<char> compressed_data;
         std::vector<char> uncompressed_data;
         bool compressed;
@@ -38,6 +39,7 @@ class BgzfOutputStream {
 public:
     BgzfOutputStream()
     : compression_level(6)
+    , closing(false)
     {}
 
     bool open(std::string filename);
@@ -53,6 +55,11 @@ protected:
     std::vector<char> write_buffer;
     SynchronizedBlockingQueue<BgzfCompressJob *> job_queue;
     pthread_mutex_t write_mutex;
+    pthread_t write_thread;
+    pthread_mutex_t write_wait_mutex;
+    pthread_cond_t flush_signal;
+    bool closing;
+    static void * file_write_threadproc(void * data);
 };
 
 #endif

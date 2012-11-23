@@ -22,11 +22,12 @@
 
 template <class reader_t>
 class SequentialReaderCache : public ReadStreamReader {
+    bool null_seen;
 public:
     SequentialReaderCache()
     : thread_job(this)
     {}
-    virtual bool open(const std::string & filename) { read_finished = false; return reader.open(filename); }
+    virtual bool open(const std::string & filename) { read_finished = false; null_seen = false; return reader.open(filename); }
     virtual const BamTools::SamHeader & getHeader() const { return reader.getHeader(); };
     virtual void close() { return reader.close(); }
     virtual OGERead * read();
@@ -67,8 +68,10 @@ OGERead * SequentialReaderCache<reader_t>::read() {
 
 template <class reader_t>
 void SequentialReaderCache<reader_t>::PrefetchJob::runJob() {
-    while(cache->read_queue.size() < 10000 && (cache->read_queue.empty() || cache->read_queue.back() != NULL)) {
+    while(cache->read_queue.size() < 10000 && !cache->null_seen) {
         OGERead * al = cache->reader.read();
+        if(al == NULL)
+            cache->null_seen = true;
         cache->read_queue.push(al);
     }
     is_running = false;
