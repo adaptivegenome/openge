@@ -85,6 +85,7 @@ public:
     void setMinimumQuality(const int quality) { MapQuality = quality; }
     void setMakeRepeatseqFile(bool make) { makeRepeatseqFile = make; }
     void setMakeCallsFile(bool make) { makeCallsFile = make; }
+    void setMakeVcfFile(bool make) { makeVcfFile = make; }
     void setFastaFilename(const std::string & filename) { fasta_filename = filename; }
     void setIntervalsFilename(const std::string & filename ) { intervals_filename = filename; }
     void setOutputFilename(const std::string & filename) { output_filename_base = filename; }

@@ -96,6 +96,8 @@ int RepeatseqCommand::runCommand() {
             exit(-1);
         }
         
+        repeatseq.setMakeVcfFile(false);
+        repeatseq.setMakeRepeatseqFile(true);
         repeatseq.setSomaticInput(vm["somaticA"].as<string>());
         if(vm.count("somaticA"))
             repeatseq.setErrorModel(Repeatseq::ERROR_SOMATIC_A);

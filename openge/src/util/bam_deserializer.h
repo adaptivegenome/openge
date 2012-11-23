@@ -139,6 +139,7 @@ void BamDeserializer<input_stream_t>::close() {
 template <class input_stream_t>
 OGERead * BamDeserializer<input_stream_t>::read() {
     OGERead * al = OGERead::allocate();
+    al->check();
 
     // read in the 'block length' value, make sure it's not zero
     char buffer[sizeof(uint32_t)] = {0};
@@ -154,6 +155,7 @@ OGERead * BamDeserializer<input_stream_t>::read() {
         delete al;
         return NULL;
     }
+    al->check();
 
     uint32_t BlockLength = BamTools::UnpackUnsignedInt(buffer);
 
@@ -170,31 +172,40 @@ OGERead * BamDeserializer<input_stream_t>::read() {
     }
 
     // set BamAlignment 'core' and 'support' data
-    al->setRefID(BamTools::UnpackSignedInt(&x[0]));
-    al->setPosition(BamTools::UnpackSignedInt(&x[4]));
+    al->setRefID(*((int32_t *)&x[0]));
+    al->setPosition(*((int32_t *)&x[4]));
+    al->check();
     
     unsigned int tempValue = BamTools::UnpackUnsignedInt(&x[8]);
     al->setBin(tempValue >> 16);
     al->setMapQuality(tempValue >> 8 & 0xff);
     uint32_t QueryNameLength = tempValue & 0xff;
+    al->check();
     
     tempValue = BamTools::UnpackUnsignedInt(&x[12]);
     al->setAlignmentFlag(tempValue >> 16);
+    al->check();
     uint32_t NumCigarOperations = tempValue & 0xffff;
     
     uint32_t QuerySequenceLength = BamTools::UnpackUnsignedInt(&x[16]);
+    al->check();
     al->setMateRefID(BamTools::UnpackSignedInt(&x[20]));
     al->setMatePosition(BamTools::UnpackSignedInt(&x[24]));
+    al->check();
     al->setInsertSize(BamTools::UnpackSignedInt(&x[28]));
     assert(al->getPosition() == BamTools::UnpackSignedInt(&x[4]));
+    al->check();
     
     // read in character data - make sure proper data size was read
     bool readCharDataOK = false;
     const unsigned int dataLength = BlockLength - 32;
     assert(al->getPosition() == BamTools::UnpackSignedInt(&x[4]));
+    al->check();
     char * char_buffer = (char *) alloca(dataLength);
     assert(al->getPosition() == BamTools::UnpackSignedInt(&x[4]));
+    al->check();
     input_stream.read(char_buffer, dataLength);
+    al->check();
     assert(al->getPosition() == BamTools::UnpackSignedInt(&x[4]));
     if ( !input_stream.fail() ) {
         // set success flag
@@ -206,11 +217,13 @@ OGERead * BamDeserializer<input_stream_t>::read() {
     }
     
     assert(al->getPosition() == BamTools::UnpackSignedInt(&x[4]));
+    al->check();
 
     read_lock.unlock();
 
     al->setBamStringData(char_buffer, BlockLength - 32, NumCigarOperations, QuerySequenceLength, QueryNameLength);
     assert(QueryNameLength == al->getNameLength());
+    al->check();
     assert(al->getSupportData().getBlockLength() == BlockLength);
 
     // return success/failure

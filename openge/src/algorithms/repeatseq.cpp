@@ -1209,7 +1209,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
         double concordance = 0;
         
         //output header line
-        o_buffer << "~" << region << " ";
+        o_buffer << "~~" << region << " ";
         o_buffer << secondColumn;
         o_buffer << " REF:" << target.length();
         o_buffer << " A:";
@@ -1392,7 +1392,12 @@ struct somatic_caller_data {
     vector<double> x;
     somatic_caller_data(string name)
     : name(name)
+    , p_x(0), p_x_gi(0), p_gi_x(0), p_gi(0)
     {}
+    
+    bool operator<(const somatic_caller_data & d) const {
+        return this->p_gi_x > d.p_gi_x;
+    }
 };
 
 inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vector<GT> & vectorGT_reference, const Region & target, error_model_t model, double &confidence) const {
@@ -1528,18 +1533,24 @@ inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vec
     for(vector<somatic_caller_data>::iterator i = pXarray.begin(); i != pXarray.end(); i++) {
         //equation 3
         i->p_gi_x = (i->p_x_gi * i->p_gi) / sum_pxgj_pgj;
-        
-        //bayes theorem
-        i->p_x = i->p_gi * i->p_x_gi / i->p_gi_x;
-
-        cerr << "p(X) = " << i->p_x << endl;
     }
-    
-    for(vector<somatic_caller_data>::const_iterator i = pXarray.begin(); i != pXarray.end(); i++)
-        cerr << "P(" << i->name << "): " << i->p_x << endl;
 
-    vector<int> ret;
-    return ret;
+    sort(pXarray.begin(), pXarray.end());
+    for(vector<somatic_caller_data>::const_iterator i = pXarray.begin(); i != pXarray.end(); i++)
+        cerr << "P(" << i->name << "): " << i->p_gi_x << endl;
+
+    //build return vector
+    vector<int> gts;
+    gts.push_back( atoi(pXarray.begin()->name.c_str()) );
+
+    while(true) {
+        int hpos = pXarray.begin()->name.find('h');
+        if (hpos != -1){
+            gts.push_back( atoi(pXarray.begin()->name.c_str()) );
+        }
+        else
+            return gts;
+    }
 }
 
 inline vector<int> Repeatseq::printGenoPerc(vector<GT> vectorGT, int ref_length, int unit_size, double &confidence, int mode) const {
