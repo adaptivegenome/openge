@@ -50,6 +50,9 @@ public:
     void setCompressionLevel(int level) { compression_level = level; }
     void flushQueue();
 protected:
+    void flushBlocks();
+    void writeEof();
+
     std::ofstream output_stream;
     int compression_level;
     std::vector<char> write_buffer;

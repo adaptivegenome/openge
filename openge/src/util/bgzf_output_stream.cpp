@@ -149,35 +149,75 @@ void BgzfOutputStream::BgzfCompressJob::runJob() {
     *((uint32_t *) &buffer[compressedLength - 8]) = crc;
     *((uint32_t *) &buffer[compressedLength - 4]) = uncompressed_data.size();
     
-    data_access_lock.unlock();
+    if(OGEParallelismSettings::isMultithreadingEnabled()) {
+        data_access_lock.unlock();
+        compressed_flag_lock.lock();
+        compressed = true;
+        compressed_flag_lock.unlock();
+        
+        stream->flushQueue();
+    } else {
+        stream->output_stream.write(&compressed_data[0], compressed_data.size());
+        data_access_lock.unlock();
+    }
+}
+
+void BgzfOutputStream::flushBlocks() {
+    while( !job_queue.empty()) {
+        BgzfCompressJob * job = job_queue.front();
+        
+        job->compressed_flag_lock.lock();
+        if(!job_queue.front()->compressed) {
+            job->compressed_flag_lock.unlock();
+            break;
+        }
+        job->compressed_flag_lock.unlock();
+        
+        job->data_access_lock.lock();
+        output_stream.write(&job->compressed_data[0], job->compressed_data.size());
+        job->data_access_lock.unlock();
+        
+        job_queue.pop();
+        delete job;
+    }
+}
+
+void BgzfOutputStream::writeEof() {
+    //BGZF uses an empty ZIP block to indicate the end of file.
     
-    compressed_flag_lock.lock();
-    compressed = true;
-    compressed_flag_lock.unlock();
+    //write an empty block ("EOF marker")
+	static const uint8_t empty_block[29] = "\037\213\010\4\0\0\0\0\0\377\6\0\102\103\2\0\033\0\3\0\0\0\0\0\0\0\0\0";
+    output_stream.write((const char *)empty_block, 28);
     
-    stream->flushQueue();
+    output_stream.close();
 }
 
 void BgzfOutputStream::flushQueue() {
-    int error = pthread_mutex_lock(&write_wait_mutex);
-    if(0 != error)
-    {
-        cerr << "Error locking BGZF flush mutex for signalling. Aborting. (" << error << ")" << endl;
-        exit(-1);
-    }
+    //if multithreaded, send a signal to the flush queue
+    if(OGEParallelismSettings::isMultithreadingEnabled()) {
+        int error = pthread_mutex_lock(&write_wait_mutex);
+        if(0 != error)
+        {
+            cerr << "Error locking BGZF flush mutex for signalling. Aborting. (" << error << ")" << endl;
+            exit(-1);
+        }
 
-    error = pthread_cond_signal(&flush_signal);
-    if(0 != error)
-    {
-        cerr << "Error waiting for BGZF flush CV. Aborting. (" << error << ")" << endl;
-        exit(-1);
-    }
-    
-    error = pthread_mutex_unlock(&write_wait_mutex);
-    if(0 != error)
-    {
-        cerr << "Error unlocking BGZF flush mutex for signalling. Aborting. (" << error << ")" << endl;
-        exit(-1);
+        error = pthread_cond_signal(&flush_signal);
+        if(0 != error)
+        {
+            cerr << "Error waiting for BGZF flush CV. Aborting. (" << error << ")" << endl;
+            exit(-1);
+        }
+
+        error = pthread_mutex_unlock(&write_wait_mutex);
+        if(0 != error)
+        {
+            cerr << "Error unlocking BGZF flush mutex for signalling. Aborting. (" << error << ")" << endl;
+            exit(-1);
+        }
+    //if not multithreaded, then do the flush here
+    } else {
+        flushBlocks();
     }
 }
 
@@ -215,30 +255,10 @@ void * BgzfOutputStream::file_write_threadproc(void * data) {
             exit(-1);
         }
 
-        while( !stream->job_queue.empty()) {
-            BgzfCompressJob * job = stream->job_queue.front();
-
-            job->compressed_flag_lock.lock();
-            if(!stream->job_queue.front()->compressed) {
-                job->compressed_flag_lock.unlock();
-                break;
-            }
-            job->compressed_flag_lock.unlock();
-
-            job->data_access_lock.lock();
-            stream->output_stream.write(&job->compressed_data[0], job->compressed_data.size());
-            job->data_access_lock.unlock();
-            
-            stream->job_queue.pop();
-            delete job;
-        }
+        stream->flushBlocks();
     }
-
-    //write an empty block ("EOF marker")
-	static const uint8_t empty_block[29] = "\037\213\010\4\0\0\0\0\0\377\6\0\102\103\2\0\033\0\3\0\0\0\0\0\0\0\0\0";
-    stream->output_stream.write((const char *)empty_block, 28);
     
-    stream->output_stream.close();
+    stream->writeEof();
     
     error = pthread_mutex_unlock(&stream->write_mutex);
     if(0 != error)
@@ -256,28 +276,30 @@ bool BgzfOutputStream::open(std::string filename) {
     if(output_stream.fail())
         return false;
     
+    if(OGEParallelismSettings::isMultithreadingEnabled()) {
     int ret = pthread_mutex_init(&write_mutex, NULL);
-    if(0 != ret) {
-        cerr << "Error opening BGZF write mutex. Aborting. (error " << ret << ")." << endl;
-        exit(-1);
-    }
+        if(0 != ret) {
+            cerr << "Error opening BGZF write mutex. Aborting. (error " << ret << ")." << endl;
+            exit(-1);
+        }
 
-    ret = pthread_mutex_init(&write_wait_mutex, NULL);
-    if(0 != ret) {
-        cerr << "Error opening BGZF write wait mutex. Aborting. (error " << ret << ")." << endl;
-        exit(-1);
-    }
+        ret = pthread_mutex_init(&write_wait_mutex, NULL);
+        if(0 != ret) {
+            cerr << "Error opening BGZF write wait mutex. Aborting. (error " << ret << ")." << endl;
+            exit(-1);
+        }
 
-    ret = pthread_cond_init(&flush_signal, NULL);
-    if(0 != ret) {
-        cerr << "Error opening BGZF flush signal. Aborting. (error " << ret << ")." << endl;
-        exit(-1);
-    }
-    
-    ret = pthread_create(&write_thread, NULL, file_write_threadproc, this);
-    if(0 != ret) {
-        cerr << "Error creating BGZF write thread. (error " << ret << ")." << endl;
-        exit(-1);
+        ret = pthread_cond_init(&flush_signal, NULL);
+        if(0 != ret) {
+            cerr << "Error opening BGZF flush signal. Aborting. (error " << ret << ")." << endl;
+            exit(-1);
+        }
+        
+        ret = pthread_create(&write_thread, NULL, file_write_threadproc, this);
+        if(0 != ret) {
+            cerr << "Error creating BGZF write thread. (error " << ret << ")." << endl;
+            exit(-1);
+        }
     }
     
     return true;
@@ -336,21 +358,24 @@ void BgzfOutputStream::close() {
 
     //cause another flush so if the thread is waiting on signal, it will see that we changed the closing flag
     flushQueue();
+    writeEof();
     
-    int ret = pthread_join(write_thread, NULL);
-    
-    if(0 != ret)
-        cerr << "Error joining BGZF write thread (error " << ret << "." << endl;
-    
-    ret = pthread_mutex_destroy(&write_mutex);
-    if(0 != ret)
-        cerr << "Error closing BGZF write mutex (error " << ret << "." << endl;
-    
-    ret = pthread_mutex_destroy(&write_wait_mutex);
-    if(0 != ret)
-        cerr << "Error closing BGZF flush wait mutex (error " << ret << "." << endl;
-    
-    ret = pthread_cond_destroy(&flush_signal);
-    if(0 != ret)
-        cerr << "Error closing BGZF flush signal (error " << ret << "." << endl;
+    if(OGEParallelismSettings::isMultithreadingEnabled()) {
+        int ret = pthread_join(write_thread, NULL);
+        
+        if(0 != ret)
+            cerr << "Error joining BGZF write thread (error " << ret << "." << endl;
+        
+        ret = pthread_mutex_destroy(&write_mutex);
+        if(0 != ret)
+            cerr << "Error closing BGZF write mutex (error " << ret << "." << endl;
+        
+        ret = pthread_mutex_destroy(&write_wait_mutex);
+        if(0 != ret)
+            cerr << "Error closing BGZF flush wait mutex (error " << ret << "." << endl;
+        
+        ret = pthread_cond_destroy(&flush_signal);
+        if(0 != ret)
+            cerr << "Error closing BGZF flush signal (error " << ret << "." << endl;
+    }
 }
