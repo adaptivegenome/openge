@@ -145,7 +145,11 @@ bool BgzfInputStream::requestNextBlock() {
     }
 
     cache[new_block->file_position] = new_block;
-    ThreadPool::sharedPool()->addJob(new_block);
+    if(OGEParallelismSettings::isMultithreadingEnabled())
+        ThreadPool::sharedPool()->addJob(new_block);
+    else
+        new_block->runJob();
+
     return true;
 }
 
@@ -222,6 +226,9 @@ void BgzfInputStream::read(char * data, size_t len) {
 }
 
 void BgzfInputStream::close() {
+    if(OGEParallelismSettings::isMultithreadingEnabled())
+        ThreadPool::sharedPool()->waitForJobCompletion();
+
     if(input_stream_real.is_open())
         input_stream_real.close();
     

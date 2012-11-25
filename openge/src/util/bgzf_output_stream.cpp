@@ -302,7 +302,10 @@ void BgzfOutputStream::write(const char * data, size_t len) {
         job->data_access_lock.unlock();
 
         job_queue.push(job);
-        ThreadPool::sharedPool()->addJob(job);
+        if(OGEParallelismSettings::isMultithreadingEnabled())
+            ThreadPool::sharedPool()->addJob(job);
+        else
+            job->runJob();
     }
 }
 
@@ -318,11 +321,15 @@ void BgzfOutputStream::close() {
         job->data_access_lock.unlock();
 
         job_queue.push(job);
-        ThreadPool::sharedPool()->addJob(job);
+        if(OGEParallelismSettings::isMultithreadingEnabled())
+            ThreadPool::sharedPool()->addJob(job);
+        else
+            job->runJob();
     }
     
     //wait for all compression to finish
-    ThreadPool::sharedPool()->waitForJobCompletion();
+    if(OGEParallelismSettings::isMultithreadingEnabled())
+        ThreadPool::sharedPool()->waitForJobCompletion();
         
     //and we are done, wait for write thread to finish.
     closing = true; //signal close to write thread

@@ -57,20 +57,26 @@ OGERead * OGERead::allocate() {
 }
 
 void OGERead::deallocate(OGERead * al) {
-    cached_allocations.push(al);
-    
-    if(cached_allocations.size() > 100 && !clean_thread_running) {
-        clean_thread_running = true;
-        OGEReadClearJob * job = new OGEReadClearJob;
-        job->cached_allocations = &cached_allocations;
-        job->clean_thread_running = &clean_thread_running;
-        job->cached_allocations_cleared = &cached_allocations_cleared;
-        ThreadPool::sharedPool()->addJob(job);
+    if(OGEParallelismSettings::isMultithreadingEnabled()) {
+        cached_allocations.push(al);
+        
+        if(cached_allocations.size() > 100 && !clean_thread_running) {
+            clean_thread_running = true;
+            OGEReadClearJob * job = new OGEReadClearJob;
+            job->cached_allocations = &cached_allocations;
+            job->clean_thread_running = &clean_thread_running;
+            job->cached_allocations_cleared = &cached_allocations_cleared;
+            ThreadPool::sharedPool()->addJob(job);
+        }
+    } else {
+        al->clear();
+        cached_allocations_cleared.push(al);
     }
 }
 
 void OGERead::clearCachedAllocations() {
-    ThreadPool::sharedPool()->waitForJobCompletion();
+    if(OGEParallelismSettings::isMultithreadingEnabled())
+        ThreadPool::sharedPool()->waitForJobCompletion();
 
     while(!cached_allocations.empty()) {
         OGERead * al = cached_allocations.pop();

@@ -426,12 +426,16 @@ int Repeatseq::runInternal() {
         }
 
         //start the job
-        ThreadPool::sharedPool()->addJob(job);
+        if(OGEParallelismSettings::isMultithreadingEnabled())
+            ThreadPool::sharedPool()->addJob(job);
+        else
+            job->runJob();
         jobs.push_back(job);
     }
 
     //wait for all workers to finish
-    ThreadPool::sharedPool()->waitForJobCompletion();
+    if(OGEParallelismSettings::isMultithreadingEnabled())
+        ThreadPool::sharedPool()->waitForJobCompletion();
     
     flushWrites();
 

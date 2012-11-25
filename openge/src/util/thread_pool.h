@@ -20,6 +20,7 @@
 
 #include <vector>
 #include <queue>
+#include <cassert>
 #include <pthread.h>
 #include <semaphore.h>
 
@@ -202,8 +203,8 @@ public:
 	int numJobs();
 	static int availableCores();
 	void waitForJobCompletion();
-    static ThreadPool * sharedPool() { if(!_sharedPool) _sharedPool = new ThreadPool(OGEParallelismSettings::getNumberThreads()); return _sharedPool; }
-    static void closeSharedPool() {  _sharedPool->waitForJobCompletion(); delete _sharedPool; }
+    static ThreadPool * sharedPool() { assert(OGEParallelismSettings::isMultithreadingEnabled()); if(!_sharedPool) _sharedPool = new ThreadPool(OGEParallelismSettings::getNumberThreads()); return _sharedPool; }
+    static void closeSharedPool() {  if(!_sharedPool) return; _sharedPool->waitForJobCompletion(); delete _sharedPool; }
 	
 protected:
     static ThreadPool * _sharedPool;
@@ -254,6 +255,9 @@ inline void
 ogeSortMt(_RandomAccessIterator __first, _RandomAccessIterator __last,
 	 _Compare __comp)
 {
+    if(!OGEParallelismSettings::isMultithreadingEnabled())
+        return sort(__first, __last, __comp);
+    
     size_t job_size = (__last - __first) / ThreadPool::availableCores();
     
     ThreadPool * shared_pool = ThreadPool::sharedPool();
