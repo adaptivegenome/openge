@@ -206,6 +206,8 @@ bool ReadSorter::CreateSortedTempFile(vector<OGERead* > * buffer) {
         
         // write sorted contents to temp file, store success/fail
         success = WriteTempFile( *buffer, filename );
+        for(size_t i = 0; i < buffer->size(); i++)
+            OGERead::deallocate((*buffer)[i]);
         delete buffer;
         
     } else {

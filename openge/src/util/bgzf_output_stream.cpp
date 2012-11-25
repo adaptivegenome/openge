@@ -326,8 +326,10 @@ void BgzfOutputStream::write(const char * data, size_t len) {
         job_queue.push(job);
         if(OGEParallelismSettings::isMultithreadingEnabled())
             ThreadPool::sharedPool()->addJob(job);
-        else
+        else {
             job->runJob();
+            delete job;
+        }
     }
 }
 
@@ -345,19 +347,22 @@ void BgzfOutputStream::close() {
         job_queue.push(job);
         if(OGEParallelismSettings::isMultithreadingEnabled())
             ThreadPool::sharedPool()->addJob(job);
-        else
+        else {
             job->runJob();
+            delete job;
+        }
     }
     
     //wait for all compression to finish
-    if(OGEParallelismSettings::isMultithreadingEnabled())
+    if(OGEParallelismSettings::isMultithreadingEnabled()) {
         ThreadPool::sharedPool()->waitForJobCompletion();
         
-    //and we are done, wait for write thread to finish.
-    closing = true; //signal close to write thread
+        //and we are done, wait for write thread to finish.
+        closing = true; //signal close to write thread
 
-    //cause another flush so if the thread is waiting on signal, it will see that we changed the closing flag
-    flushQueue();
+        //cause another flush so if the thread is waiting on signal, it will see that we changed the closing flag
+        flushQueue();
+    }
     writeEof();
     
     if(OGEParallelismSettings::isMultithreadingEnabled()) {
