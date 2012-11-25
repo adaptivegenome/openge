@@ -41,7 +41,7 @@ class BgzfInputStream
     };
 public:
     bool open(std::string filename);
-    void read(char * data, size_t len);
+    void read(void * data, size_t len);
     void close();
     bool is_open() { return *input_stream == std::cin || input_stream_real.is_open(); }
     bool fail() { return cache.empty() && input_stream->fail(); }

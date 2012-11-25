@@ -177,7 +177,7 @@ bool BgzfInputStream::open(string filename) {
     return true;
 }
 
-void BgzfInputStream::read(char * data, size_t len) {
+void BgzfInputStream::read(void * data, size_t len) {
     size_t copied_data_len = 0;
     while(copied_data_len != len) {
         BgzfCacheElement * current_block_element = cache[current_block];
@@ -218,7 +218,7 @@ void BgzfInputStream::read(char * data, size_t len) {
         
         size_t copy_len = min(len - copied_data_len, current_block_element->uncompressed_data.size() - current_offset);
         
-        memcpy(&data[copied_data_len], &current_block_element->uncompressed_data[current_offset], copy_len);
+        memcpy(&((char *)data)[copied_data_len], &current_block_element->uncompressed_data[current_offset], copy_len);
         current_offset += copy_len;
         
         copied_data_len += copy_len;

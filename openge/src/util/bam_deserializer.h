@@ -126,86 +126,65 @@ bool BamDeserializer<input_stream_t>::open(const std::string & filename) {
             exit(-1);
         }
     }
-        read_lock.unlock();
+    read_lock.unlock();
     
     return true;
 }
 
 template <class input_stream_t>
 void BamDeserializer<input_stream_t>::close() {
+    read_lock.lock();
     input_stream.close();
+    read_lock.unlock();
 }
 
 template <class input_stream_t>
 OGERead * BamDeserializer<input_stream_t>::read() {
     OGERead * al = OGERead::allocate();
 
-    // read in the 'block length' value, make sure it's not zero
-    char buffer[sizeof(uint32_t)] = {0};
-
     read_lock.lock();
-
-    input_stream.read(buffer, sizeof(uint32_t));
-    if(input_stream.eof())
-        return NULL;
-
-    if ( input_stream.fail() ) {
-        std::cerr << "Expected more bytes reading BAM core. Is this file truncated or corrupted?" << std::endl;
-        delete al;
+    uint32_t BlockLength = 0;
+    input_stream.read((char *)&BlockLength, sizeof(BlockLength));
+    if(input_stream.eof()) {
+        read_lock.unlock();
         return NULL;
     }
 
-    uint32_t BlockLength = BamTools::UnpackUnsignedInt(buffer);
+    if ( input_stream.fail() ) {
+        std::cerr << "Expected more bytes reading BAM core. Is this file truncated or corrupted? Aborting." << std::endl;
+        exit(-1);
+    }
 
-    if ( BlockLength == 0  || BlockLength > 10000)
-        return NULL;
+    if ( BlockLength < 32  || BlockLength > 10000) {
+        std::cerr << "Invalid BGZF block size. Aborting." << std::endl;
+        exit(-1);
+    }
     
     // read in core alignment data, make sure the right size of data was read
-    char x[32];
-    input_stream.read(x, 32);
+    char * buffer = (char *) alloca(BlockLength - 4);
+    input_stream.read(buffer, BlockLength);
     if ( input_stream.fail() ) {
-        std::cerr << "Expected more bytes reading BAM core. Is this file truncated or corrupted?" << std::endl;
-        delete al;
-        return NULL;
+        std::cerr << "Expected more bytes reading BAM core. Is this file truncated or corrupted? Aborting." << std::endl;
+        exit(-1);
     }
-
-    // set BamAlignment 'core' and 'support' data
-    al->setRefID(BamTools::UnpackSignedInt(&x[0]));
-    al->setPosition(BamTools::UnpackSignedInt(&x[4]));
     
-    unsigned int tempValue = BamTools::UnpackUnsignedInt(&x[8]);
-    al->setBin(tempValue >> 16);
-    al->setMapQuality(tempValue >> 8 & 0xff);
-    uint32_t QueryNameLength = tempValue & 0xff;
-    
-    tempValue = BamTools::UnpackUnsignedInt(&x[12]);
-    al->setAlignmentFlag(tempValue >> 16);
-    uint32_t NumCigarOperations = tempValue & 0xffff;
-    
-    uint32_t QuerySequenceLength = BamTools::UnpackUnsignedInt(&x[16]);
-    al->setMateRefID(BamTools::UnpackSignedInt(&x[20]));
-    al->setMatePosition(BamTools::UnpackSignedInt(&x[24]));
-    al->setInsertSize(BamTools::UnpackSignedInt(&x[28]));
-    
-    // read in character data - make sure proper data size was read
-    bool readCharDataOK = false;
-    const unsigned int dataLength = BlockLength - 32;
-    char * char_buffer = (char *) alloca(dataLength);
-    input_stream.read(char_buffer, dataLength);
-    if ( !input_stream.fail() ) {
-        // set success flag
-        readCharDataOK = true;
-    } else {
-        std::cerr << "Expected more bytes reading BAM char data. Is this file truncated or corrupted?" << std::endl;
-        delete al;
-        return NULL;
-    }
-
     read_lock.unlock();
 
-    al->setBamStringData(char_buffer, BlockLength - 32, NumCigarOperations, QuerySequenceLength, QueryNameLength);
-    assert(QueryNameLength == al->getNameLength());
-    assert(al->getSupportData().getBlockLength() == BlockLength);
+    // set BamAlignment core data
+    al->setRefID(BamTools::UnpackSignedInt(&buffer[0]));
+    al->setPosition(BamTools::UnpackSignedInt(&buffer[4]));
+    uint32_t QueryNameLength = buffer[8];
+    al->setMapQuality(buffer[9]);
+    al->setBin(BamTools::UnpackUnsignedShort(&buffer[10]));
+    uint32_t NumCigarOperations = BamTools::UnpackUnsignedShort(&buffer[12]);
+    al->setAlignmentFlag(BamTools::UnpackUnsignedShort(&buffer[14]));
+    uint32_t QuerySequenceLength = BamTools::UnpackUnsignedInt(&buffer[16]);
+    al->setMateRefID(BamTools::UnpackSignedInt(&buffer[20]));
+    al->setMatePosition(BamTools::UnpackSignedInt(&buffer[24]));
+    al->setInsertSize(BamTools::UnpackSignedInt(&buffer[28]));
+
+    // set string data
+    al->setBamStringData(&(buffer[32]), BlockLength - 32, NumCigarOperations, QuerySequenceLength, QueryNameLength);
 
     // return success/failure
     return al;
