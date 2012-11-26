@@ -19,6 +19,7 @@
 
 #include <fstream>
 #include <vector>
+#include <stdint.h>
 #include "thread_pool.h"
 
 const uint32_t BGZF_BLOCK_SIZE = 65536;
@@ -36,9 +37,7 @@ class BgzfOutputStream {
         BgzfBlock(BgzfOutputStream * stream)
         : stream(stream)
         , uncompressed_size(0)
-        {
-            memcpy(this->uncompressed_data, uncompressed_data, uncompressed_size);
-        }
+        { }
         
         unsigned int addData(const char * data, unsigned int length);
         bool isFull();

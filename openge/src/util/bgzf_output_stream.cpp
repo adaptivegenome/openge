@@ -25,6 +25,7 @@
 
 #include "bgzf_output_stream.h"
 #include <iostream>
+#include <cstring>
 #include <zlib.h>
 using namespace std;
 
