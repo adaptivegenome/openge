@@ -149,7 +149,7 @@ void BgzfOutputStream::BgzfCompressJob::runJob() {
     *((uint32_t *) &buffer[compressedLength - 8]) = crc;
     *((uint32_t *) &buffer[compressedLength - 4]) = uncompressed_data.size();
     
-    if(OGEParallelismSettings::isMultithreadingEnabled()) {
+    if(stream->use_thread_pool) {
         data_access_lock.unlock();
         compressed_flag_lock.lock();
         compressed = true;
@@ -194,7 +194,7 @@ void BgzfOutputStream::writeEof() {
 
 void BgzfOutputStream::flushQueue() {
     //if multithreaded, send a signal to the flush queue
-    if(OGEParallelismSettings::isMultithreadingEnabled()) {
+    if(use_thread_pool) {
         int error = pthread_mutex_lock(&write_wait_mutex);
         if(0 != error)
         {
@@ -271,12 +271,13 @@ void * BgzfOutputStream::file_write_threadproc(void * data) {
 }
 
 bool BgzfOutputStream::open(std::string filename) {
+    use_thread_pool = OGEParallelismSettings::isMultithreadingEnabled();
     output_stream.open(filename.c_str());
     
     if(output_stream.fail())
         return false;
     
-    if(OGEParallelismSettings::isMultithreadingEnabled()) {
+    if(use_thread_pool) {
     int ret = pthread_mutex_init(&write_mutex, NULL);
         if(0 != ret) {
             cerr << "Error opening BGZF write mutex. Aborting. (error " << ret << ")." << endl;
@@ -324,7 +325,7 @@ void BgzfOutputStream::write(const char * data, size_t len) {
         job->data_access_lock.unlock();
 
         job_queue.push(job);
-        if(OGEParallelismSettings::isMultithreadingEnabled())
+        if(use_thread_pool)
             ThreadPool::sharedPool()->addJob(job);
         else {
             job->runJob();
@@ -345,7 +346,7 @@ void BgzfOutputStream::close() {
         job->data_access_lock.unlock();
 
         job_queue.push(job);
-        if(OGEParallelismSettings::isMultithreadingEnabled())
+        if(use_thread_pool)
             ThreadPool::sharedPool()->addJob(job);
         else {
             job->runJob();
@@ -354,7 +355,7 @@ void BgzfOutputStream::close() {
     }
     
     //wait for all compression to finish
-    if(OGEParallelismSettings::isMultithreadingEnabled()) {
+    if(use_thread_pool) {
         ThreadPool::sharedPool()->waitForJobCompletion();
         
         flushQueue();
@@ -374,7 +375,7 @@ void BgzfOutputStream::close() {
     flushBlocks();
     writeEof();
     
-    if(OGEParallelismSettings::isMultithreadingEnabled()) {
+    if(use_thread_pool) {
         int ret = pthread_mutex_destroy(&write_mutex);
         if(0 != ret)
             cerr << "Error closing BGZF write mutex (error " << ret << "." << endl;

@@ -62,6 +62,7 @@ protected:
     pthread_mutex_t write_wait_mutex;
     pthread_cond_t flush_signal;
     bool closing;
+    bool use_thread_pool;
     static void * file_write_threadproc(void * data);
 };
 
