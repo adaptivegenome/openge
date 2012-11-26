@@ -51,33 +51,6 @@ const unsigned int SORT_DEFAULT_MAX_BUFFER_COUNT  = 500000;  // max numberOfAlig
 const unsigned int SORT_DEFAULT_MAX_BUFFER_MEMORY = 1024;    // Mb
 const unsigned int MERGESORT_MIN_SORT_SIZE = 30000;    //don't parallelize sort jobs smaller than this many alignments
 
-//actual run creates threads for other 'run'commands
-bool ReadSorter::Run(void)
-{
-    // options
-    if(!isNothreads()) {
-        thread_pool = new ThreadPool();
-    } else if(isVerbose())
-        cerr << "Thread pool use disabled." << endl;
-    
-    m_header_access.lock();
-    m_header = AlgorithmModule::getHeader();
-    m_header.SortOrder = ( sort_order == SORT_NAME
-                          ? BamTools::Constants::SAM_HD_SORTORDER_QUERYNAME
-                          : BamTools::Constants::SAM_HD_SORTORDER_COORDINATE );
-    
-    header_loaded = true;
-    m_header_access.unlock();
-
-    RunSort();
-
-    if(!isNothreads()) {
-        delete thread_pool;
-    }
-    
-    return sort_retval && merge_retval;
-}
-
 // generates mutiple sorted temp BAM files from single unsorted BAM file
 bool ReadSorter::GenerateSortedRuns(void) {
     
@@ -266,16 +239,6 @@ bool ReadSorter::MergeSortedRuns(void) {
     return true;
 }
 
-bool ReadSorter::RunSort(void) {
-    // this does a single pass, chunking up the input file into smaller sorted temp files,
-    // then merging in the results from multiple readers.
-    
-    if ( GenerateSortedRuns() )
-        return MergeSortedRuns();
-    else
-        return false;
-}
-
 //this function is designed to accept either OGERead or OGERead* as T
 template<class T>
 void ReadSorter::SortBuffer(vector<T>& buffer) {
@@ -341,6 +304,29 @@ const SamHeader & ReadSorter::getHeader()
 
 int ReadSorter::runInternal()
 {
-    // run MergeSort, return success/fail
-    return Run();
+    // options
+    if(!isNothreads()) {
+        thread_pool = new ThreadPool();
+    } else if(isVerbose())
+        cerr << "Thread pool use disabled." << endl;
+    
+    m_header_access.lock();
+    m_header = AlgorithmModule::getHeader();
+    m_header.SortOrder = ( sort_order == SORT_NAME
+                          ? BamTools::Constants::SAM_HD_SORTORDER_QUERYNAME
+                          : BamTools::Constants::SAM_HD_SORTORDER_COORDINATE );
+    
+    header_loaded = true;
+    m_header_access.unlock();
+    
+    bool retval = GenerateSortedRuns();
+    
+    if(retval)
+        retval = MergeSortedRuns();
+    
+    if(!isNothreads()) {
+        delete thread_pool;
+    }
+    
+    return retval;
 }

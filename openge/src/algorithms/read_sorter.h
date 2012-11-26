@@ -56,12 +56,8 @@ public:
     
     // interface
 protected:
-    bool Run(void);
     bool RunSort(void);
     bool RunMerge(void);
-    
-    static void * RunMergeThread(void *);
-    static void * RunSortThread(void *);
     
     //from SortTool:
     bool CreateSortedTempFile(std::vector<OGERead *> * buffer);
@@ -79,7 +75,6 @@ private:
     bool header_loaded;
     BamTools::SamHeader m_header;
     std::vector<std::string> m_tempFilenames;
-    bool sort_retval, merge_retval;
     ThreadPool * thread_pool;
     
     //options:
