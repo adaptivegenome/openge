@@ -357,21 +357,25 @@ void BgzfOutputStream::close() {
     if(OGEParallelismSettings::isMultithreadingEnabled()) {
         ThreadPool::sharedPool()->waitForJobCompletion();
         
+        flushQueue();
+        
         //and we are done, wait for write thread to finish.
         closing = true; //signal close to write thread
 
         //cause another flush so if the thread is waiting on signal, it will see that we changed the closing flag
         flushQueue();
-    }
-    writeEof();
-    
-    if(OGEParallelismSettings::isMultithreadingEnabled()) {
+        
         int ret = pthread_join(write_thread, NULL);
         
         if(0 != ret)
             cerr << "Error joining BGZF write thread (error " << ret << "." << endl;
-        
-        ret = pthread_mutex_destroy(&write_mutex);
+    }
+    
+    flushBlocks();
+    writeEof();
+    
+    if(OGEParallelismSettings::isMultithreadingEnabled()) {
+        int ret = pthread_mutex_destroy(&write_mutex);
         if(0 != ret)
             cerr << "Error closing BGZF write mutex (error " << ret << "." << endl;
         
