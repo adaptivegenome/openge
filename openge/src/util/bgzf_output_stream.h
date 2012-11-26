@@ -21,49 +21,43 @@
 #include <vector>
 #include "thread_pool.h"
 
+const uint32_t BGZF_BLOCK_SIZE = 65536;
+
 class BgzfOutputStream {
-    class BgzfCompressJob : public ThreadJob {
-    public:
-        Spinlock data_access_lock;  //only needed to get rid of race detection warnings in ThreadSanitizer
-        Spinlock compressed_flag_lock;  //needed to syncronize access to this flag. Once we start using C++11, we can use std::atomic<bool> or something
-        std::vector<char> compressed_data;
-        std::vector<char> uncompressed_data;
-        bool compressed;
-        int compression_level;
+    int compression_level;
+    std::ofstream output_stream;
+
+    class BgzfBlock : public ThreadJob {
         BgzfOutputStream * stream;
-        BgzfCompressJob()
-        : compressed(false)
-        {}
-        void runJob();
+        char uncompressed_data[BGZF_BLOCK_SIZE];
+        char compressed_data[BGZF_BLOCK_SIZE];
+        unsigned int uncompressed_size, compressed_size;
+    public:
+        BgzfBlock(BgzfOutputStream * stream)
+        : stream(stream)
+        , uncompressed_size(0)
+        {
+            memcpy(this->uncompressed_data, uncompressed_data, uncompressed_size);
+        }
+        
+        unsigned int addData(const char * data, unsigned int length);
+        bool isFull();
+        void runJob();  //calls compress when run in thread pool
+        bool compress();
+        bool write(std::ofstream & out);
     };
+
+    BgzfBlock * current_block;
 public:
     BgzfOutputStream()
     : compression_level(6)
-    , closing(false)
     {}
-
     bool open(std::string filename);
     void write(const char * data, size_t len);
     void close();
     bool is_open() const { return output_stream.is_open(); }
     bool fail() { return output_stream.fail(); }
     void setCompressionLevel(int level) { compression_level = level; }
-    void flushQueue();
-protected:
-    void flushBlocks();
-    void writeEof();
-
-    std::ofstream output_stream;
-    int compression_level;
-    std::vector<char> write_buffer;
-    SynchronizedBlockingQueue<BgzfCompressJob *> job_queue;
-    pthread_mutex_t write_mutex;
-    pthread_t write_thread;
-    pthread_mutex_t write_wait_mutex;
-    pthread_cond_t flush_signal;
-    bool closing;
-    bool use_thread_pool;
-    static void * file_write_threadproc(void * data);
 };
 
 #endif
