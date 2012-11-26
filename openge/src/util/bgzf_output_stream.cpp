@@ -188,6 +188,9 @@ void BgzfOutputStream::write(const char * data, size_t len) {
         
         if(current_block->isFull()) {
             if(use_threads) {
+                if(write_queue.size() > 2000) {
+                    usleep(80e3);  //80ms
+                }
                 write_queue.push(current_block);
                 ThreadPool::sharedPool()->addJob(current_block);
             } else {
@@ -231,17 +234,22 @@ void * BgzfOutputStream::write_threadproc(void * stream_p) {
     //keep processing while there are things in the queue
     while(true) {
         stream->write_thread_mutex.lock();
-        while(!stream->closing.isSet() && (stream->write_queue.empty() || !stream->write_queue.back()->isCompressed()))
+        while(!stream->closing.isSet() || (stream->write_queue.empty() || !stream->write_queue.back()->isCompressed()))
             stream->write_thread_signal.wait(stream->write_thread_mutex);
         stream->write_thread_mutex.unlock();
         
         if(stream->write_queue.empty() && stream->closing.isSet())
             break;
         
-        assert(!stream->write_queue.empty());
-        BgzfBlock * b = stream->write_queue.pop();
-        b->write(stream->output_stream);
-        delete b;
+        while(!stream->write_queue.empty()) {
+            BgzfBlock * front = stream->write_queue.front();
+            if(!front->isCompressed())
+                break;
+            
+            stream->write_queue.pop();
+            front->write(stream->output_stream);
+            delete front;
+        }
     }
     
     return NULL;
