@@ -37,11 +37,17 @@ void BgzfOutputStream::BgzfBlock::runJob() {
         cerr << "Bgzf block compression failed. Aborting." << endl;
         exit(-1);
     }
+    
+    //tell the write thread to check for new data.
+    stream->write_thread_mutex.lock();
+    stream->write_thread_signal.notify_one();
+    stream->write_thread_mutex.unlock();
 }
 
 bool BgzfOutputStream::BgzfBlock::compress() {
-    
     int current_compression_level = stream->compression_level;
+    
+    data_access_lock.lock();
     while(true) {
         // compress
         z_stream zs = {0};
@@ -97,7 +103,6 @@ bool BgzfOutputStream::BgzfBlock::compress() {
         }
     }
     
-
     // fill in GZ data fields in buffer
     // some day we should avoid doing this manually and use deflateSetHeader()
     compressed_data[0] = 31;  //magic
@@ -122,6 +127,10 @@ bool BgzfOutputStream::BgzfBlock::compress() {
     *((uint32_t *)&compressed_data[data_end]) = crc32(crc32(0, NULL, 0), (Bytef *)&uncompressed_data[0], uncompressed_size);
     *((uint32_t *)&compressed_data[data_end+4]) = uncompressed_size;
     
+    data_access_lock.unlock();
+    
+    compress_finished.set();
+    
     return true;
 }
 
@@ -143,7 +152,10 @@ unsigned int BgzfOutputStream::BgzfBlock::addData(const char * data, unsigned in
 }
 
 bool BgzfOutputStream::BgzfBlock::write(std::ofstream & out) {
+    assert(true == compress_finished.isSet());
+    data_access_lock.lock();
     out.write(compressed_data, compressed_size);
+    data_access_lock.unlock();
     return !out.fail();
 }
 
@@ -158,6 +170,13 @@ bool BgzfOutputStream::open(std::string filename) {
 
     current_block = new BgzfBlock(this);
     
+    if(use_threads) {
+        int ret = pthread_create(&write_thread, NULL, write_threadproc, this);
+        if(0 != ret) {
+            cerr << "Error creating BGZF write thread (error " << ret << ")." << endl;
+        }
+    }
+    
     return true;
 }
 
@@ -168,15 +187,32 @@ void BgzfOutputStream::write(const char * data, size_t len) {
         data += written;
         
         if(current_block->isFull()) {
-            current_block->compress();
-            current_block->write(output_stream);
-            delete current_block;
+            if(use_threads) {
+                write_queue.push(current_block);
+                ThreadPool::sharedPool()->addJob(current_block);
+            } else {
+                current_block->compress();
+                current_block->write(output_stream);
+                delete current_block;
+            }
             current_block = new BgzfBlock(this);
         }
     }
 }
 
 void BgzfOutputStream::close() {
+    if(use_threads) {
+        closing.set();
+        
+        write_thread_mutex.lock();
+        write_thread_signal.notify_one();
+        write_thread_mutex.unlock();
+        int ret = pthread_join(write_thread, NULL);
+        if(0 != ret) {
+            cerr << "Error joining BGZF write thread (error " << ret << ")." << endl;
+        }
+    }
+    
     current_block->compress();
     current_block->write(output_stream);
     delete current_block;
@@ -187,4 +223,26 @@ void BgzfOutputStream::close() {
     empty.write(output_stream);
     
     output_stream.close();
+}
+
+void * BgzfOutputStream::write_threadproc(void * stream_p) {
+    BgzfOutputStream * stream = (BgzfOutputStream *) stream_p;
+    
+    //keep processing while there are things in the queue
+    while(true) {
+        stream->write_thread_mutex.lock();
+        while(!stream->closing.isSet() && (stream->write_queue.empty() || !stream->write_queue.back()->isCompressed()))
+            stream->write_thread_signal.wait(stream->write_thread_mutex);
+        stream->write_thread_mutex.unlock();
+        
+        if(stream->write_queue.empty() && stream->closing.isSet())
+            break;
+        
+        assert(!stream->write_queue.empty());
+        BgzfBlock * b = stream->write_queue.pop();
+        b->write(stream->output_stream);
+        delete b;
+    }
+    
+    return NULL;
 }
