@@ -169,18 +169,6 @@ void * SamReader::LineGenerationThread(void * data)
         } else {
             if(parsing_header) {
                 reader->header.SetHeaderText(header_txt.str());
-                
-                reader->m_refData.reserve(reader->header.Sequences.Size());
-                
-                for(SamSequenceConstIterator it = reader->header.Sequences.Begin(); it != reader->header.Sequences.End(); it++)
-                {
-                    //convert length to an int from a string.
-                    int length;
-                    stringstream length_ss(it->Length);
-                    length_ss >> length;
-                    
-                    reader->m_refData.push_back(RefData(it->Name, length));
-                }
 
                 parsing_header = false;
                 reader->loaded = true;

@@ -78,7 +78,6 @@ private:
     Spinlock m_header_access;
     bool header_loaded;
     BamTools::SamHeader m_header;
-    BamTools::RefVector m_references;
     std::vector<std::string> m_tempFilenames;
     bool sort_retval, merge_retval;
     ThreadPool * thread_pool;
