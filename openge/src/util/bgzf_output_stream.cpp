@@ -234,8 +234,16 @@ void * BgzfOutputStream::write_threadproc(void * stream_p) {
     //keep processing while there are things in the queue
     while(true) {
         stream->write_thread_mutex.lock();
-        while(!stream->closing.isSet() || (stream->write_queue.empty() || !stream->write_queue.back()->isCompressed()))
+        while(true) {
+            //if we are done, quit waiting
+            if(stream->write_queue.empty() && stream->closing.isSet())
+                break;
+            
+            //if there is work we can do, quit waiting
+            if(!stream->write_queue.empty() && stream->write_queue.front()->isCompressed())
+                break;
             stream->write_thread_signal.wait(stream->write_thread_mutex);
+        }
         stream->write_thread_mutex.unlock();
         
         if(stream->write_queue.empty() && stream->closing.isSet())
