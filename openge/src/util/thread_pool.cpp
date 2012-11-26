@@ -309,3 +309,81 @@ void OGEParallelismSettings::enableMultithreading()
 {
     m_multithreading_enabled = true;
 }
+
+mutex::mutex() {
+    int ret = pthread_mutex_init(&m, NULL);
+    if(0 != ret) {
+        cerr << "Error creating mutex (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+mutex::~mutex() {
+    int ret = pthread_mutex_destroy(&m);
+    if(0 != ret) {
+        cerr << "Error destroying mutex (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+void mutex::lock() {
+    int ret = pthread_mutex_lock(&m);
+    if(0 != ret) {
+        cerr << "Error locking mutex (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+bool mutex::try_lock() {
+    int ret = pthread_mutex_trylock(&m);
+    
+    if(ret == 16)   //16 = EBUSY
+        return false;
+    if(0 != ret) {
+        cerr << "Error locking mutex (error " << ret << ")." << endl;
+        exit(-1);
+    }
+    return true;
+}
+void mutex::unlock() {
+    int ret = pthread_mutex_unlock(&m);
+    if(0 != ret) {
+        cerr << "Error unlocking mutex (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+
+condition_variable::condition_variable() {
+    int ret = pthread_cond_init(&c, NULL);
+    if(0 != ret) {
+        cerr << "Error creating CV (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+condition_variable::~condition_variable() {
+    int ret = pthread_cond_destroy(&c);
+    if(0 != ret) {
+        cerr << "Error destroying CV (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+void condition_variable::notify_one() {
+    int ret = pthread_cond_signal(&c);
+    if(0 != ret) {
+        cerr << "Error signalling CV (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+void condition_variable::notify_all() {
+    int ret = pthread_cond_broadcast(&c);
+    if(0 != ret) {
+        cerr << "Error broadcasting CV (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+void condition_variable::wait(mutex & m) {
+    int ret = pthread_cond_wait(&c, &m.native_handle());
+    if(0 != ret) {
+        cerr << "Error waiting for CV (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+
+

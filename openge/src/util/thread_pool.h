@@ -90,6 +90,31 @@ public:
 #endif
 };
 
+// The mutex and condition_variable classes are designed to be
+// compatible with C++11. Eventually we will get rid of these
+// and use the C++11 equivalents.
+class mutex {
+    pthread_mutex_t m;
+public:
+    mutex();
+    ~mutex();
+    void lock();
+    bool try_lock();
+    void unlock();
+    pthread_mutex_t & native_handle() { return m; };
+};
+
+class condition_variable {
+    pthread_cond_t c;
+public:
+    condition_variable();
+    ~condition_variable();
+    void notify_one();
+    void notify_all();
+    void wait(mutex & m);
+    pthread_cond_t & native_handle() { return c; };
+};
+
 
 template <class T>
 class SynchronizedQueue
@@ -167,6 +192,43 @@ public:
     }
 protected:
         
+};
+
+class SychronizedFlag {
+    Spinlock s;
+    bool b;
+public:
+    SychronizedFlag() {}
+    SychronizedFlag(const bool b) {
+        s.lock();
+        this->b = b;
+        s.unlock();
+    }
+    bool operator=(const bool b) {
+        s.lock();
+        this->b = b;
+        s.unlock();
+        return b;
+    }
+    
+    void set() {
+        s.lock();
+        this->b = true;
+        s.unlock();
+    }
+    
+    void clear() {
+        s.lock();
+        this->b = false;
+        s.unlock();
+    }
+    
+    bool isSet() {
+        s.lock();
+        bool r = b;
+        s.unlock();
+        return r;
+    }
 };
 
 class OGEParallelismSettings
