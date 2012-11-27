@@ -41,7 +41,7 @@ threads_exit(false),
 jobs_current(0)
 {
 	if(num_threads == -1 || num_threads == 0)
-		num_threads = availableCores();
+		num_threads = OGEParallelismSettings::getNumberThreads();
     
 	jobs_in_process = 0;
     
