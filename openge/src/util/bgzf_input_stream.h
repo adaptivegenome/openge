@@ -23,38 +23,57 @@
 
 #include <iostream>
 
+const int BGZF_BLOCK_SIZE = 65536;
+
 class BgzfInputStream
 {
-    
-    class BgzfCacheElement : public ThreadJob {
-    public:
-        std::vector<char> compressed_data;
-        std::vector<char> uncompressed_data;
-        size_t file_position;
-        bool loaded;
+    class BgzfBlock : public ThreadJob {
+        char compressed_data[BGZF_BLOCK_SIZE];
+        char uncompressed_data[BGZF_BLOCK_SIZE];
+        unsigned int compressed_size;
+        unsigned int uncompressed_size;
+        unsigned int read_size;
         
-        size_t next_block_address() { return file_position + compressed_data.size(); }
+        SynchronizedFlag decompressed;
+        BgzfInputStream * stream;
+    public:
+        BgzfBlock(BgzfInputStream * stream)
+        : read_size(0)
+        , stream(stream)
+        {
+            decompressed.clear();
+        }
+        unsigned int read();
+        bool decompress();
+        bool isDecompressed() { return decompressed.isSet(); }
+        unsigned int readData(void * dest, unsigned int max_size);
         virtual void runJob();
-        BgzfCacheElement()
-        : loaded(false)
-        {}
+        bool dataRemaining() { return read_size != uncompressed_size; }
     };
 public:
+    BgzfInputStream()
+    {
+        eof_seen.clear();
+    }
     bool open(std::string filename);
-    void read(void * data, size_t len);
+    bool read(void * data, size_t len);
     void close();
     bool is_open() { return *input_stream == std::cin || input_stream_real.is_open(); }
-    bool fail() { return cache.empty() && input_stream->fail(); }
-    bool eof() { return cache.empty() && input_stream->eof(); }
+    bool eof() { return block_queue.empty() && eof_seen.isSet(); }
+    bool fail() { return false; }   //all errors are treated as fatal
 protected:
-    size_t current_block;
-    size_t current_offset;
     std::istream * input_stream;
     std::ifstream input_stream_real;
-    std::map<size_t, BgzfCacheElement *> cache;
-    int cached_blocks_read, cache_misses;
-
-    bool requestNextBlock();
+    SynchronizedFlag eof_seen;
+    SynchronizedQueue<BgzfBlock *> block_queue;
+    
+    //multithreading:
+    mutex read_signal_lock;
+    condition_variable read_signal_cv;
+    pthread_t read_thread;
+    bool use_threads;
+    
+    static void * block_readproc(void * stream);
 };
 
 #endif
