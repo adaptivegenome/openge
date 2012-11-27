@@ -194,12 +194,12 @@ protected:
         
 };
 
-class SychronizedFlag {
+class SynchronizedFlag {
     Spinlock s;
     bool b;
 public:
-    SychronizedFlag() {}
-    SychronizedFlag(const bool b) {
+    SynchronizedFlag() {}
+    SynchronizedFlag(const bool b) {
         s.lock();
         this->b = b;
         s.unlock();

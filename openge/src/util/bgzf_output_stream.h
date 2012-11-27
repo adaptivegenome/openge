@@ -35,7 +35,7 @@ class BgzfOutputStream {
         char compressed_data[BGZF_BLOCK_SIZE];
         unsigned int uncompressed_size, compressed_size;
         Spinlock data_access_lock;
-        SychronizedFlag compress_finished;
+        SynchronizedFlag compress_finished;
     public:
         BgzfBlock(BgzfOutputStream * stream)
         : stream(stream)
@@ -58,7 +58,7 @@ class BgzfOutputStream {
     pthread_t write_thread;
     condition_variable write_thread_signal;
     mutex write_thread_mutex;
-    SychronizedFlag closing;
+    SynchronizedFlag closing;
     SynchronizedQueue<BgzfBlock *> write_queue;
     
     static void * write_threadproc(void * stream_p);
