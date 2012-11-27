@@ -37,9 +37,9 @@ const int THREADPOOL_MAX_JOBS_IN_QUEUE = 128;
 ThreadPool * ThreadPool::_sharedPool = NULL;
 
 ThreadPool::ThreadPool(int num_threads) :
-threads_exit(false),
 jobs_current(0)
 {
+    threads_exit.clear();
 	if(num_threads == -1 || num_threads == 0)
 		num_threads = OGEParallelismSettings::getNumberThreads();
     
@@ -162,7 +162,7 @@ ThreadJob * ThreadPool::startJob()
         exit(-1);
     }
 
-    while(!threads_exit && jobs.empty()) {
+    while(!threads_exit.isSet() && jobs.empty()) {
         int retval = pthread_cond_wait(&job_queue_cond, &job_queue_mutex);
         if(0 != retval) {
             cerr << "Error waiting for job in startJob(). Aborting. (error " << retval << ")." << endl ;
@@ -170,7 +170,7 @@ ThreadJob * ThreadPool::startJob()
         }
     }
     
-    if(!threads_exit) {
+    if(!threads_exit.isSet()) {
         jobs_mutex.lock();
         job = jobs.front();
         jobs.pop();
@@ -184,7 +184,7 @@ ThreadJob * ThreadPool::startJob()
         exit(-1);
     }
 
-	if(threads_exit)
+	if(threads_exit.isSet())
 		return NULL;
 	
 	return job;

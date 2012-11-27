@@ -173,25 +173,58 @@ protected:
 template<class T>
 class SynchronizedBlockingQueue : public SynchronizedQueue<T>{
 public:
+    SynchronizedBlockingQueue()
+    : cv_waiting(false)
+    {}
+    
+    void push(const T & item) {
+        this->lock.lock();
+        this->q.push(item);
+        bool waiting = cv_waiting;
+        this->lock.unlock();
+        
+        if(waiting) {
+            wait_lock.lock();
+            wait_cv.notify_one();
+            wait_lock.unlock();
+        }
+    }
+
     T pop() {
         bool success = false;
         T ret;
-        while(!success) {
-            this->lock.lock();
-            if(!this->q.empty()) {
-                ret = this->q.front();
-                this->q.pop();
-                success = true;
-            }
+        this->lock.lock();
+        if(!this->q.empty()) {
+            ret = this->q.front();
+            this->q.pop();
+            success = true;
             this->lock.unlock();
-            if(!success)
-                usleep(20000);
+        } else {
+            cv_waiting = true;
+            wait_lock.lock();
+            this->lock.unlock();
+            while(true) {
+                this->lock.lock();
+                if(!this->q.empty()) {
+                    success = true;
+                    ret = this->q.front();
+                    this->q.pop();
+                    cv_waiting = false;
+                }
+                this->lock.unlock();
+                if(success) {
+                    break;
+                }
+                wait_cv.wait(wait_lock);
+            }
+            wait_lock.unlock();
         }
-
         return ret;
     }
 protected:
-        
+    bool cv_waiting;
+    mutex wait_lock;
+    condition_variable wait_cv;
 };
 
 class SynchronizedFlag {
@@ -279,7 +312,7 @@ protected:
 	
     std::queue<ThreadJob *> jobs;	//protected by jobs_mutex
 	std::vector<pthread_t> threads;
-	bool threads_exit;
+	SynchronizedFlag threads_exit;
 	int jobs_in_process;	//protected by jobs_mutex
 	Spinlock jobs_mutex;
 	pthread_mutex_t busy_mutex;
