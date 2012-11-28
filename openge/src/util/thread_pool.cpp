@@ -267,6 +267,21 @@ void * ThreadPool::thread_start(void * thread_pool)
 
 ThreadJob::~ThreadJob() {}
 
+
+ThreadPool * ThreadPool::sharedPool() {
+    assert(OGEParallelismSettings::isMultithreadingEnabled());
+    if(!_sharedPool)
+        _sharedPool = new ThreadPool(OGEParallelismSettings::getNumberThreads());
+    return _sharedPool;
+}
+void ThreadPool::closeSharedPool() {
+    if(!_sharedPool)
+        return;
+    _sharedPool->waitForJobCompletion();
+    delete _sharedPool;
+    _sharedPool = NULL;
+}
+
 #pragma mark OGEParallelismSettings
 
 #include <unistd.h>

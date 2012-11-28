@@ -298,8 +298,9 @@ public:
 	int numJobs();
 	static int availableCores();
 	void waitForJobCompletion();
-    static ThreadPool * sharedPool() { assert(OGEParallelismSettings::isMultithreadingEnabled()); if(!_sharedPool) _sharedPool = new ThreadPool(OGEParallelismSettings::getNumberThreads()); return _sharedPool; }
-    static void closeSharedPool() {  if(!_sharedPool) return; _sharedPool->waitForJobCompletion(); delete _sharedPool; }
+    static ThreadPool * sharedPool();
+    static void closeSharedPool();
+    static bool sharedPoolIsStarted() { return NULL != _sharedPool; }
 	
 protected:
     static ThreadPool * _sharedPool;

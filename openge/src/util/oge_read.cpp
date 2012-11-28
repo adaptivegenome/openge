@@ -75,7 +75,7 @@ void OGERead::deallocate(OGERead * al) {
 }
 
 void OGERead::clearCachedAllocations() {
-    if(OGEParallelismSettings::isMultithreadingEnabled())
+    if(OGEParallelismSettings::isMultithreadingEnabled() && ThreadPool::sharedPoolIsStarted())
         ThreadPool::sharedPool()->waitForJobCompletion();
 
     while(!cached_allocations.empty()) {
