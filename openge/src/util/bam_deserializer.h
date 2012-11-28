@@ -156,7 +156,7 @@ OGERead * BamDeserializer<input_stream_t>::read() {
     }
 
     if ( BlockLength < 32  || BlockLength > 10000) {
-        std::cerr << "Invalid BGZF block size(" << BlockLength << "). Aborting." << std::endl;
+        std::cerr << "Invalid BAM block size(" << BlockLength << "). Aborting." << std::endl;
         exit(-1);
     }
     
