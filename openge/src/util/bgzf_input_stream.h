@@ -54,17 +54,18 @@ public:
     BgzfInputStream()
     {
         eof_seen.clear();
+        fail_seen.clear();
     }
     bool open(std::string filename);
-    bool read(void * data, size_t len);
+    bool read(char * data, size_t len);
     void close();
     bool is_open() { return *input_stream == std::cin || input_stream_real.is_open(); }
     bool eof() { return block_queue.empty() && eof_seen.isSet(); }
-    bool fail() { return false; }   //all errors are treated as fatal
+    bool fail() { return fail_seen.isSet(); }   //all errors are treated as fatal
 protected:
     std::istream * input_stream;
     std::ifstream input_stream_real;
-    SynchronizedFlag eof_seen;
+    SynchronizedFlag eof_seen, fail_seen;
     SynchronizedQueue<BgzfBlock *> block_queue;
     
     //multithreading:

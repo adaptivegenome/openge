@@ -194,12 +194,13 @@ void * BgzfInputStream::block_readproc(void * data) {
     return NULL;
 }
 
-bool BgzfInputStream::read(void * data, size_t len) {
+bool BgzfInputStream::read(char * data, size_t len) {
     unsigned int read_len = 0;
     while(read_len != len) {
         while(block_queue.empty() || !block_queue.front()->isDecompressed()) {
-            if(eof_seen.isSet())
+            if(block_queue.empty() && eof_seen.isSet()) {
                 return false;
+            }
             usleep(50000);
         }
         
