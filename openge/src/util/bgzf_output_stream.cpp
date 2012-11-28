@@ -38,9 +38,16 @@ void BgzfOutputStream::BgzfBlock::runJob() {
         exit(-1);
     }
     
+    //keep a local copy of this variable in case
+    // this job object is destroyed under us.
+    // This object can theoretically be deleted any time
+    // after the notify_one();
+    BgzfOutputStream * stream = this->stream;
+
     //tell the write thread to check for new data.
     stream->write_thread_mutex.lock();
     stream->write_thread_signal.notify_one();
+    compress_finished.set();
     stream->write_thread_mutex.unlock();
 }
 
@@ -126,10 +133,8 @@ bool BgzfOutputStream::BgzfBlock::compress() {
     unsigned int data_end = compressed_size - 8;
     *((uint32_t *)&compressed_data[data_end]) = crc32(crc32(0, NULL, 0), (Bytef *)&uncompressed_data[0], uncompressed_size);
     *((uint32_t *)&compressed_data[data_end+4]) = uncompressed_size;
-    
-    data_access_lock.unlock();
-    
     compress_finished.set();
+    data_access_lock.unlock();
     
     return true;
 }
@@ -152,8 +157,8 @@ unsigned int BgzfOutputStream::BgzfBlock::addData(const char * data, unsigned in
 }
 
 bool BgzfOutputStream::BgzfBlock::write(std::ofstream & out) {
-    assert(true == compress_finished.isSet());
     data_access_lock.lock();
+    assert(true == compress_finished.isSet());
     out.write(compressed_data, compressed_size);
     data_access_lock.unlock();
     return !out.fail();
