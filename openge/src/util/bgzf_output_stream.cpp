@@ -33,21 +33,20 @@ using namespace std;
 // BgzfBlock class
 
 void BgzfOutputStream::BgzfBlock::runJob() {
-    if(!compress()) {
-        cerr << "Bgzf block compression failed. Aborting." << endl;
-        exit(-1);
-    }
-    
     //keep a local copy of this variable in case
     // this job object is destroyed under us.
     // This object can theoretically be deleted any time
     // after the notify_one();
     BgzfOutputStream * stream = this->stream;
 
+    if(!compress()) {
+        cerr << "Bgzf block compression failed. Aborting." << endl;
+        exit(-1);
+    }
+
     //tell the write thread to check for new data.
     stream->write_thread_mutex.lock();
     stream->write_thread_signal.notify_one();
-    compress_finished.set();
     stream->write_thread_mutex.unlock();
 }
 
