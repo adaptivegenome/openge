@@ -132,8 +132,9 @@ int MarkDuplicates::getUnclippedEnd(const OGERead & rec) {
 /** Calculates a score for the read which is the sum of scores over Q20. */
 short MarkDuplicates::getScore(const OGERead & rec) {
     short score = 0;
-    for (int i = 0; i < rec.getQualities().size(); i++) {
-        uint8_t b = rec.getQualities()[i]-33;   //33 comes from the conversion in OGERead
+    const string & qualities = rec.getQualities();
+    for (int i = 0; i < qualities.size(); i++) {
+        uint8_t b = qualities[i]-33;   //33 comes from the conversion in OGERead
         if (b >= 15) score += b;
     }
     
