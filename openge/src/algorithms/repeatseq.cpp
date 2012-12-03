@@ -1369,13 +1369,10 @@ inline double retBetaMult(int* vector, int alleles){
 }
 
 inline double multinomial_beta(const vector<double> & alpha) {
-    double numerator = 1.;
-    for(vector<double>::const_iterator i = alpha.begin(); i != alpha.end(); i++)
-        numerator *= tgamma(*i);
-    
-    double alpha_sum = accumulate(alpha.begin(),alpha.end(),0);
-    
-    return numerator / tgamma(alpha_sum);
+    vector<int> v;
+    for( int i = 0; i < alpha.size(); i++)
+        v.push_back(int(alpha[i]));
+    return retBetaMult(&v[0], alpha.size() - 1);
 }
 
 inline double dirichlet(const vector<double> & alpha, const vector<double> & x) {
