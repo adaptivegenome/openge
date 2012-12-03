@@ -47,7 +47,9 @@ MarkDuplicates::MarkDuplicates(string temp_directory)
 
 int MarkDuplicates::getReferenceLength(const OGERead &rec) {
     int length = 0;
-    for(vector<CigarOp>::const_iterator i = rec.getCigarData().begin(); i != rec.getCigarData().end(); i++) {
+
+    vector<CigarOp> cigar = rec.getCigarData();
+    for(vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++) {
         switch (i->Type) {
             case 'M':
             case 'D':
@@ -90,7 +92,9 @@ int MarkDuplicates::getAlignmentEnd(const OGERead & rec) {
 int MarkDuplicates::getUnclippedStart(const OGERead & rec) {
     int pos = getAlignmentStart(rec);
     
-    for (vector<CigarOp>::const_iterator op = rec.getCigarData().begin(); op != rec.getCigarData().end(); op++ ) {
+    vector<CigarOp> cigar = rec.getCigarData();
+    
+    for (vector<CigarOp>::const_iterator op = cigar.begin(); op != cigar.end(); op++ ) {
         if (op->Type == 'S' || op->Type == 'H') {
             pos -= op->Length;
         }
@@ -112,8 +116,10 @@ int MarkDuplicates::getUnclippedStart(const OGERead & rec) {
 int MarkDuplicates::getUnclippedEnd(const OGERead & rec) {
     int pos = getAlignmentEnd(rec);
     
-    for (int i=rec.getCigarData().size() - 1; i>=0; --i) {
-        const CigarOp & op = rec.getCigarData()[i];
+    vector<CigarOp> cigar = rec.getCigarData();
+    
+    for (int i=cigar.size() - 1; i>=0; --i) {
+        const CigarOp & op = cigar[i];
         
         if (op.Type == 'S' || op.Type =='H') {
             pos += op.Length;

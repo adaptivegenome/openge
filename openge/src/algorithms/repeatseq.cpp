@@ -654,7 +654,7 @@ std::vector<Repeatseq::STRING_GT> Repeatseq::makeToPrint(const std::vector<OGERe
 		stringstream cigarSeq;
 		int gtBonus = 0;
 		
-        const vector<CigarOp> & cigar_data = al.getCigarData();
+        const vector<CigarOp> cigar_data = al.getCigarData();
 		if (cigar_data.empty()) {
 			numStars++;
 			continue;
@@ -748,7 +748,7 @@ std::vector<Repeatseq::STRING_GT> Repeatseq::makeToPrint(const std::vector<OGERe
 				
 				//Determine & print read size information:
 				int readSize = 0;
-                const vector<CigarOp> & cigar_data = al.getCigarData();
+                const vector<CigarOp> cigar_data = al.getCigarData();
 				for (vector<CigarOp>::const_iterator it=cigar_data.begin(); it < cigar_data.end(); it++){
 					if (it->Type == 'M' || it->Type == 'I' || it->Type == 'S' || it->Type == '=' || it->Type == 'X'){
 						readSize += it->Length;         //increment readsize by the length
