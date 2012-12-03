@@ -43,7 +43,6 @@ protected:
     std::ofstream fwd_file, rev_file, orphan_file;
     std::ostream * fwd_stream, * rev_stream, * orphan_stream;
     BamTools::SamHeader header;
-    BamTools::RefVector references;
     std::string filename;
     std::map<std::string, fastq_record_t> potential_pairs;
 

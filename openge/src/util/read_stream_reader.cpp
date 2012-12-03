@@ -43,17 +43,19 @@ bool MultiReader::open(const std::vector<std::string> & filenames) {
         }
     }
     
-    // first, get one read from each queue
-    // make sure and deal with the case where one chain will never have any reads. TODO LCB
-    
-    for(std::vector<ReadStreamReader *>::iterator i = readers.begin(); i != readers.end(); i++)
-    {
-        OGERead * read = (*i)->read();
+    if(readers.size() > 1) {
+        // first, get one read from each queue
+        // make sure and deal with the case where one chain will never have any reads. TODO LCB
         
-        if(!read)
-            continue;
-        
-        reads.insert(SortedMergeElement(read, (*i)));
+        for(std::vector<ReadStreamReader *>::iterator i = readers.begin(); i != readers.end(); i++)
+        {
+            OGERead * read = (*i)->read();
+            
+            if(!read)
+                continue;
+            
+            reads.insert(SortedMergeElement(read, (*i)));
+        }
     }
     return true;
 }

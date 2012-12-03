@@ -128,6 +128,9 @@ public:
     }
 
     virtual OGERead * read() {
+        if(readers.size() == 1)
+            return readers.front()->read();
+        
         OGERead * ret = NULL;
         //now handle the steady state situation. When sources are done, We
         // won't have a read any more in the reads pqueue.

@@ -37,11 +37,11 @@ const int THREADPOOL_MAX_JOBS_IN_QUEUE = 128;
 ThreadPool * ThreadPool::_sharedPool = NULL;
 
 ThreadPool::ThreadPool(int num_threads) :
-threads_exit(false),
 jobs_current(0)
 {
+    threads_exit.clear();
 	if(num_threads == -1 || num_threads == 0)
-		num_threads = availableCores();
+		num_threads = OGEParallelismSettings::getNumberThreads();
     
 	jobs_in_process = 0;
     
@@ -162,7 +162,7 @@ ThreadJob * ThreadPool::startJob()
         exit(-1);
     }
 
-    while(!threads_exit && jobs.empty()) {
+    while(!threads_exit.isSet() && jobs.empty()) {
         int retval = pthread_cond_wait(&job_queue_cond, &job_queue_mutex);
         if(0 != retval) {
             cerr << "Error waiting for job in startJob(). Aborting. (error " << retval << ")." << endl ;
@@ -170,7 +170,7 @@ ThreadJob * ThreadPool::startJob()
         }
     }
     
-    if(!threads_exit) {
+    if(!threads_exit.isSet()) {
         jobs_mutex.lock();
         job = jobs.front();
         jobs.pop();
@@ -184,7 +184,7 @@ ThreadJob * ThreadPool::startJob()
         exit(-1);
     }
 
-	if(threads_exit)
+	if(threads_exit.isSet())
 		return NULL;
 	
 	return job;
@@ -267,6 +267,21 @@ void * ThreadPool::thread_start(void * thread_pool)
 
 ThreadJob::~ThreadJob() {}
 
+
+ThreadPool * ThreadPool::sharedPool() {
+    assert(OGEParallelismSettings::isMultithreadingEnabled());
+    if(!_sharedPool)
+        _sharedPool = new ThreadPool(OGEParallelismSettings::getNumberThreads());
+    return _sharedPool;
+}
+void ThreadPool::closeSharedPool() {
+    if(!_sharedPool)
+        return;
+    _sharedPool->waitForJobCompletion();
+    delete _sharedPool;
+    _sharedPool = NULL;
+}
+
 #pragma mark OGEParallelismSettings
 
 #include <unistd.h>
@@ -309,3 +324,81 @@ void OGEParallelismSettings::enableMultithreading()
 {
     m_multithreading_enabled = true;
 }
+
+mutex::mutex() {
+    int ret = pthread_mutex_init(&m, NULL);
+    if(0 != ret) {
+        cerr << "Error creating mutex (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+mutex::~mutex() {
+    int ret = pthread_mutex_destroy(&m);
+    if(0 != ret) {
+        cerr << "Error destroying mutex (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+void mutex::lock() {
+    int ret = pthread_mutex_lock(&m);
+    if(0 != ret) {
+        cerr << "Error locking mutex (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+bool mutex::try_lock() {
+    int ret = pthread_mutex_trylock(&m);
+    
+    if(ret == 16)   //16 = EBUSY
+        return false;
+    if(0 != ret) {
+        cerr << "Error locking mutex (error " << ret << ")." << endl;
+        exit(-1);
+    }
+    return true;
+}
+void mutex::unlock() {
+    int ret = pthread_mutex_unlock(&m);
+    if(0 != ret) {
+        cerr << "Error unlocking mutex (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+
+condition_variable::condition_variable() {
+    int ret = pthread_cond_init(&c, NULL);
+    if(0 != ret) {
+        cerr << "Error creating CV (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+condition_variable::~condition_variable() {
+    int ret = pthread_cond_destroy(&c);
+    if(0 != ret) {
+        cerr << "Error destroying CV (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+void condition_variable::notify_one() {
+    int ret = pthread_cond_signal(&c);
+    if(0 != ret) {
+        cerr << "Error signalling CV (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+void condition_variable::notify_all() {
+    int ret = pthread_cond_broadcast(&c);
+    if(0 != ret) {
+        cerr << "Error broadcasting CV (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+void condition_variable::wait(mutex & m) {
+    int ret = pthread_cond_wait(&c, &m.native_handle());
+    if(0 != ret) {
+        cerr << "Error waiting for CV (error " << ret << ")." << endl;
+        exit(-1);
+    }
+}
+
+

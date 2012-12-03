@@ -120,6 +120,7 @@ OpenGECommand::OpenGECommand()
     ("in,i", po::value<vector<string> >(),"Input files. If not specified, defaults to stdin. Can be specified without --in or -i")
     ("format,F", po::value<string>(),"File output format")
     ("compression,c", po::value<int>()->default_value(6), "Compression level of the output. Valid 0-9.")
+    ("nopg", "Don't add an @PG record to SAM and BAM output")
     ;
     global_options.add_options()
     ("verbose,v" ,"Display detailed messages while processing")

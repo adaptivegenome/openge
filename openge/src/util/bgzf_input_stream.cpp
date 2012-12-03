@@ -24,16 +24,51 @@
 
 using namespace std;
 
-const int NUM_BLOCKS_IN_CACHE = 200;    //tune this parameter to balance RAM usage vs. speed. one block is 64k of RAM
-const int BGZF_BLOCK_SIZE = 65536;
+///////////////////////////
+// BgzfBlock implementation
 
-void BgzfInputStream::BgzfCacheElement::runJob() {
-    ogeNameThread("ogeBgzfInflate");
+void BgzfInputStream::BgzfBlock::runJob() {
+    decompress();
+    decompressed.set();
+}
+
+unsigned int BgzfInputStream::BgzfBlock::read() {
+    stream->input_stream->read(compressed_data, 18);
+    
+    if(stream->input_stream->eof()) {
+        stream->eof_seen.set();
+        return 0;
+    }
+    
+    if(stream->input_stream->fail() && !stream->input_stream->eof()) {
+        cerr << "Error reading BGZF block header. Aborting." << endl;
+        exit(-1);
+    }
+    uint16_t length = *((uint16_t *)&compressed_data[16]) + 1;
+
+    stream->input_stream->read(&compressed_data[18], length - 18);
+    
+    if(stream->input_stream->eof())
+        stream->eof_seen.set();
+    
+    if(stream->input_stream->fail() && !stream->input_stream->eof()) {
+        cerr << "Error reading BGZF block. Aborting." << endl;
+        exit(-1);
+    }
+    
+    compressed_size = stream->input_stream->gcount();
+    
+    assert(compressed_data[0] == 31 && compressed_data[1] == (char)139);
+    
+    return compressed_size;
+}
+
+bool BgzfInputStream::BgzfBlock::decompress() {
     if(compressed_data[0] != 31 || compressed_data[1] != (char)139) {
         cerr << "Error- BGZF block has invalid start block. Is this file corrupted?" << endl;
         exit(-1);
     }
-
+    
     if(compressed_data[2] != 8 || compressed_data[3] != 4) {
         cerr << "Error- BGZF block has unexpected flags. Is this file corrupted?" << endl;
         exit(-1);
@@ -43,12 +78,12 @@ void BgzfInputStream::BgzfCacheElement::runJob() {
     //uint8_t extra_flags = *((uint8_t *) &compressed_data[8]);
     //uint8_t os = *((uint8_t *) &compressed_data[9]);
     uint16_t extra_length = *((uint16_t *) &compressed_data[10]);
-
+    
     char si1 = compressed_data[12];
     char si2 = compressed_data[13];
     //uint16_t slen = *((uint16_t *) &compressed_data[14]);
     uint32_t bsize = *((uint16_t *) &compressed_data[16]) + 1;
-
+    
     if(extra_length != 6 || si1 != 66 || si2 != 67) {
         cerr << "Error- BGZF GZ extra field is incorrect. Is this file corrupted?" << endl;
         exit(-1);
@@ -57,9 +92,8 @@ void BgzfInputStream::BgzfCacheElement::runJob() {
     char * data = &compressed_data[18];
     
     size_t uncompressed_position = bsize - 4;
-    size_t uncompressed_size = *((uint32_t *) &compressed_data[uncompressed_position]);
-    uncompressed_data.resize(BGZF_BLOCK_SIZE);
-
+    uncompressed_size = *((uint32_t *) &compressed_data[uncompressed_position]);
+    
     {
         // setup zlib stream object
         z_stream zs;
@@ -68,8 +102,8 @@ void BgzfInputStream::BgzfCacheElement::runJob() {
         zs.next_in   = (unsigned char *)data;
         zs.avail_in  = bsize - 16;
         zs.next_out  =  (unsigned char *) &uncompressed_data[0];
-        zs.avail_out = uncompressed_data.size();
-
+        zs.avail_out = BGZF_BLOCK_SIZE;
+        
         // initialize
         int status = inflateInit2(&zs, -15);
         if ( status != Z_OK ) {
@@ -94,60 +128,26 @@ void BgzfInputStream::BgzfCacheElement::runJob() {
         }
 
         assert(zs.total_out == uncompressed_size);
-        uncompressed_data.resize(zs.total_out);
     }
     
-    loaded = true;
-}
-
-bool BgzfInputStream::requestNextBlock() {
-
-    if(input_stream->eof())
-        return false;
-
-    //find last element from file, so we can get the address for the next one.
-    BgzfCacheElement * last_el = cache.empty() ? NULL : cache.begin()->second;
-    BgzfCacheElement * new_block = new BgzfCacheElement();
-
-    for(map<size_t, BgzfCacheElement *>::const_iterator i = cache.begin(); i != cache.end(); i++) {
-        if(i->second->file_position > last_el->file_position)
-            last_el = i->second;
-    }
-
-    size_t start_offset = input_stream->tellg();
-    new_block->file_position = start_offset;
+    decompressed.set();
     
-    //read the block header to get actual block size
-    new_block->compressed_data.resize(18);
-    input_stream->read(&new_block->compressed_data[0], 18);
-    
-    //if we fail at reads, and have read at least part of a block
-    if(input_stream->fail()) {
-        delete new_block;
-        if(input_stream->gcount() != 0) {
-            cerr << "BGZF file seems to be truncated. Is this file corrupt?" << endl;
-            exit(-1);
-        }
-        return false;
-    }
-
-    uint32_t size = *((uint16_t*) &new_block->compressed_data[16]) + 1;
-
-    new_block->file_position = last_el ? last_el->file_position + last_el->compressed_data.size() : 0;
-    new_block->compressed_data.resize(size);
-    input_stream->read(&new_block->compressed_data[18], size-18);
-    
-    if( input_stream->fail()) {
-        delete new_block;
-        cerr << "BGZF file seems to be truncated. Is this file corrupt?" << endl;
-        exit(-1);
-        return false;
-    }
-
-    cache[new_block->file_position] = new_block;
-    ThreadPool::sharedPool()->addJob(new_block);
     return true;
 }
+
+unsigned int BgzfInputStream::BgzfBlock::readData(void * dest, unsigned int max_size) {
+    assert(decompressed.isSet());
+    
+    unsigned int actual_read_len = min(max_size, uncompressed_size - read_size);
+    
+    memcpy(dest, &uncompressed_data[read_size], actual_read_len);
+    read_size += actual_read_len;
+    
+    return actual_read_len;
+}
+
+/////////////////////////////////
+// BgzfInputStream implementation
 
 bool BgzfInputStream::open(string filename) {
     if(filename == "stdin") {
@@ -155,80 +155,88 @@ bool BgzfInputStream::open(string filename) {
     } else {
         input_stream = &input_stream_real;
         input_stream_real.open(filename.c_str());
-    
+        
         if(input_stream->fail()) {
             cerr << "BGZF open() failed for " << filename << endl;
             return false;
         }
     }
-
-    for(int i = 0; i < NUM_BLOCKS_IN_CACHE; i++)
-        requestNextBlock();
     
-    current_offset = 0;
-    current_block = 0;
-    cached_blocks_read = 0;
-    cache_misses = 0;
-
+    int ret = pthread_create(&read_thread, NULL, block_readproc, this);
+    if(0 != ret) {
+        cerr << "Error creating BGZF read thread. Quitting. error = " << ret << endl;
+        exit(-1);
+    }
+    
     return true;
 }
 
-void BgzfInputStream::read(char * data, size_t len) {
-    size_t copied_data_len = 0;
-    while(copied_data_len != len) {
-        BgzfCacheElement * current_block_element = cache[current_block];
-        cached_blocks_read++;
-        
-        if(!current_block_element->loaded)
-            cache_misses++;
-
-        //wait for element to be loaded if it isn't
-        while(!current_block_element->loaded)
-            usleep(10000);
-        
-        //handle moving to next cache block if needed.
-        if(current_offset == current_block_element->uncompressed_data.size()) {
-            requestNextBlock();
-            
-            cache.erase(current_block);
-
-            //set up new block
-            current_block += current_block_element->compressed_data.size();
-            current_offset = 0;
-            
-            // remove existing block
-            delete current_block_element;
-            
-            if(!cache.count(current_block)) {
-                return;
-            }
-            current_block_element = cache[current_block];
-
-            if(!current_block_element->loaded)
-                cache_misses++;
-            
-            //wait for element to be loaded if it isn't
-            while(!current_block_element->loaded)
-                usleep(10000);
+void * BgzfInputStream::block_readproc(void * data) {
+    BgzfInputStream * stream = (BgzfInputStream *) data;
+    
+    while(!stream->eof_seen.isSet()) {
+        stream->read_signal_lock.lock();
+        while(stream->block_queue.size() >= 100) {
+            if(stream->eof_seen.isSet())
+                return NULL;
+            stream->read_signal_cv.wait(stream->read_signal_lock);
         }
+        stream->read_signal_lock.unlock();
         
-        size_t copy_len = min(len - copied_data_len, current_block_element->uncompressed_data.size() - current_offset);
-        
-        memcpy(&data[copied_data_len], &current_block_element->uncompressed_data[current_offset], copy_len);
-        current_offset += copy_len;
-        
-        copied_data_len += copy_len;
+        BgzfBlock * block = new BgzfBlock(stream);
+        int read = block->read();
+        if(read) {
+            stream->block_queue.push(block);
+            ThreadPool::sharedPool()->addJob(block);
+        }
     }
+    
+    return NULL;
 }
 
+bool BgzfInputStream::read(char * data, size_t len) {
+    unsigned int read_len = 0;
+    while(read_len != len) {
+        while(block_queue.empty() || !block_queue.front()->isDecompressed()) {
+            if(block_queue.empty() && eof_seen.isSet()) {
+                return false;
+            }
+            usleep(50000);
+        }
+        
+        BgzfBlock * block = block_queue.front();
+        
+        unsigned int actual_read_length = block->readData(&((char *)data)[read_len], len - read_len);
+        
+        read_len += actual_read_length;
+        
+        if(!block->dataRemaining()) {
+            delete block;
+            block_queue.pop();
+            if(!eof_seen.isSet()) {
+                //request another block
+                read_signal_lock.lock();
+                read_signal_cv.notify_one();
+                read_signal_lock.unlock();
+            }
+        }
+    }
+    
+    return true;
+}
 void BgzfInputStream::close() {
+    
+    eof_seen.set();
+    
+    read_signal_lock.lock();
+    read_signal_cv.notify_one();
+    read_signal_lock.unlock();
+    
+    int ret = pthread_join(read_thread, NULL);
+    if(0 != ret) {
+        cerr << "Error joining BGZF read thread (error " << ret << ")." << endl;
+    }
+    
     if(input_stream_real.is_open())
         input_stream_real.close();
-    
-    // use this line to see if NUM_BLOCKS_IN_CACHE is too small.
-    //if(cache_misses)
-    //    cerr << cache_misses << " cache misses in reading file (of " << cached_blocks_read << " blocks read)." << endl;
-
-    for(map<size_t, BgzfCacheElement *>::const_iterator i = cache.begin(); i != cache.end(); i++)
-        delete i->second;
 }

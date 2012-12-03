@@ -53,6 +53,10 @@ protected:
 
 template <class reader_t>
 OGERead * SequentialReaderCache<reader_t>::read() {
+    
+    if(!OGEParallelismSettings::isMultithreadingEnabled())
+        return reader.read();
+
     if(read_queue.size() < 5000 && (read_queue.empty() || read_queue.back() != NULL) && thread_job.is_running == false && !read_finished) {
         ThreadPool::sharedPool()->addJob(&thread_job);
         thread_job.is_running = true;
