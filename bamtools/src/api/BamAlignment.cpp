@@ -91,16 +91,11 @@ BamAlignment::BamAlignment(void)
     \brief copy constructor
 */
 BamAlignment::BamAlignment(const BamAlignment& other)
-    : Name(other.Name)
-    , QueryBases(other.QueryBases)
-    , Qualities(other.Qualities)
-    , TagData(other.TagData)
-    , RefID(other.RefID)
+    : RefID(other.RefID)
     , Position(other.Position)
     , Bin(other.Bin)
     , MapQuality(other.MapQuality)
     , AlignmentFlag(other.AlignmentFlag)
-    , CigarData(other.CigarData)
     , MateRefID(other.MateRefID)
     , MatePosition(other.MatePosition)
     , InsertSize(other.InsertSize)
@@ -122,11 +117,6 @@ void BamAlignment::clear() {
     MatePosition = -1;
     InsertSize = 0;
 
-    CigarData.clear();
-    Name.clear();
-    Qualities.clear();
-    QueryBases.clear();
-    TagData.clear();
     SupportData.clear();
 }
 
@@ -229,81 +219,6 @@ void EncodeQuerySequence(const std::string& query, std::string& encodedQuery) {
     }
 }
 
-bool BamAlignment::BuildName(void) const {
-    lazy_load_lock.lock();
-    
-    if(!Name.empty()) {
-        lazy_load_lock.unlock();
-        return false;
-    }
-    
-    Name = SupportData.getName();
-
-    lazy_load_lock.unlock();
-    
-    return true;
-}
-
-bool BamAlignment::BuildQualitiesData(void) const {
-    lazy_load_lock.lock();
-    
-    if(!Qualities.empty()) {
-        lazy_load_lock.unlock();
-        return false;
-    }
-    
-    Qualities = SupportData.getQual();
-    
-    lazy_load_lock.unlock();
-    
-    return true;
-}
-
-bool BamAlignment::BuildQueryBasesData(void) const {
-    lazy_load_lock.lock();
-    
-    if(!QueryBases.empty()) {
-        lazy_load_lock.unlock();
-        return false;
-    }
-    
-    QueryBases = SupportData.getSeq();
-    
-    lazy_load_lock.unlock();
-    
-    return true;
-}
-
-bool BamAlignment::BuildTagData(void) const {
-    lazy_load_lock.lock();
-    
-    if(!TagData.empty()) {
-        lazy_load_lock.unlock();
-        return false;
-    }
-    
-    TagData = SupportData.getTagData();
-    
-    lazy_load_lock.unlock();
-    
-    return true;
-}
-
-bool BamAlignment::BuildCigarData(void) const {
-    lazy_load_lock.lock();
-    
-    if(!CigarData.empty()) {
-        lazy_load_lock.unlock();
-        return false;
-    }
-    
-    CigarData = SupportData.getCigar();
-    
-    lazy_load_lock.unlock();
-    
-    return true;
-}
-
 // calculates minimum bin for a BAM alignment interval [begin, end)
 // Taken from BAM specification.
 uint32_t inline CalculateMinimumBin(const int begin, int end) {
@@ -338,7 +253,7 @@ bool BamAlignment::FindTag(const std::string& tag,
                            unsigned int& numBytesParsed) const
 {
     
-    BuildTagData();
+    const std::string TagData = SupportData.getTagData();
 
     while ( numBytesParsed < tagDataLength ) {
 
@@ -382,9 +297,8 @@ int BamAlignment::GetEndPosition(bool usePadded, bool closedInterval) const {
     int alignEnd = getPosition();
 
     // iterate over cigar operations
-    vector<CigarOp>::const_iterator cigarIter = getCigarData().begin();
-    vector<CigarOp>::const_iterator cigarEnd  = getCigarData().end();
-    for ( ; cigarIter != cigarEnd; ++cigarIter) {
+    vector<CigarOp> cigar = getCigarData();
+    for (vector<CigarOp>::const_iterator cigarIter = cigar.begin() ; cigarIter != cigar.end(); cigarIter++) {
         const CigarOp& op = (*cigarIter);
 
         switch ( op.Type ) {
@@ -441,7 +355,7 @@ std::string BamAlignment::GetErrorString(void) const {
 */
 bool BamAlignment::GetTagType(const std::string& tag, char& type) const {
   
-    BuildTagData();
+    const  std::string TagData = SupportData.getTagData();
 
     // skip if no tags present
     if ( TagData.empty() ) {
@@ -492,7 +406,7 @@ bool BamAlignment::GetTagType(const std::string& tag, char& type) const {
 */
 bool BamAlignment::HasTag(const std::string& tag) const {
 
-    BuildTagData();
+    const std::string TagData = SupportData.getTagData();
 
     // return false if no tag data present
     if ( TagData.empty() )
@@ -605,7 +519,7 @@ bool BamAlignment::IsValidSize(const std::string& tag, const std::string& type) 
 */
 void BamAlignment::RemoveTag(const std::string& tag) {
   
-    BuildTagData();
+    std::string TagData = SupportData.getTagData();
 
     // skip if no tags available
     if ( TagData.empty() )

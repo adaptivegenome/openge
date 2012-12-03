@@ -101,7 +101,8 @@ using BamTools::CigarOp;
 
 size_t getReferenceLength(const OGERead & read) {
     size_t length = 0;
-    for (vector<CigarOp>::const_iterator i = read.getCigarData().begin(); i != read.getCigarData().end(); i++) {
+    vector<CigarOp> cigar = read.getCigarData();
+    for (vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++) {
         switch (i->Type) {
             case 'M':
             case 'D':

@@ -279,7 +279,7 @@ private:
         // pull out the bases that aren't clipped out
         std::vector<BamTools::CigarOp> reclipCigar(const std::vector<BamTools::CigarOp> & cigar)const ;
     public:
-        const std::vector<BamTools::CigarOp> & getCigar() const;
+        const std::vector<BamTools::CigarOp> getCigar() const;
         // tentatively sets the new Cigar, but it needs to be confirmed later
         void setCigar(const std::vector<BamTools::CigarOp> & cigar, bool fixClippedCigar = true);
         void clearCigar() { newCigar.clear(); }

@@ -60,7 +60,8 @@ vector<AlignmentBlock> getAlignmentBlocks(const OGERead * read) {
     int readBase = 1;
     int refBase  = read->getPosition();
 
-    for (vector<CigarOp>::const_iterator e = read->getCigarData().begin(); e != read->getCigarData().end(); e++) {
+    vector<CigarOp> cigar = read->getCigarData();
+    for (vector<CigarOp>::const_iterator e = cigar.begin(); e != cigar.end(); e++) {
         switch (e->Type) {
             case 'H' : break; // ignore hard clips
             case 'P' : break; // ignore pads
@@ -171,7 +172,9 @@ int SequenceUtil::countMismatches(const OGERead * read, const string referenceBa
  */
 int SequenceUtil::calculateSamNmTag(const OGERead * read, const std::string referenceBases, const int referenceOffset, const bool bisulfiteSequence) {
     int samNm = countMismatches(read, referenceBases, referenceOffset, bisulfiteSequence);
-    for (vector<CigarOp>::const_iterator el = read->getCigarData().begin(); el != read->getCigarData().end(); el++) {
+    
+    vector<CigarOp> cigar = read->getCigarData();
+    for (vector<CigarOp>::const_iterator el = cigar.begin(); el != cigar.end(); el++) {
         if (el->Type == 'I' || el->Type == 'D') {
             samNm += el->Length;
         }

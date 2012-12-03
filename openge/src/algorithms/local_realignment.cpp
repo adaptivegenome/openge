@@ -146,7 +146,8 @@ void LocalRealignment::AlignedRead::getUnclippedBases() {
 
     int fromIndex = 0, toIndex = 0;
     
-    for ( vector<CigarOp>::const_iterator ce = read->getCigarData().begin(); ce != read->getCigarData().end(); ce++ ) {
+    vector<CigarOp> cigar = read->getCigarData();
+    for ( vector<CigarOp>::const_iterator ce = cigar.begin(); ce != cigar.end(); ce++ ) {
         uint32_t elementLength = ce->Length;
         switch ( ce->Type ) {
             case 'S':
@@ -169,7 +170,7 @@ vector<CigarOp> LocalRealignment::AlignedRead::reclipCigar(const vector<CigarOp>
     return LocalRealignment::reclipCigar(cigar, read);
 }
 
-const vector<CigarOp> & LocalRealignment::AlignedRead::getCigar() const {
+const vector<CigarOp> LocalRealignment::AlignedRead::getCigar() const {
     return (newCigar.size() > 0 ? newCigar : read->getCigarData());
 }
 
@@ -973,7 +974,8 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<OGERead *> & reads
         
         // first, move existing indels (for 1 indel reads only) to leftmost position within identical sequence
         int numBlocks = 0;
-        for(vector<CigarOp>::const_iterator i = read->getCigarData().begin(); i != read->getCigarData().end(); i++)
+        vector<CigarOp> cigar = read->getCigarData();
+        for(vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++)
             if(i->Type == 'M' || i->Type == '=' || i->Type == 'X')
                 numBlocks++;
 
@@ -1323,7 +1325,9 @@ bool LocalRealignment::alternateReducesEntropy(const vector<AlignedRead *> & rea
         AlignedRead &read = *reads[i];
         
         int count_m_eq_x = 0;
-        for(vector<CigarOp>::const_iterator i = read.getRead()->getCigarData().begin(); i != read.getRead()->getCigarData().end(); i++)
+        
+        vector<CigarOp> cigar = read.getRead()->getCigarData();
+        for(vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++)
             if(i->Type == 'M' || i->Type == '=' || i->Type == 'X')
                 count_m_eq_x++;
 

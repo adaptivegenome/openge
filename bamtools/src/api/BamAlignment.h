@@ -88,15 +88,6 @@ namespace BamTools {
         // removes a tag
         void RemoveTag(const std::string& tag);
         
-        // additional methods
-    protected:
-        // populates alignment string fields
-        bool BuildQualitiesData(void) const;
-        bool BuildQueryBasesData(void) const;
-        bool BuildTagData(void) const;
-        bool BuildCigarData(void) const;
-        bool BuildName(void) const;
-        
     public:
         // calculates alignment end position
         int GetEndPosition(bool usePadded = false, bool closedInterval = false) const;
@@ -106,54 +97,45 @@ namespace BamTools {
 
         // public data fields
     protected:
-        mutable std::string Name;               // read name
-        
-        mutable BamSpinlock lazy_load_lock;
-        
-        mutable std::string QueryBases;         // 'original' sequence (as reported from sequencing machine)
-        mutable std::string Qualities;          // FASTQ qualities (ASCII characters, not numeric values)
-        mutable std::string TagData;            // tag data (use provided methods to query/modify)
-        
         int32_t     RefID;              // ID number for reference sequence
         int32_t     Position;           // position (0-based) where alignment starts
         uint16_t    Bin;                // BAM (standard) index bin number for this alignment
         uint16_t    MapQuality;         // mapping quality score
         uint32_t    AlignmentFlag;      // alignment bit-flag (use provided methods to query/modify)
         
-        mutable std::vector<CigarOp> CigarData; // CIGAR operations for this alignment
         int32_t     MateRefID;          // ID number for reference sequence where alignment's mate was aligned
         int32_t     MatePosition;       // position (0-based) where alignment's mate starts
         int32_t     InsertSize;         // mate-pair insert size
         
     public:
-        const std::string & getName() const { BuildName(); return Name; }
+        const std::string getName() const { return SupportData.getName(); }
         uint32_t getNameLength() const { return SupportData.getQueryNameLength(); }
         int32_t getLength() const { return SupportData.getQuerySequenceLength(); }
-        const std::string & getQueryBases() const { BuildQueryBasesData(); return QueryBases; }
+        const std::string getQueryBases() const { return SupportData.getSeq(); }
         uint32_t getQueryBasesLength() const { return SupportData.getQuerySequenceLength(); }
-        const std::string & getQualities() const { BuildQualitiesData(); return Qualities; }
-        const std::string & getTagData() const { BuildTagData(); return TagData; }
+        const std::string getQualities() const { return SupportData.getQual(); }
+        const std::string getTagData() const { return SupportData.getTagData(); }
         int32_t getRefID() const { return RefID; }
         int32_t getPosition() const { return Position; }
         uint16_t getBin() const { return Bin; }
         uint16_t getMapQuality() const { return MapQuality; }
         uint32_t getAlignmentFlag() const { return AlignmentFlag; }
-        const std::vector<CigarOp> & getCigarData() const { BuildCigarData(); return CigarData; }
+        const std::vector<CigarOp> getCigarData() const { return SupportData.getCigar(); }
         uint32_t getNumCigarOps() const { return SupportData.getNumCigarOperations(); }
         int32_t getMateRefID() const { return MateRefID; }
         int32_t getMatePosition() const { return MatePosition; }
         int32_t getInsertSize() const { return InsertSize; }
         
-        void setName(const std::string & newName) { Name = newName;  SupportData.setName(Name); };
-        void setQueryBases(const std::string & newQueryBases) { QueryBases = newQueryBases; SupportData.setSeq(QueryBases); };
-        void setQualities(const std::string & newQualities) { Qualities = newQualities; SupportData.setQual(Qualities); };
-        void setTagData(const std::string & newTagData) { TagData = newTagData; SupportData.setTagData(TagData); };
+        void setName(const std::string & newName) { SupportData.setName(newName); };
+        void setQueryBases(const std::string & newQueryBases) { SupportData.setSeq(newQueryBases); };
+        void setQualities(const std::string & newQualities) { SupportData.setQual(newQualities); };
+        void setTagData(const std::string & newTagData) { SupportData.setTagData(newTagData); };
         void setRefID(int32_t newRefID) { RefID = newRefID; }
         void setPosition(int32_t newPosition) { Position = newPosition; }
         void setBin(uint16_t newBin) { Bin = newBin; }
         void setMapQuality(uint16_t newMapQuality) { MapQuality = newMapQuality; }
         void setAlignmentFlag(uint32_t newAlignmentFlag) { AlignmentFlag = newAlignmentFlag; }
-        void setCigarData(const std::vector<CigarOp> & newCigarData) { CigarData = newCigarData; SupportData.setCigar(CigarData); }
+        void setCigarData(const std::vector<CigarOp> & newCigarData) { SupportData.setCigar(newCigarData); }
         void setMateRefID(int32_t newMateRefID) { MateRefID = newMateRefID; }
         void setMatePosition(int32_t newMatePosition) { MatePosition = newMatePosition; }
         void setInsertSize(int32_t newInsertSize) { InsertSize = newInsertSize; }
@@ -247,9 +229,6 @@ namespace BamTools {
         const std::string & getBamEncodedStringData() const { return SupportData.getAllCharData(); }
 
         void setBamStringData(const char * data, size_t data_len, uint32_t num_cigar, uint32_t seq_len, uint32_t name_len) {
-            //when setting the string data, we need to clear all of this alignments cached fields.
-            Name.clear(); QueryBases.clear(); Qualities.clear(); TagData.clear(); CigarData.clear();
-            
             SupportData.setData(data, data_len, num_cigar, seq_len, name_len);
         }
     protected:
@@ -263,7 +242,7 @@ namespace BamTools {
         //! \endinternal
         
     public:
-        std::string cigarString() const { return cigarToString(CigarData); }
+        std::string cigarString() const { return cigarToString(SupportData.getCigar()); }
     };
     
     // ---------------------------------------------------------
@@ -283,7 +262,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::AddTag(const std::string& tag, const std::string& type, const T& value) {
         
-        BuildTagData();
+        std::string TagData = SupportData.getTagData();
         
         // check tag/type size
         if ( !IsValidSize(tag, type) ) {
@@ -327,9 +306,9 @@ namespace BamTools {
         // store temp buffer back in TagData
         const char* newTagData = (const char*)originalTagData;
         TagData.assign(newTagData, newTagDataLength);
-
+        
         SupportData.setTagData(TagData);
-
+        
         return true;
     }
     
@@ -338,7 +317,7 @@ namespace BamTools {
                                                   const std::string& type,
                                                   const std::string& value)
     {
-        BuildTagData();
+        std::string TagData = SupportData.getTagData();
         
         // check tag/type size
         if ( !IsValidSize(tag, type) ) {
@@ -394,7 +373,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::AddTag(const std::string& tag, const std::vector<T>& values) {
         
-        BuildTagData();
+        std::string TagData = SupportData.getTagData();
         
         // check for valid tag name length
         if ( tag.size() != Constants::BAM_TAG_TAGSIZE )
@@ -465,8 +444,6 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::EditTag(const std::string& tag, const std::string& type, const T& value) {
         
-        BuildTagData();
-        
         // remove existing tag if present, then append tag with new value
         if ( HasTag(tag) )
             RemoveTag(tag);
@@ -487,8 +464,6 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::EditTag(const std::string& tag, const std::vector<T>& values) {
         
-        BuildTagData();
-        
         // remove existing tag if present, then append tag with new values
         if ( HasTag(tag) )
             RemoveTag(tag);
@@ -506,7 +481,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::GetTag(const std::string& tag, T& destination) const {
         
-        BuildTagData();
+        const std::string TagData = SupportData.getTagData();
         
         // skip if no tags present
         if ( TagData.empty() ) {
@@ -583,7 +558,7 @@ namespace BamTools {
     inline bool BamAlignment::GetTag<std::string>(const std::string& tag,
                                                   std::string& destination) const
     {
-        BuildTagData();
+        const std::string TagData = SupportData.getTagData();
         
         // skip if no tags present
         if ( TagData.empty() ) {
@@ -622,7 +597,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::GetTag(const std::string& tag, std::vector<T>& destination) const {
         
-        BuildTagData();
+        const std::string TagData = SupportData.getTagData();
         
         // skip if no tags present
         if ( TagData.empty() ) {
