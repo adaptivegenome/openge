@@ -314,7 +314,8 @@ protected:
     SynchronizedQueue<ThreadJob *> jobs;
 	std::vector<pthread_t> threads;
 	SynchronizedFlag threads_exit;
-	Spinlock jobs_mutex;
+	Spinlock jobs_running_mutex;
+    int num_jobs_running;
 	mutex busy_mutex;
 };
 

@@ -37,6 +37,7 @@ const int THREADPOOL_MAX_JOBS_IN_QUEUE = 128;
 ThreadPool * ThreadPool::_sharedPool = NULL;
 
 ThreadPool::ThreadPool(int num_threads)
+: num_jobs_running(0)
 {
     threads_exit.clear();
 	if(num_threads == -1 || num_threads == 0)
@@ -109,6 +110,10 @@ ThreadJob * ThreadPool::startJob()
         
         job_queue_cond.wait(job_queue_mutex);
     }
+
+    jobs_running_mutex.lock();
+    num_jobs_running++;
+    jobs_running_mutex.unlock();
     
     if(!threads_exit.isSet()) {
         job = jobs.pop();
@@ -124,7 +129,15 @@ ThreadJob * ThreadPool::startJob()
 
 void ThreadPool::stopJob(ThreadJob * job)
 {
-	if(jobs.empty()) {
+    // Determine if all jobs are complete, and there are no more jobs in the queue.
+    // If so, we can notify the waitForJobCompletion threads.
+    
+    jobs_running_mutex.lock();
+    num_jobs_running--;
+    bool all_jobs_complete = (0 == num_jobs_running) && jobs.empty();
+    jobs_running_mutex.unlock();
+    
+	if(all_jobs_complete) {
         busy_mutex.lock();
         busy_cond.notify_all();
         busy_mutex.unlock();
