@@ -98,11 +98,13 @@ int RepeatseqCommand::runCommand() {
         
         repeatseq.setMakeVcfFile(false);
         repeatseq.setMakeRepeatseqFile(true);
-        repeatseq.setSomaticInput(vm["somaticA"].as<string>());
-        if(vm.count("somaticA"))
+        if(vm.count("somaticA")) {
             repeatseq.setErrorModel(Repeatseq::ERROR_SOMATIC_A);
-        else
+            repeatseq.setSomaticInput(vm["somaticA"].as<string>());
+        } else {
             repeatseq.setErrorModel(Repeatseq::ERROR_SOMATIC_B);
+            repeatseq.setSomaticInput(vm["somaticB"].as<string>());
+        }
     }
     
     if(vm.count("intervals")) {
