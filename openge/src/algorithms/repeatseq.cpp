@@ -1047,7 +1047,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
     
     if(error_model == ERROR_SOMATIC_A || error_model == ERROR_SOMATIC_B) {
         toPrint_somatic = makeToPrint(reads_somatic, target, leftReference, centerReference, rightReference, numStars_somatic, depth_somatic);
-        vectorGT_somatic = makeGenotypeInformation(toPrint);
+        vectorGT_somatic = makeGenotypeInformation(toPrint_somatic);
     }
 
     {
@@ -1220,27 +1220,27 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
         o_buffer << secondColumn;
         o_buffer << " REF:" << target.length();
         o_buffer << " A:";
-        if (!vectorGT.size()) {
+        if (!vectorGT_somatic.size()) {
             o_buffer << "NA ";
             concordance = -1;
             majGT = -1;
         }
         else {
-            if (vectorGT.size() == 1) {
+            if (vectorGT_somatic.size() == 1) {
                 if (numReads == 1) {
                     concordance = -1;
-                    majGT = vectorGT.begin()->readlength;
+                    majGT = vectorGT_somatic.begin()->readlength;
                     o_buffer << "NA ";
                 }
                 else {
                     concordance = 1;
-                    majGT = vectorGT.begin()->readlength;
-                    o_buffer << vectorGT.begin()->readlength << " ";
-                    //oFile << "(" << vectorGT.begin()->avgBQ << ")"; //temp
+                    majGT = vectorGT_somatic.begin()->readlength;
+                    o_buffer << vectorGT_somatic.begin()->readlength << " ";
+                    //oFile << "(" << vectorGT_somatic()->avgBQ << ")"; //temp
                 }
             }
             else {
-                for (vector<GT>::iterator it=vectorGT.begin(); it < vectorGT.end(); it++) {
+                for (vector<GT>::iterator it=vectorGT_somatic.begin(); it < vectorGT_somatic.end(); it++) {
                     o_buffer << it->readlength << "[" << it->occurrences << "] " ;
                     //oFile << "(" << it->avgBQ << ") ";
                     if (it->occurrences >= occurMajGT) {
@@ -1266,11 +1266,11 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
         calls_buffer << region << "\t" << secondColumn << "\t";
         vector<int> vGT;
         double conf = 0;
-        if (vectorGT.size()  == 0) {
+        if (vectorGT_somatic.size()  == 0) {
             o_buffer << "NA L:NA" << endl;
             calls_buffer << "NA\tNA\n";
         }
-        else if (vectorGT.size() > 9){          // if more than 9 GTs are present
+        else if (vectorGT_somatic.size() > 9){          // if more than 9 GTs are present
             o_buffer << "NA L:NA" << endl;
             calls_buffer << "NA\tNA\n";
         }
@@ -1301,12 +1301,12 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
         INFO.confidence = conf;
         
         // GO THROUGH VECTOR AND PRINT ALL REMAINING
-        if (toPrint.size()>1){ //if there are reads present..
-            string REF = toPrint[0].reads.alignedSeq;
+        if (toPrint_somatic.size()>1){ //if there are reads present..
+            string REF = toPrint_somatic[0].reads.alignedSeq;
             bool homo = false;
             if (vGT.size() == 1) homo = true;
             
-            for (vector<STRING_GT>::iterator it=toPrint.begin(); it < toPrint.end(); it++) {
+            for (vector<STRING_GT>::iterator it=toPrint_somatic.begin(); it < toPrint_somatic.end(); it++) {
                 // print .repeats file:
                 o_buffer << it->reads.preSeq << " " << it->reads.alignedSeq << " " << it->reads.postSeq << it->print;
                 
@@ -1426,35 +1426,46 @@ inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vec
     
     set<GT> allGTs(vectorGT_union.begin(), vectorGT_union.end());
     
+    vector<int> read_lengths;
+    read_lengths.push_back(-1);
+    for(set<GT>::const_iterator i = allGTs.begin(); i != allGTs.end(); i++) {
+        read_lengths.push_back(i->readlength);
+    }
+    
     int n = total_x;
 
 	vector<somatic_caller_data> pXarray;
 	allGTs.insert(Repeatseq::GT(0,0,0,0,0.0)); //allows locus to be considered homozygous
     ofile_out << "New error model: " << endl;
+    sort(read_lengths.begin(), read_lengths.end());
+    read_lengths.erase(std::unique(read_lengths.begin(), read_lengths.end()), read_lengths.end());  //remove duplicates
+    reverse(read_lengths.begin(), read_lengths.end());
     
     // STEP 2
-    for (set<GT>::const_iterator it = allGTs.begin(); it !=  allGTs.end(); ++it){
-        set<GT>::const_iterator itnext = it;
+    for (vector<int>::const_iterator it = read_lengths.begin(); it !=  read_lengths.end(); ++it){
+        vector<int>::const_iterator itnext = it;
         itnext++;
-        for (set<GT>::const_iterator jt = itnext; jt !=  allGTs.end(); ++jt){
-            set<GT>::const_iterator jtnext = jt;
-            if(jt->occurrences != 0 || jt->readlength != 0)
+        for (vector<int>::const_iterator jt = itnext; jt !=  read_lengths.end(); ++jt){
+            vector<int>::const_iterator jtnext = jt;
+            if(*jt != -1)
                 jtnext++;
-            for (set<GT>::const_iterator kt = jtnext; kt !=  allGTs.end(); ++kt){
+            for (vector<int>::const_iterator kt = jtnext; kt !=  read_lengths.end(); ++kt){
                 int alleles = 1;
                 int alpha_error = total_alpha;
                 int x_error = total_x;
                 
                 stringstream tempss;
-                tempss << it->readlength;
-                if (jt->occurrences != 0) {
-                    tempss << "h" << jt->readlength;
+                tempss << *it;
+                if (*jt != -1) {
+                    tempss << "h" << *jt;
                     alleles++;
                 }
-                if (kt->occurrences != 0) {
-                    tempss << "h" << kt->readlength;
+                if (*kt != -1) {
+                    tempss << "h" << *kt;
                     alleles++;
                 }
+                
+                cerr << tempss.str() << endl;
                 
                 ofile_out << tempss.str() << ":";
                 
@@ -1462,19 +1473,19 @@ inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vec
                 // build alpha and X
                 vector<double> alpha, x;
 
-                if(it->readlength != 0 || it->occurrences != 0) {
-                    alpha.push_back(alpha_counts.count(it->readlength) ? it->occurrences : 0);
-                    x.push_back(x_counts.count(it->readlength) ? x_counts[it->readlength] : 0);
+                if(*it != -1) {
+                    alpha.push_back(alpha_counts.count(*it) ? alpha_counts[*it] : 0);
+                    x.push_back(x_counts.count(*it) ? x_counts[*it] : 0);
                 }
                 
-                if(jt->readlength != 0 || jt->occurrences != 0) {
-                    alpha.push_back(alpha_counts.count(jt->readlength) ? jt->occurrences : 0);
-                    x.push_back(x_counts.count(jt->readlength) ? x_counts[jt->readlength] : 0);
+                if(*jt != -1) {
+                    alpha.push_back(alpha_counts.count(*jt) ? alpha_counts[*jt] : 0);
+                    x.push_back(x_counts.count(*jt) ? x_counts[*jt] : 0);
                 }
                 
-                if(kt->readlength != 0 || kt->occurrences != 0) {
-                    alpha.push_back(alpha_counts.count(kt->readlength) ? kt->occurrences : 0);
-                    x.push_back(x_counts.count(kt->readlength) ? x_counts[kt->readlength] : 0);
+                if(*kt != -1) {
+                    alpha.push_back(alpha_counts.count(*kt) ? alpha_counts[*kt] : 0);
+                    x.push_back(x_counts.count(*kt) ? x_counts[*kt] : 0);
                 }
                 
                 for(vector<double>::const_iterator i = x.begin(); i != x.end(); i++)
@@ -1491,11 +1502,11 @@ inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vec
                 pXarray.back().alpha = alpha;
                 pXarray.back().x = x;
                 
-                pXarray.back().lengths[0] = it->readlength;
-                if (jt->occurrences != 0)
-                    pXarray.back().lengths[1] = jt->readlength;
-                if (kt->occurrences != 0)
-                    pXarray.back().lengths[2] = kt->readlength;
+                pXarray.back().lengths[0] = *it;
+                if (*jt != 0)
+                    pXarray.back().lengths[1] = *jt;
+                if (*kt != 0)
+                    pXarray.back().lengths[2] = *kt;
                 
                 ofile_out << " alpha=[";
                 for(vector<double>::const_iterator i = alpha.begin(); i != alpha.end(); i++)
