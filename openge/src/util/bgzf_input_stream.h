@@ -34,7 +34,8 @@ class BgzfInputStream
         unsigned int uncompressed_size;
         unsigned int read_size;
         
-        SynchronizedFlag decompressed;
+        SynchronizedFlag decompressed, decompression_started;
+        Spinlock decompression_start;
         BgzfInputStream * stream;
     public:
         BgzfBlock(BgzfInputStream * stream)
@@ -42,6 +43,7 @@ class BgzfInputStream
         , stream(stream)
         {
             decompressed.clear();
+            decompression_started.clear();
         }
         unsigned int read();
         bool decompress();

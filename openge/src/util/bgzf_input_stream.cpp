@@ -64,6 +64,15 @@ unsigned int BgzfInputStream::BgzfBlock::read() {
 }
 
 bool BgzfInputStream::BgzfBlock::decompress() {
+    
+    decompression_start.lock();
+    if(decompression_started.isSet()) {
+        decompression_start.unlock();
+        return true;
+    }
+    decompression_started.set();
+    decompression_start.unlock();
+    
     if(compressed_data[0] != 31 || compressed_data[1] != (char)139) {
         cerr << "Error- BGZF block has invalid start block. Is this file corrupted?" << endl;
         exit(-1);
@@ -183,11 +192,16 @@ void * BgzfInputStream::block_readproc(void * data) {
         }
         stream->read_signal_lock.unlock();
         
-        BgzfBlock * block = new BgzfBlock(stream);
-        int read = block->read();
-        if(read) {
-            stream->block_queue.push(block);
-            ThreadPool::sharedPool()->addJob(block);
+        while(stream->block_queue.size() < 100 && !stream->eof_seen.isSet()) {
+            BgzfBlock * block = new BgzfBlock(stream);
+            int read = block->read();
+            if(read) {
+                stream->block_queue.push(block);
+                if(OGEParallelismSettings::isMultithreadingEnabled())
+                    ThreadPool::sharedPool()->addJob(block);
+                else
+                    block->runJob();
+            }
         }
     }
     
@@ -201,6 +215,8 @@ bool BgzfInputStream::read(char * data, size_t len) {
             if(block_queue.empty() && eof_seen.isSet()) {
                 return false;
             }
+            if (!block_queue.empty() && !block_queue.front()->isDecompressed())
+                block_queue.front()->decompress();
             usleep(50000);
         }
         

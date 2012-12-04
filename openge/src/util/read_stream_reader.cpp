@@ -26,7 +26,7 @@ bool MultiReader::open(const std::vector<std::string> & filenames) {
         ReadStreamReader * reader = NULL;
         
         switch (ReadStreamReader::detectFileFormat(*i)) {
-            case FORMAT_BAM: reader = new SequentialReaderCache<BamDeserializer<BgzfInputStream> >(); break;
+            case FORMAT_BAM: reader = new BamDeserializer<BgzfInputStream>(); break;
             case FORMAT_RAWBAM: reader = new BamDeserializer<std::ifstream>(); break;
             case FORMAT_SAM: reader = new ::SamReader(); break;
             default:
