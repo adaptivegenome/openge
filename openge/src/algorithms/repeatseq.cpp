@@ -1116,6 +1116,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
         if (avgMapQ >= 0) o_buffer << " M:" << double(int(100*avgMapQ))/100;
         else o_buffer << " M:NA";
         
+        stringstream error_debug_text;
         o_buffer << " GT:";
         calls_buffer << region << "\t" << secondColumn << "\t";
         vector<int> vGT;
@@ -1134,9 +1135,9 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
         }
         else {
             if(error_model == ERROR_SOMATIC_B)
-                vGT = somaticConfidence(vectorGT, vectorGT_somatic, target, error_model, conf);
+                vGT = somaticConfidence(vectorGT, vectorGT_somatic, target, error_model, conf, error_debug_text);
             else
-                vGT = printGenoPerc(vectorGT, target.length(), unitLength, conf, mode);
+                vGT = printGenoPerc(vectorGT, target.length(), unitLength, conf, mode, error_debug_text);
 
             if (numReads <= 1){ conf = 0; }
             //write genotypes to calls & repeats file
@@ -1145,6 +1146,8 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
             else if (vGT.size() == 2 && conf > 3.02) { o_buffer << vGT[0] << "h" << vGT[1] << " L:" << conf << "\n"; calls_buffer << vGT[0] << "h" << vGT[1] << '\t' << conf << '\n'; }
             else{ o_buffer << "NA L:" << conf << endl; calls_buffer << "NA\tNA\n"; }
         }
+        
+        o_buffer << error_debug_text.str();
         
         // Set info for printing VCF file
         //structure to be passed to VCF-writing function:
@@ -1258,6 +1261,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
         if (avgMapQ >= 0) o_buffer << " M:" << double(int(100*avgMapQ))/100;
         else o_buffer << " M:NA";
         
+        stringstream error_debug_text;
         o_buffer << " GT:";
         calls_buffer << region << "\t" << secondColumn << "\t";
         vector<int> vGT;
@@ -1275,7 +1279,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
             calls_buffer << majGT << "L:50" << endl;
         }
         else {
-            vGT = somaticConfidence(vectorGT_somatic, vectorGT, target, error_model, conf);
+            vGT = somaticConfidence(vectorGT_somatic, vectorGT, target, error_model, conf, error_debug_text);
             if (numReads <= 1){ conf = 0; }
             //write genotypes to calls & repeats file
             if (vGT.size() == 0) { throw "vGT.size() == 0.. ERROR!\n"; }
@@ -1283,6 +1287,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
             else if (vGT.size() == 2 && conf > 3.02) { o_buffer << vGT[0] << "h" << vGT[1] << " L:" << conf << "\n"; calls_buffer << vGT[0] << "h" << vGT[1] << '\t' << conf << '\n'; }
             else{ o_buffer << "NA L:" << conf << endl; calls_buffer << "NA\tNA\n"; }
         }
+        o_buffer << error_debug_text.str();
         
         // Set info for printing VCF file
         //structure to be passed to VCF-writing function:
@@ -1389,19 +1394,20 @@ inline double dirichlet(const vector<double> & alpha, const vector<double> & x) 
 struct somatic_caller_data {
     string name;
     double p_x, p_x_gi, p_gi_x, p_gi;
+    int lengths[3];
     vector<double> alpha;
     vector<double> x;
     somatic_caller_data(string name)
     : name(name)
     , p_x(0), p_x_gi(0), p_gi_x(0), p_gi(0)
-    {}
+    { lengths[0] = lengths[1] = lengths[2] = -1; }
     
     bool operator<(const somatic_caller_data & d) const {
         return this->p_gi_x > d.p_gi_x;
     }
 };
 
-inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vector<GT> & vectorGT_reference, const Region & target, error_model_t model, double &confidence) const {
+inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vector<GT> & vectorGT_reference, const Region & target, error_model_t model, double &confidence, stringstream & ofile_out) const {
     
     int total_x = 0, total_alpha = 0;
     map<int,int> x_counts, alpha_counts;    //map of count# to occurrences
@@ -1424,7 +1430,7 @@ inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vec
 
 	vector<somatic_caller_data> pXarray;
 	allGTs.insert(Repeatseq::GT(0,0,0,0,0.0)); //allows locus to be considered homozygous
-
+    ofile_out << "New error model: " << endl;
     
     // STEP 2
     for (set<GT>::const_iterator it = allGTs.begin(); it !=  allGTs.end(); ++it){
@@ -1438,8 +1444,6 @@ inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vec
                 int alleles = 1;
                 int alpha_error = total_alpha;
                 int x_error = total_x;
-
-                vector<double> alpha, x;
                 
                 stringstream tempss;
                 tempss << it->readlength;
@@ -1452,10 +1456,11 @@ inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vec
                     alleles++;
                 }
                 
-                cerr << tempss.str() << ":";
+                ofile_out << tempss.str() << ":";
                 
                 ///////////////////////////
                 // build alpha and X
+                vector<double> alpha, x;
 
                 if(it->readlength != 0 || it->occurrences != 0) {
                     alpha.push_back(alpha_counts.count(it->readlength) ? it->occurrences : 0);
@@ -1486,16 +1491,22 @@ inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vec
                 pXarray.back().alpha = alpha;
                 pXarray.back().x = x;
                 
-                cerr << "alpha = [";
-                for(vector<double>::const_iterator i = alpha.begin(); i != alpha.end(); i++)
-                    cerr << " " << *i;
-                cerr << " ] ";
-                cerr << "x = [";
-                for(vector<double>::const_iterator i = x.begin(); i != x.end(); i++)
-                    cerr << " " << *i;
-                cerr << " ] ";
+                pXarray.back().lengths[0] = it->readlength;
+                if (jt->occurrences != 0)
+                    pXarray.back().lengths[1] = jt->readlength;
+                if (kt->occurrences != 0)
+                    pXarray.back().lengths[2] = kt->readlength;
                 
-                cerr << endl;
+                ofile_out << " alpha=[";
+                for(vector<double>::const_iterator i = alpha.begin(); i != alpha.end(); i++)
+                    ofile_out << " " << *i;
+                ofile_out << " ] ";
+                ofile_out << " x=[";
+                for(vector<double>::const_iterator i = x.begin(); i != x.end(); i++)
+                    ofile_out << " " << *i;
+                ofile_out << " ] ";
+                
+                ofile_out << endl;
             }
         }
     }
@@ -1538,23 +1549,20 @@ inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vec
 
     sort(pXarray.begin(), pXarray.end());
     for(vector<somatic_caller_data>::const_iterator i = pXarray.begin(); i != pXarray.end(); i++)
-        cerr << "P(" << i->name << "): " << i->p_gi_x << endl;
+        ofile_out << "P(" << i->name << "): " << i->p_gi_x << endl;
 
     //build return vector
     vector<int> gts;
     gts.push_back( atoi(pXarray.begin()->name.c_str()) );
 
-    while(true) {
-        int hpos = pXarray.begin()->name.find('h');
-        if (hpos != -1){
-            gts.push_back( atoi(pXarray.begin()->name.c_str()) );
-        }
-        else
-            return gts;
-    }
+    for(int i = 0; i < 3; i++)
+        if(pXarray.begin()->lengths[i] != -1)
+            gts.push_back(pXarray.begin()->lengths[i]);
+    
+    return gts;
 }
 
-inline vector<int> Repeatseq::printGenoPerc(vector<GT> vectorGT, int ref_length, int unit_size, double &confidence, int mode) const {
+inline vector<int> Repeatseq::printGenoPerc(vector<GT> vectorGT, int ref_length, int unit_size, double &confidence, int mode, stringstream & ofile_out) const {
 	if (ref_length > 70) ref_length = 70;
 	if (unit_size > 5) unit_size = 5;
 	else if (unit_size < 1) unit_size = 1;
@@ -1685,12 +1693,12 @@ inline vector<int> Repeatseq::printGenoPerc(vector<GT> vectorGT, int ref_length,
 		gts.push_back( atoi(pXarray.begin()->m_name.substr(hpos+1, -1).c_str()) );
 	}
     
-    cerr << "pX: ";
+    ofile_out << "Old error model: " << endl;
     
     for (vector<tagAndRead>::iterator it = pXarray.begin(); it < pXarray.end(); ++it) {
-        cerr << it->m_name << "(" << it->m_pX << ") ";
+        ofile_out << it->m_name << "(" << it->m_pX << ") ";
     }
-    cerr << endl;
+    ofile_out << endl;
 	
 	// set confidence value
 	confidence = -10*log10(1-pXarray.begin()->m_pX);

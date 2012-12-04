@@ -154,8 +154,8 @@ protected:
     std::string getReference(const Region & target) const;
     std::vector<STRING_GT> makeToPrint(const std::vector<OGERead *> reads, const Region & target, const std::string & leftReference, const std::string & centerReference, const std::string & rightReference, int & numStars, int & depth) const;
     std::vector<GT> makeGenotypeInformation(std::vector<STRING_GT> & toPrint) const;
-    inline std::vector<int> printGenoPerc(std::vector<GT> vectorGT, int ref_length, int unit_size, double &confidence, int mode) const ;
-    inline std::vector<int> somaticConfidence(std::vector<GT> & vectorGT, const std::vector<GT> & vectorGT_reference, const Region & target, error_model_t model, double &confidence) const ;
+    inline std::vector<int> printGenoPerc(std::vector<GT> vectorGT, int ref_length, int unit_size, double &confidence, int mode, std::stringstream & ofile_out) const ;
+    inline std::vector<int> somaticConfidence(std::vector<GT> & vectorGT, const std::vector<GT> & vectorGT_reference, const Region & target, error_model_t model, double &confidence, std::stringstream & ofile_out) const ;
     void print_output(const std::string &, std::stringstream &vcf_buffer,  std::stringstream &o_buffer, std::stringstream &calls_buffer, const std::vector<OGERead *> & reads, const std::vector<OGERead *> & reads_somatic) const;
     
     class RepeatseqJob : public ThreadJob {
