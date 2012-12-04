@@ -1457,8 +1457,6 @@ inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vec
                     alleles++;
                 }
                 
-                cerr << tempss.str() << endl;
-                
                 ofile_out << tempss.str() << ":";
                 
                 ///////////////////////////
@@ -1543,16 +1541,16 @@ inline vector<int> Repeatseq::somaticConfidence(vector<GT> & vectorGT, const vec
     // sum from j = 1..k of pi(x|gj)*pi(gj)
     double sum_pxgj_pgj = 0;
     for(vector<somatic_caller_data>::const_iterator j = pXarray.begin(); j != pXarray.end(); j++)
-        sum_pxgj_pgj += j->p_x_gi * j->p_gi;
+        sum_pxgj_pgj += j->p_x_gi;
 
     for(vector<somatic_caller_data>::iterator i = pXarray.begin(); i != pXarray.end(); i++) {
         //equation 3
-        i->p_gi_x = (i->p_x_gi * i->p_gi) / sum_pxgj_pgj;
+        i->p_gi_x = i->p_x_gi / sum_pxgj_pgj;
     }
 
     sort(pXarray.begin(), pXarray.end());
     for(vector<somatic_caller_data>::const_iterator i = pXarray.begin(); i != pXarray.end(); i++)
-        ofile_out << "P(" << i->name << "): " << i->p_gi_x << endl;
+        ofile_out << "P(" << i->name << "|x): " << i->p_gi_x << "  P(x|" << i->name << "): " << i->p_x_gi << endl;
 
     //build return vector
     vector<int> gts;
