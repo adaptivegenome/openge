@@ -40,6 +40,7 @@ bool BamDeserializer<input_stream_t>::open(const std::string & filename) {
     
     if(input_stream.fail()) {
         std::cerr << "Open failed." << std::endl;
+        read_lock.unlock();
         return false;
     }
     
