@@ -1374,21 +1374,13 @@ inline double retBetaMult(int* vector, int alleles){
 }
 
 inline double multinomial_beta(const vector<double> & alpha) {
-    vector<int> v;
-    for( int i = 0; i < alpha.size(); i++)
-        v.push_back(int(alpha[i]));
-    return retBetaMult(&v[0], alpha.size() - 1);
-}
-
-inline double dirichlet(const vector<double> & alpha, const vector<double> & x) {
-    assert(alpha.size() == x.size());
-    
-    double prod = 1.;
-    
-    for(int k = 0; k < alpha.size(); k++)
-        prod *= pow(x[k], alpha[k] - 1);
-    
-    return prod / multinomial_beta(alpha);
+    double num = 0.;
+    double den = 0.;
+    for( int i = 0; i < alpha.size(); i++) {
+        num += lgamma(alpha[i]);
+        den += alpha[i];
+    }
+    return exp(num - lgamma(den));
 }
 
 struct somatic_caller_data {
