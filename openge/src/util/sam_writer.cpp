@@ -105,7 +105,7 @@ bool SamWriter::write(const OGERead & a) {
     m_out << a.getPosition()+1 << "\t" << a.getMapQuality() << "\t";
     
     // write CIGAR
-    const vector<CigarOp>& cigarData = a.getCigarData();
+    const vector<CigarOp> cigarData = a.getCigarData();
     if ( cigarData.empty() ) m_out << "*\t";
     else {
         vector<CigarOp>::const_iterator cigarIter = cigarData.begin();
@@ -141,19 +141,19 @@ bool SamWriter::write(const OGERead & a) {
         m_out << a.getQualities();
     
     // write tag data
-    const char* tagData = a.getTagData().c_str();
-    const size_t tagDataLength = a.getTagData().length();
+    const string tagData = a.getTagData();
+    const size_t tagDataLength = tagData.size();
     
     size_t index = 0;
     while ( index < tagDataLength ) {
         
         // write tag name   
-        string tagName = a.getTagData().substr(index, 2);
+        string tagName = tagData.substr(index, 2);
         m_out << "\t" << tagName << ":";
         index += 2;
         
         // get data type
-        char type = a.getTagData().at(index);
+        char type = tagData.at(index);
         ++index;
         switch ( type ) {
             case (Constants::BAM_TAG_TYPE_ASCII) :
