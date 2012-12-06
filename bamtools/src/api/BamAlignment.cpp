@@ -252,9 +252,6 @@ bool BamAlignment::FindTag(const std::string& tag,
                            const unsigned int& tagDataLength,
                            unsigned int& numBytesParsed) const
 {
-    
-    const std::string TagData = SupportData.getTagData();
-
     while ( numBytesParsed < tagDataLength ) {
 
         const char* pTagType        = pTagData;
