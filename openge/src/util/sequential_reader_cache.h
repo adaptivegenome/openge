@@ -22,12 +22,9 @@
 
 template <class reader_t>
 class SequentialReaderCache : public ReadStreamReader {
-    bool null_seen;
 public:
-    SequentialReaderCache()
-    : thread_job(this)
-    {}
-    virtual bool open(const std::string & filename) { read_finished = false; null_seen = false; return reader.open(filename); }
+    SequentialReaderCache() : thread_job(this) { read_finished.clear(); }
+    virtual bool open(const std::string & filename) { read_finished.clear(); return reader.open(filename); }
     virtual const BamTools::SamHeader & getHeader() const { return reader.getHeader(); };
     virtual void close() { return reader.close(); }
     virtual OGERead * read();
@@ -48,7 +45,7 @@ protected:
         virtual void runJob() ;
     };
     PrefetchJob thread_job;
-    bool read_finished;
+    SynchronizedFlag read_finished;
 };
 
 template <class reader_t>
@@ -57,7 +54,13 @@ OGERead * SequentialReaderCache<reader_t>::read() {
     if(!OGEParallelismSettings::isMultithreadingEnabled())
         return reader.read();
 
-    if(read_queue.size() < 5000 && (read_queue.empty() || read_queue.back() != NULL) && thread_job.is_running == false && !read_finished) {
+    if(read_finished.isSet() && read_queue.empty())
+        return NULL;
+
+    if(read_queue.size() < 5000 &&
+       (read_queue.empty() || read_queue.back() != NULL) &&
+       !read_finished.isSet())
+    {
         ThreadPool::sharedPool()->addJob(&thread_job);
         thread_job.is_running = true;
     }
@@ -65,17 +68,17 @@ OGERead * SequentialReaderCache<reader_t>::read() {
     OGERead * ret = read_queue.pop();
     
     if(NULL == ret)
-        read_finished = true;
+        read_finished.set();
     
     return ret;
 }
 
 template <class reader_t>
 void SequentialReaderCache<reader_t>::PrefetchJob::runJob() {
-    while(cache->read_queue.size() < 10000 && !cache->null_seen) {
+    while(cache->read_queue.size() < 10000 && !cache->read_finished.isSet()) {
         OGERead * al = cache->reader.read();
         if(al == NULL)
-            cache->null_seen = true;
+            cache->read_finished.set();
         cache->read_queue.push(al);
     }
     is_running = false;

@@ -308,16 +308,15 @@ protected:
 	ThreadJob * startJob();
 	void stopJob(ThreadJob * job);
     
-    pthread_cond_t job_queue_cond, busy_cond;
-    pthread_mutex_t job_queue_mutex;
+    condition_variable job_queue_cond, busy_cond;
+    mutex job_queue_mutex;
 	
-    std::queue<ThreadJob *> jobs;	//protected by jobs_mutex
+    SynchronizedQueue<ThreadJob *> jobs;
 	std::vector<pthread_t> threads;
 	SynchronizedFlag threads_exit;
-	int jobs_in_process;	//protected by jobs_mutex
-	Spinlock jobs_mutex;
-	pthread_mutex_t busy_mutex;
-    int jobs_current;
+	Spinlock jobs_running_mutex;
+    int num_jobs_running;
+	mutex busy_mutex;
 };
 
 template<typename _RandomAccessIterator, typename _Compare>

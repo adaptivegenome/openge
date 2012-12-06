@@ -26,7 +26,7 @@ bool MultiReader::open(const std::vector<std::string> & filenames) {
         ReadStreamReader * reader = NULL;
         
         switch (ReadStreamReader::detectFileFormat(*i)) {
-            case FORMAT_BAM: reader = new SequentialReaderCache<BamDeserializer<BgzfInputStream> >(); break;
+            case FORMAT_BAM: reader = new BamDeserializer<BgzfInputStream>(); break;
             case FORMAT_RAWBAM: reader = new BamDeserializer<std::ifstream>(); break;
             case FORMAT_SAM: reader = new ::SamReader(); break;
             default:
@@ -43,17 +43,19 @@ bool MultiReader::open(const std::vector<std::string> & filenames) {
         }
     }
     
-    // first, get one read from each queue
-    // make sure and deal with the case where one chain will never have any reads. TODO LCB
-    
-    for(std::vector<ReadStreamReader *>::iterator i = readers.begin(); i != readers.end(); i++)
-    {
-        OGERead * read = (*i)->read();
+    if(readers.size() > 1) {
+        // first, get one read from each queue
+        // make sure and deal with the case where one chain will never have any reads. TODO LCB
         
-        if(!read)
-            continue;
-        
-        reads.insert(SortedMergeElement(read, (*i)));
+        for(std::vector<ReadStreamReader *>::iterator i = readers.begin(); i != readers.end(); i++)
+        {
+            OGERead * read = (*i)->read();
+            
+            if(!read)
+                continue;
+            
+            reads.insert(SortedMergeElement(read, (*i)));
+        }
     }
     return true;
 }
