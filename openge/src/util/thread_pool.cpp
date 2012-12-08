@@ -151,7 +151,9 @@ void ThreadPool::waitForJobCompletion()
     busy_mutex.lock();
     
     while(true) {
-        bool empty = jobs.empty();
+        jobs_running_mutex.lock();
+        bool empty = jobs.empty() && 0 == num_jobs_running;
+        jobs_running_mutex.unlock();
 
         if(empty) break;
         
