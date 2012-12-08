@@ -187,7 +187,7 @@ void Filter::trim(OGERead & al)
     if(trim_begin_length == 0 && trim_end_length == 0)
         return;
 
-    al.setQueryBases(al.getQueryBases().substr(trim_begin_length, (al.getQueryBases().size() - trim_begin_length - trim_end_length)));
+    al.setQueryBases(al.getQueryBases().substr(trim_begin_length, (al.getQueryBasesLength() - trim_begin_length - trim_end_length)));
     al.setQualities(al.getQualities().substr(trim_begin_length, (al.getQualities().size() - trim_begin_length - trim_end_length)));
 }
 

@@ -1442,22 +1442,24 @@ bool LocalRealignment::isClipOperator(const CigarOp op) {
 }
 
 vector<CigarOp> LocalRealignment::reclipCigar(const vector<CigarOp> & cigar, OGERead * read) {
-    vector<CigarOp> elements;
+    vector<CigarOp> elements, cigarData;
+    
+    cigarData = read->getCigarData();
     
     int i = 0;
     int n = read->getCigarData().size();
-    while ( i < n && isClipOperator(read->getCigarData()[i].Type) )
-        elements.push_back(read->getCigarData()[i++]);
+    while ( i < n && isClipOperator(cigarData[i].Type) )
+        elements.push_back(cigarData[i++]);
     
     //add all elements of cigar to elements
     elements.insert(elements.end(), cigar.begin(), cigar.end());    
     
     i++;
-    while ( i < n && !isClipOperator(read->getCigarData()[i].Type) )
+    while ( i < n && !isClipOperator(cigarData[i].Type) )
         i++;
     
-    while ( i < n && isClipOperator(read->getCigarData()[i].Type) )
-        elements.push_back(read->getCigarData()[i++]);
+    while ( i < n && isClipOperator(cigarData[i].Type) )
+        elements.push_back(cigarData[i++]);
     
     return elements;
 }
