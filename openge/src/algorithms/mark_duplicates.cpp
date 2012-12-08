@@ -193,7 +193,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
 
     SamHeader header = source->getHeader();
 
-    BamSerializer<ofstream> writer;
+    BamSerializer<BgzfOutputStream > writer;
     writer.open(bufferFilename, header);
     
     while (true) {
