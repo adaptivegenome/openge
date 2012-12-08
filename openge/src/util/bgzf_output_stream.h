@@ -35,18 +35,15 @@ class BgzfOutputStream {
         char compressed_data[BGZF_BLOCK_SIZE];
         unsigned int uncompressed_size, compressed_size;
         Spinlock data_access_lock;
-        SynchronizedFlag compress_finished;
     public:
         BgzfBlock(BgzfOutputStream * stream)
         : stream(stream)
         , uncompressed_size(0)
-        {
-            compress_finished.clear();
-        }
+        { }
         
         unsigned int addData(const char * data, unsigned int length);
         bool isFull();
-        bool isCompressed() { return compress_finished.isSet(); }
+        bool isCompressed() { return isDone(); }
         void runJob();  //calls compress when run in thread pool
         bool compress();
         bool write(std::ofstream & out);

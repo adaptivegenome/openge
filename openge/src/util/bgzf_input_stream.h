@@ -34,20 +34,18 @@ class BgzfInputStream
         unsigned int uncompressed_size;
         unsigned int read_size;
         
-        SynchronizedFlag decompressed, decompression_started;
+        SynchronizedFlag decompression_started;
         Spinlock decompression_start;
         BgzfInputStream * stream;
     public:
         BgzfBlock(BgzfInputStream * stream)
         : read_size(0)
         , stream(stream)
-        {
-            decompressed.clear();
-            decompression_started.clear();
-        }
+        , decompression_started(false)
+        { }
         unsigned int read();
         bool decompress();
-        bool isDecompressed() { return decompressed.isSet(); }
+        bool isDecompressed() { return isDone(); }
         unsigned int readData(void * dest, unsigned int max_size);
         virtual void runJob();
         bool dataRemaining() { return read_size != uncompressed_size; }

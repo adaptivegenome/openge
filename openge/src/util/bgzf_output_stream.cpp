@@ -132,7 +132,6 @@ bool BgzfOutputStream::BgzfBlock::compress() {
     unsigned int data_end = compressed_size - 8;
     *((uint32_t *)&compressed_data[data_end]) = crc32(crc32(0, NULL, 0), (Bytef *)&uncompressed_data[0], uncompressed_size);
     *((uint32_t *)&compressed_data[data_end+4]) = uncompressed_size;
-    compress_finished.set();
     data_access_lock.unlock();
     
     return true;
@@ -157,7 +156,7 @@ unsigned int BgzfOutputStream::BgzfBlock::addData(const char * data, unsigned in
 
 bool BgzfOutputStream::BgzfBlock::write(std::ofstream & out) {
     data_access_lock.lock();
-    assert(true == compress_finished.isSet());
+    assert(true == isDone());
     out.write(compressed_data, compressed_size);
     data_access_lock.unlock();
     return !out.fail();
