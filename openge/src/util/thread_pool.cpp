@@ -170,6 +170,7 @@ int ThreadPool::numJobs()
 
 void * ThreadPool::thread_start(void * thread_pool)
 {
+    ogeNameThread("TPoolWorker");
 	ThreadPool * pool = (ThreadPool *)thread_pool;
 	while(true)
 	{		
