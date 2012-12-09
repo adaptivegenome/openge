@@ -157,6 +157,17 @@ namespace BamTools {
         // internal data
     public:
         
+        class TagDataView {
+            const char * p_data;
+            size_t length;
+        public:
+            TagDataView(const char * start, size_t length) : p_data(start), length(length) {}
+            const char & operator[](int i) const { assert(i < length && i >= 0); return p_data[i]; }
+            size_t size() const { return length; }
+            bool empty() const { return length == 0; }
+            const char * data() const {return p_data; }
+        };
+        
         class BamAlignmentSupportData {
         protected:
             // data members
@@ -217,6 +228,7 @@ namespace BamTools {
             
             void setTagData(const std::string & data) { AllCharData.replace(beginTagData(), endTagData(), data); }
             const std::string getTagData() const { return std::string(beginTagData(), endTagData()); }
+            const TagDataView getTagDataView() const { return TagDataView(&*beginTagData(), distance(beginTagData(), endTagData())); }
             
             uint32_t getQueryNameLength() const { return QueryNameLength; }
             uint32_t getQuerySequenceLength() const { return QuerySequenceLength; }
@@ -481,7 +493,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::GetTag(const std::string& tag, T& destination) const {
         
-        const std::string TagData = SupportData.getTagData();
+        const TagDataView TagData = SupportData.getTagDataView();
         
         // skip if no tags present
         if ( TagData.empty() ) {
@@ -558,7 +570,7 @@ namespace BamTools {
     inline bool BamAlignment::GetTag<std::string>(const std::string& tag,
                                                   std::string& destination) const
     {
-        const std::string TagData = SupportData.getTagData();
+        const TagDataView TagData = SupportData.getTagDataView();
         
         // skip if no tags present
         if ( TagData.empty() ) {
@@ -597,7 +609,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::GetTag(const std::string& tag, std::vector<T>& destination) const {
         
-        const std::string TagData = SupportData.getTagData();
+        const TagDataView TagData = SupportData.getTagDataView();
         
         // skip if no tags present
         if ( TagData.empty() ) {

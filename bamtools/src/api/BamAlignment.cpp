@@ -352,7 +352,7 @@ std::string BamAlignment::GetErrorString(void) const {
 */
 bool BamAlignment::GetTagType(const std::string& tag, char& type) const {
   
-    const  std::string TagData = SupportData.getTagData();
+    const TagDataView TagData = SupportData.getTagDataView();
 
     // skip if no tags present
     if ( TagData.empty() ) {
@@ -403,7 +403,7 @@ bool BamAlignment::GetTagType(const std::string& tag, char& type) const {
 */
 bool BamAlignment::HasTag(const std::string& tag) const {
 
-    const std::string TagData = SupportData.getTagData();
+    const TagDataView TagData = SupportData.getTagDataView();
 
     // return false if no tag data present
     if ( TagData.empty() )
