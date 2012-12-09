@@ -275,7 +275,7 @@ void Repeatseq::RepeatseqJob::runJob() {
     for(vector<OGERead *>::const_iterator i = reads.begin(); i != reads.end(); i++) {
         OGERead::deallocate(*i);
     }
-    complete = true;
+
     repeatseq->flushWrites();
 }
 
@@ -297,7 +297,7 @@ void Repeatseq::flushWrites() {
         if(!jobs[i])
             continue;
         
-        if(jobs[i]->complete) {
+        if(jobs[i]->isDone()) {
             //flush
             if (makeRepeatseqFile){ oFile << jobs[i]->oFile.str(); }
             if (makeCallsFile){ callsFile << jobs[i]->callsFile.str(); }

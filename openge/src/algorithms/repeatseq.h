@@ -91,14 +91,12 @@ protected:
         : repeatseq(rs)
         , job_id(job_id)
         , region(region)
-        , complete(false)
         {}
 
         Repeatseq * repeatseq;
         int job_id;
         std::vector<OGERead *> reads;
         const std::string & region;
-        bool complete;
         std::stringstream vcfFile, oFile, callsFile;
         
         virtual void runJob();
