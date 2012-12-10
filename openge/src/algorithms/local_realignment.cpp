@@ -452,6 +452,8 @@ public:
     : c(c)
     , self_delete(self_delete)
     {}
+    
+    virtual bool deleteOnCompletion() { return self_delete; }
 
     virtual void runJob()
     {
@@ -469,9 +471,6 @@ public:
         c->clean_done = true;
         
         c->lr.flushEmitQueue();
-
-        if(self_delete)
-            delete this;
     }
 };
 

@@ -285,6 +285,7 @@ public:
     ThreadJob() : done(false) {}
     virtual ~ThreadJob();
 	virtual void runJob() = 0;
+    virtual bool deleteOnCompletion() { return false; }
     bool isDone() { return done.isSet(); }
 protected:
     SynchronizedFlag done;
