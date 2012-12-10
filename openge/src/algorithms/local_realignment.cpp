@@ -360,12 +360,6 @@ void LocalRealignment::initialize() {
     if ( write_out_snps )
         snpsOutput.open(OUT_SNPS.c_str());
 #endif
-    
-    int ret = pthread_mutex_init(&emit_mutex, 0);
-    if(0 != ret ) {
-        cerr << "Error creating LR emit mutex. Aborting. (error " << ret << ")." << endl;
-        exit(-1);
-    }
 }
 
 void LocalRealignment::emit(IntervalData & interval_data, OGERead * read) {
@@ -600,19 +594,12 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     //wait for emits to finish
     bool finished = false;
     while(!finished) {
-        int ret = pthread_mutex_lock(&emit_mutex);
-        if(0 != ret) {
-            cerr << "Error locking LR emit mutex. Aborting. (error " << ret << ")." << endl;
-            exit(-1);
+        //if locking this mutex fails, we are busy elsewhere, so we know that we are for sure not finished.
+        if(emit_mutex.try_lock()) {
+            finished = emit_queue.empty();
+            emit_mutex.unlock();
         }
         
-        finished = emit_queue.empty();
-        
-        ret = pthread_mutex_unlock(&emit_mutex);
-        if(0 != ret) {
-            cerr << "Error unlocking LR emit mutex. (error " << ret << ")." << endl;
-            exit(-1);
-        }
         if(!finished) {
             usleep(20000);
             flushEmitQueue();
@@ -648,12 +635,6 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     
     for(vector<GenomeLoc *>::const_iterator interval_it = intervalsFile.begin(); interval_it != intervalsFile.end(); interval_it++)
         delete *interval_it;
-    
-    int error = pthread_mutex_destroy(&emit_mutex);
-    if(0 != error ) {
-        cerr << "Error destroying LR emit mutex (error " << error << "). Aborting." << endl;
-        exit(-1);
-    }
 }
 
 void LocalRealignment::populateKnownIndels(IntervalData & interval_data, const ReadMetaDataTracker & metaDataTracker) {

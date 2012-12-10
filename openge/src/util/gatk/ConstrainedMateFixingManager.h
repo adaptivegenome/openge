@@ -92,7 +92,7 @@ private:
     } cmfm_read_t;
     SynchronizedBlockingQueue<cmfm_read_t> addReadQueue;
     pthread_t add_read_thread;
-    pthread_mutex_t add_read_lock;
+    mutex add_read_lock;
 
     GenomeLoc * lastLocFlushed;
     
