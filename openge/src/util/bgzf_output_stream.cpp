@@ -156,7 +156,7 @@ unsigned int BgzfOutputStream::BgzfBlock::addData(const char * data, unsigned in
 
 bool BgzfOutputStream::BgzfBlock::write(std::ofstream & out) {
     data_access_lock.lock();
-    assert(true == isDone());
+    assert(true == isDone() || stream->closing.isSet());
     out.write(compressed_data, compressed_size);
     data_access_lock.unlock();
     return !out.fail();
