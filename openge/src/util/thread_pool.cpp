@@ -273,7 +273,7 @@ bool mutex::try_lock() {
     if(ret == 16)   //16 = EBUSY
         return false;
     if(0 != ret) {
-        cerr << "Error locking mutex (error " << ret << ")." << endl;
+        cerr << "Error trylocking mutex (error " << ret << ")." << endl;
         exit(-1);
     }
     return true;

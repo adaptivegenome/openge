@@ -53,6 +53,9 @@ public:
     void lock() {
         OSSpinLockLock(&m_lock);
     }
+    bool try_lock() {
+        return OSSpinLockTry(&m_lock);
+    }
     void unlock() {
         OSSpinLockUnlock(&m_lock);
     }
@@ -65,6 +68,10 @@ public:
     
     void lock() {
         pthread_spin_lock(&m_lock);
+    }
+    bool try_lock() {
+        int ret = pthread_spin_trylock(&m_lock);
+        return ret != 16;   //EBUSY == 16, lock is already taken
     }
     void unlock() {
         pthread_spin_unlock(&m_lock);
