@@ -157,16 +157,6 @@ void setMateInfo( OGERead & rec1, OGERead & rec2) {
         rec2.SetIsMateReverseStrand( rec1.IsReverseStrand() );
         rec2.SetIsMateMapped(true);
         rec2.AddTag("MQ", "S", rec1.getMapQuality());
-
-        // we should remove and readd the XT tag so that tag order in OGE matches tag order from GATK. This 
-        // is just needed for the debug stage.
-        uint8_t xt;
-        rec1.GetTag<uint8_t>("XT", xt);
-        rec1.RemoveTag("XT");
-        rec1.AddTag<uint8_t>("XT", "A", xt);
-        rec2.GetTag("XT", xt);
-        rec2.RemoveTag("XT");
-        rec2.AddTag<uint8_t>("XT", "A", xt);
     }
     // Else if they're both unmapped set that straight
     else if (!rec1.IsMapped() && !rec2.IsMapped()) {

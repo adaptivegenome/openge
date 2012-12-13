@@ -274,7 +274,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::AddTag(const std::string& tag, const std::string& type, const T& value) {
         
-        std::string TagData = SupportData.getTagData();
+        const std::string TagData = SupportData.getTagData();
         
         // check tag/type size
         if ( !IsValidSize(tag, type) ) {
@@ -317,9 +317,8 @@ namespace BamTools {
         
         // store temp buffer back in TagData
         const char* newTagData = (const char*)originalTagData;
-        TagData.assign(newTagData, newTagDataLength);
         
-        SupportData.setTagData(TagData);
+        SupportData.setTagData(std::string(newTagData, newTagDataLength));
         
         return true;
     }
@@ -329,7 +328,7 @@ namespace BamTools {
                                                   const std::string& type,
                                                   const std::string& value)
     {
-        std::string TagData = SupportData.getTagData();
+        const std::string TagData = SupportData.getTagData();
         
         // check tag/type size
         if ( !IsValidSize(tag, type) ) {
@@ -366,9 +365,8 @@ namespace BamTools {
         
         // store temp buffer back in TagData
         const char* newTagData = (const char*)originalTagData;
-        TagData.assign(newTagData, newTagDataLength);
 
-        SupportData.setTagData(TagData);
+        SupportData.setTagData(std::string(newTagData, newTagDataLength));
         return true;
     }
     
