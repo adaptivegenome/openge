@@ -40,8 +40,8 @@ class BgzfInputStream
     public:
         BgzfBlock(BgzfInputStream * stream)
         : read_size(0)
-        , stream(stream)
         , decompression_started(false)
+        , stream(stream)
         { }
         unsigned int read();
         bool decompress();
