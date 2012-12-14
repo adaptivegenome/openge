@@ -1491,6 +1491,10 @@ int LocalRealignment::runInternal()
         
         const ReadMetaDataTracker rmdt(loc_parser, al, std::map<int, RODMetaDataContainer>() );
         map_func( al, rmdt);
+        
+        //throttle ourselves, so that we don't overwhelm the downstream queue.
+        while(manager->isReadAddQueueFull())
+            usleep(50000);
     };
     
     onTraversalDone(*loading_interval_data, 0);
