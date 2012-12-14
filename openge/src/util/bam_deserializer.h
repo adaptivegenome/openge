@@ -174,8 +174,8 @@ OGERead * BamDeserializer<input_stream_t>::read() {
     // set BamAlignment core data
     al->setRefID(BamTools::UnpackSignedInt(&buffer[0]));
     al->setPosition(BamTools::UnpackSignedInt(&buffer[4]));
-    uint32_t QueryNameLength = buffer[8];
-    al->setMapQuality(buffer[9]);
+    uint32_t QueryNameLength = ((unsigned char *)buffer)[8];
+    al->setMapQuality(((unsigned char *)buffer)[9]);
     al->setBin(BamTools::UnpackUnsignedShort(&buffer[10]));
     uint32_t NumCigarOperations = BamTools::UnpackUnsignedShort(&buffer[12]);
     al->setAlignmentFlag(BamTools::UnpackUnsignedShort(&buffer[14]));
