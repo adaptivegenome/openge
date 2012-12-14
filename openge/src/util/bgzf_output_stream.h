@@ -26,7 +26,8 @@ const uint32_t BGZF_BLOCK_SIZE = 65536;
 
 class BgzfOutputStream {
     int compression_level;
-    std::ofstream output_stream;
+    std::ostream * output_stream;
+    std::ofstream output_stream_real;
     bool use_threads;
 
     class BgzfBlock : public ThreadJob {
@@ -46,7 +47,7 @@ class BgzfOutputStream {
         bool isCompressed() { return isDone(); }
         void runJob();  //calls compress when run in thread pool
         bool compress();
-        bool write(std::ofstream & out);
+        bool write();
     };
 
     BgzfBlock * current_block;
@@ -69,8 +70,8 @@ public:
     bool open(std::string filename);
     void write(const char * data, size_t len);
     void close();
-    bool is_open() const { return output_stream.is_open(); }
-    bool fail() { return output_stream.fail(); }
+    bool is_open() const { if(output_stream == &output_stream_real) return output_stream_real.is_open(); else return true; }
+    bool fail() { return output_stream->fail(); }
     void setCompressionLevel(int level) { compression_level = level; }
 };
 

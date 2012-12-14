@@ -154,21 +154,26 @@ unsigned int BgzfOutputStream::BgzfBlock::addData(const char * data, unsigned in
     return copy_size;
 }
 
-bool BgzfOutputStream::BgzfBlock::write(std::ofstream & out) {
+bool BgzfOutputStream::BgzfBlock::write() {
     data_access_lock.lock();
     assert(true == isDone() || stream->closing.isSet());
-    out.write(compressed_data, compressed_size);
+    stream->output_stream->write(compressed_data, compressed_size);
     data_access_lock.unlock();
-    return !out.fail();
+    return !stream->output_stream->fail();
 }
 
 /////////////////////////
 // BgzfOutputStream class
 
 bool BgzfOutputStream::open(std::string filename) {
-    output_stream.open(filename.c_str());
+    if(filename == "stdout") {
+        output_stream = &cout;
+    } else {
+        output_stream = &output_stream_real;
+        output_stream_real.open(filename.c_str());
+    }
     
-    if(output_stream.fail())
+    if(output_stream->fail())
         return false;
 
     current_block = new BgzfBlock(this);
@@ -198,7 +203,7 @@ void BgzfOutputStream::write(const char * data, size_t len) {
                 ThreadPool::sharedPool()->addJob(current_block);
             } else {
                 current_block->compress();
-                current_block->write(output_stream);
+                current_block->write();
                 delete current_block;
             }
             current_block = new BgzfBlock(this);
@@ -220,15 +225,16 @@ void BgzfOutputStream::close() {
     }
     
     current_block->compress();
-    current_block->write(output_stream);
+    current_block->write();
     delete current_block;
     
     //write empty block
     BgzfBlock empty(this);
     empty.compress();
-    empty.write(output_stream);
+    empty.write();
     
-    output_stream.close();
+    if(output_stream == &output_stream_real)
+        output_stream_real.close();
 }
 
 void * BgzfOutputStream::write_threadproc(void * stream_p) {
@@ -258,7 +264,7 @@ void * BgzfOutputStream::write_threadproc(void * stream_p) {
                 break;
             
             stream->write_queue.pop();
-            front->write(stream->output_stream);
+            front->write();
             delete front;
         }
     }
