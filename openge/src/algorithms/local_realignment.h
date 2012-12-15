@@ -460,14 +460,16 @@ private:
         bool emit_queue_full = true;
         while(emit_queue_full) {
             emit_mutex.lock();
-            emit_queue_full = emit_queue.size() > 1000000;
+            emit_queue_full = emit_queue.size() > 1000;
             if(!emit_queue_full)
                 emit_queue.push(e);
             
             emit_mutex.unlock();
             
-            if(emit_queue_full)
+            if(emit_queue_full) {
                 usleep(20000);
+                flushEmitQueue();
+            }
         }
     }
     
