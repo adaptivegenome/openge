@@ -48,7 +48,8 @@ int LocalRealignCommand::runCommand()
     if(vm.count("format"))
         writer.setFormat(vm["format"].as<string>());
     writer.setFilename(vm["out"].as<string>());
-    writer.addProgramLine(command_line);
+    if(!vm.count("nopg"))
+        writer.addProgramLine(command_line);
     writer.setCompressionLevel(vm["compression"].as<int>());
 
     local_realignment.verbose = verbose;

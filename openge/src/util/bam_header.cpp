@@ -122,7 +122,33 @@ BamHeader::BamHeader (const string & text){
 		} else if (tag_in == "PG") {
 			pg.push_back(BamProgramRecord(data_in));
 		} else if (tag_in == "HD") {
-			// TODO parse here
+            const vector<string> segments = headerLineSplit(data_in);
+            string sort_str;
+            
+            for(vector<string>::const_iterator seg = segments.begin(); seg != segments.end(); seg++) {
+                const string tag = seg->substr(0,2);
+                const string data = seg->substr(3);
+                
+                if(tag == "VN") format_version = data;
+                else if(tag == "SO") sort_str = data;
+            }
+            
+            if(sort_str.empty() || format_version.empty()) {
+                cerr << "Mandatory field missing in header HD line." << endl;
+                exit(-1);
+            }
+            if(sort_str == "unsorted")
+                sort_order = BamHeader::SORT_UNSORTED;
+            else if(sort_str == "coordinate")
+                sort_order = BamHeader::SORT_COORDINATE;
+            else if(sort_str == "queryname")
+                sort_order = BamHeader::SORT_QUERYNAME;
+            else if(sort_str == "unknown")
+                sort_order = BamHeader::SORT_UNKNOWN;
+            else {
+                cerr << "Unknown sort order '" << sort_str << "'." << endl;
+                exit(-1);
+            }
 		} else {
 			cerr << "Sam header format problem: tag '" << tag_in << "' wasn't CO RG SQ PG or HD. Quitting." << endl;
 			cerr << "This line: " << line << endl;

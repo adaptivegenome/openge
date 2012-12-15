@@ -61,7 +61,7 @@ AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const OGERead *  
     int readIdx = 0;
     int endOnRead = startOnRead + nReadBases - 1; // index of the last base on read we want to count
     string readSeq = r->getQueryBases();
-    const vector<CigarOp> & c = r->getCigarData();
+    const vector<CigarOp> c = r->getCigarData();
     for (int i = 0; i < c.size(); i++) {
         
         if (readIdx > endOnRead) break;

@@ -19,47 +19,60 @@
 
 #include <fstream>
 #include <vector>
+#include <stdint.h>
 #include "thread_pool.h"
 
+const uint32_t BGZF_BLOCK_SIZE = 65536;
+
 class BgzfOutputStream {
-    class BgzfCompressJob : public ThreadJob {
-    public:
-        Spinlock data_access_lock;  //only needed to get rid of race detection warnings in ThreadSanitizer
-        Spinlock compressed_flag_lock;  //needed to syncronize access to this flag. Once we start using C++11, we can use std::atomic<bool> or something
-        std::vector<char> compressed_data;
-        std::vector<char> uncompressed_data;
-        bool compressed;
-        int compression_level;
+    int compression_level;
+    std::ostream * output_stream;
+    std::ofstream output_stream_real;
+    bool use_threads;
+
+    class BgzfBlock : public ThreadJob {
         BgzfOutputStream * stream;
-        BgzfCompressJob()
-        : compressed(false)
-        {}
-        void runJob();
+        char uncompressed_data[BGZF_BLOCK_SIZE];
+        char compressed_data[BGZF_BLOCK_SIZE];
+        unsigned int uncompressed_size, compressed_size;
+        Spinlock data_access_lock;
+    public:
+        BgzfBlock(BgzfOutputStream * stream)
+        : stream(stream)
+        , uncompressed_size(0)
+        { }
+        
+        unsigned int addData(const char * data, unsigned int length);
+        bool isFull();
+        bool isCompressed() { return isDone(); }
+        void runJob();  //calls compress when run in thread pool
+        bool compress();
+        bool write();
     };
+
+    BgzfBlock * current_block;
+    
+    //multithreading:
+    pthread_t write_thread;
+    condition_variable write_thread_signal;
+    mutex write_thread_mutex;
+    SynchronizedFlag closing;
+    SynchronizedQueue<BgzfBlock *> write_queue;
+    
+    static void * write_threadproc(void * stream_p);
 public:
     BgzfOutputStream()
     : compression_level(6)
-    , closing(false)
-    {}
-
+    , use_threads(true)
+    {
+        closing.clear();
+    }
     bool open(std::string filename);
     void write(const char * data, size_t len);
     void close();
-    bool is_open() const { return output_stream.is_open(); }
-    bool fail() { return output_stream.fail(); }
+    bool is_open() const { if(output_stream == &output_stream_real) return output_stream_real.is_open(); else return true; }
+    bool fail() { return output_stream->fail(); }
     void setCompressionLevel(int level) { compression_level = level; }
-    void flushQueue();
-protected:
-    std::ofstream output_stream;
-    int compression_level;
-    std::vector<char> write_buffer;
-    SynchronizedBlockingQueue<BgzfCompressJob *> job_queue;
-    pthread_mutex_t write_mutex;
-    pthread_t write_thread;
-    pthread_mutex_t write_wait_mutex;
-    pthread_cond_t flush_signal;
-    bool closing;
-    static void * file_write_threadproc(void * data);
 };
 
 #endif

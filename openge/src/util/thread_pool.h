@@ -20,6 +20,7 @@
 
 #include <vector>
 #include <queue>
+#include <cassert>
 #include <pthread.h>
 #include <semaphore.h>
 
@@ -38,21 +39,6 @@
 #define ogeNameThread(X)
 #endif
 
-class ThreadPool;
-
-// The ThreadJob abstract class provides a way to provide jobs to 
-// the ThreadPool thread pool. To use, create a thread pool, subclass ThreadJob,
-// implement the runJob method of your subclass, and pass an instance to the pool's
-// addJob method.
-class ThreadJob
-{
-	friend class ThreadPool;
-public:
-    virtual ~ThreadJob();
-	virtual void runJob() = 0;
-protected:
-};
-
 class Spinlock
 {
 private:    //private copy-ctor and assignment operator ensure the lock never gets copied, which might cause issues.
@@ -67,6 +53,9 @@ public:
     void lock() {
         OSSpinLockLock(&m_lock);
     }
+    bool try_lock() {
+        return OSSpinLockTry(&m_lock);
+    }
     void unlock() {
         OSSpinLockUnlock(&m_lock);
     }
@@ -80,6 +69,10 @@ public:
     void lock() {
         pthread_spin_lock(&m_lock);
     }
+    bool try_lock() {
+        int ret = pthread_spin_trylock(&m_lock);
+        return ret != 16;   //EBUSY == 16, lock is already taken
+    }
     void unlock() {
         pthread_spin_unlock(&m_lock);
     }
@@ -87,6 +80,31 @@ public:
         pthread_spin_destroy(&m_lock);
     }
 #endif
+};
+
+// The mutex and condition_variable classes are designed to be
+// compatible with C++11. Eventually we will get rid of these
+// and use the C++11 equivalents.
+class mutex {
+    pthread_mutex_t m;
+public:
+    mutex();
+    ~mutex();
+    void lock();
+    bool try_lock();
+    void unlock();
+    pthread_mutex_t & native_handle() { return m; };
+};
+
+class condition_variable {
+    pthread_cond_t c;
+public:
+    condition_variable();
+    ~condition_variable();
+    void notify_one();
+    void notify_all();
+    void wait(mutex & m);
+    pthread_cond_t & native_handle() { return c; };
 };
 
 
@@ -147,25 +165,95 @@ protected:
 template<class T>
 class SynchronizedBlockingQueue : public SynchronizedQueue<T>{
 public:
+    SynchronizedBlockingQueue()
+    : cv_waiting(false)
+    {}
+    
+    void push(const T & item) {
+        this->lock.lock();
+        this->q.push(item);
+        bool waiting = cv_waiting;
+        this->lock.unlock();
+        
+        if(waiting) {
+            wait_lock.lock();
+            wait_cv.notify_one();
+            wait_lock.unlock();
+        }
+    }
+
     T pop() {
         bool success = false;
         T ret;
-        while(!success) {
-            this->lock.lock();
-            if(!this->q.empty()) {
-                ret = this->q.front();
-                this->q.pop();
-                success = true;
-            }
+        this->lock.lock();
+        if(!this->q.empty()) {
+            ret = this->q.front();
+            this->q.pop();
+            success = true;
             this->lock.unlock();
-            if(!success)
-                usleep(20000);
+        } else {
+            cv_waiting = true;
+            wait_lock.lock();
+            this->lock.unlock();
+            while(true) {
+                this->lock.lock();
+                if(!this->q.empty()) {
+                    success = true;
+                    ret = this->q.front();
+                    this->q.pop();
+                    cv_waiting = false;
+                }
+                this->lock.unlock();
+                if(success) {
+                    break;
+                }
+                wait_cv.wait(wait_lock);
+            }
+            wait_lock.unlock();
         }
-
         return ret;
     }
 protected:
-        
+    bool cv_waiting;
+    mutex wait_lock;
+    condition_variable wait_cv;
+};
+
+class SynchronizedFlag {
+    Spinlock s;
+    bool b;
+public:
+    SynchronizedFlag() {}
+    SynchronizedFlag(const bool b) {
+        s.lock();
+        this->b = b;
+        s.unlock();
+    }
+    bool operator=(const bool b) {
+        s.lock();
+        this->b = b;
+        s.unlock();
+        return b;
+    }
+    
+    void set() {
+        s.lock();
+        this->b = true;
+        s.unlock();
+    }
+    
+    void clear() {
+        s.lock();
+        this->b = false;
+        s.unlock();
+    }
+    
+    bool isSet() {
+        s.lock();
+        bool r = b;
+        s.unlock();
+        return r;
+    }
 };
 
 class OGEParallelismSettings
@@ -191,6 +279,25 @@ protected:
 
 // The shared thread pool should only be used for non-blocking tasks!
 
+class ThreadPool;
+
+// The ThreadJob abstract class provides a way to provide jobs to
+// the ThreadPool thread pool. To use, create a thread pool, subclass ThreadJob,
+// implement the runJob method of your subclass, and pass an instance to the pool's
+// addJob method.
+class ThreadJob
+{
+	friend class ThreadPool;
+public:
+    ThreadJob() : done(false) {}
+    virtual ~ThreadJob();
+	virtual void runJob() = 0;
+    virtual bool deleteOnCompletion() { return false; }
+    bool isDone() { return done.isSet(); }
+protected:
+    SynchronizedFlag done;
+};
+
 class ThreadPool
 {
 	friend class ThreadJob;
@@ -202,8 +309,9 @@ public:
 	int numJobs();
 	static int availableCores();
 	void waitForJobCompletion();
-    static ThreadPool * sharedPool() { if(!_sharedPool) _sharedPool = new ThreadPool(OGEParallelismSettings::getNumberThreads()); return _sharedPool; }
-    static void closeSharedPool() {  _sharedPool->waitForJobCompletion(); delete _sharedPool; }
+    static ThreadPool * sharedPool();
+    static void closeSharedPool();
+    static bool sharedPoolIsStarted() { return NULL != _sharedPool; }
 	
 protected:
     static ThreadPool * _sharedPool;
@@ -211,16 +319,15 @@ protected:
 	ThreadJob * startJob();
 	void stopJob(ThreadJob * job);
     
-    pthread_cond_t job_queue_cond, busy_cond;
-    pthread_mutex_t job_queue_mutex;
+    condition_variable job_queue_cond, busy_cond;
+    mutex job_queue_mutex;
 	
-    std::queue<ThreadJob *> jobs;	//protected by jobs_mutex
+    SynchronizedQueue<ThreadJob *> jobs;
 	std::vector<pthread_t> threads;
-	bool threads_exit;
-	int jobs_in_process;	//protected by jobs_mutex
-	Spinlock jobs_mutex;
-	pthread_mutex_t busy_mutex;
-    int jobs_current;
+	SynchronizedFlag threads_exit;
+	Spinlock jobs_running_mutex;
+    int num_jobs_running;
+	mutex busy_mutex;
 };
 
 template<typename _RandomAccessIterator, typename _Compare>
@@ -254,6 +361,9 @@ inline void
 ogeSortMt(_RandomAccessIterator __first, _RandomAccessIterator __last,
 	 _Compare __comp)
 {
+    if(!OGEParallelismSettings::isMultithreadingEnabled())
+        return sort(__first, __last, __comp);
+    
     size_t job_size = (__last - __first) / ThreadPool::availableCores();
     
     ThreadPool * shared_pool = ThreadPool::sharedPool();

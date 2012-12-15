@@ -381,7 +381,9 @@ GenomeLoc GenomeLocParser::createGenomeLoc(const OGERead & read) const {
     else {
         // Use max to ensure that end >= start (Picard assigns the end to reads that are entirely within an insertion as start-1)
         int length = read.getQueryBases().size();
-        for( vector <CigarOp>::const_iterator i = read.getCigarData().begin(); i != read.getCigarData().end(); i++) {
+
+        vector<CigarOp> cigar = read.getCigarData();
+        for( vector <CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++) {
             if(i->type == 'D')
                 length += i->length;
             if(i->type == 'I')

@@ -1,0 +1,6 @@
+##fileformat=VCFv4.0
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=RU,Number=1,Type=String,Description="Repeated Unit">
+##INFO=<ID=RL,Number=1,Type=Integer,Description="Reference Length of Microsatellite">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE

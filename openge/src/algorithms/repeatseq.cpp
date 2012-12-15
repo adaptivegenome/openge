@@ -275,7 +275,7 @@ void Repeatseq::RepeatseqJob::runJob() {
     for(vector<OGERead *>::const_iterator i = reads.begin(); i != reads.end(); i++) {
         OGERead::deallocate(*i);
     }
-    complete = true;
+
     repeatseq->flushWrites();
 }
 
@@ -297,7 +297,7 @@ void Repeatseq::flushWrites() {
         if(!jobs[i])
             continue;
         
-        if(jobs[i]->complete) {
+        if(jobs[i]->isDone()) {
             //flush
             if (makeRepeatseqFile){ oFile << jobs[i]->oFile.str(); }
             if (makeCallsFile){ callsFile << jobs[i]->callsFile.str(); }
@@ -426,12 +426,16 @@ int Repeatseq::runInternal() {
         }
 
         //start the job
-        ThreadPool::sharedPool()->addJob(job);
+        if(OGEParallelismSettings::isMultithreadingEnabled())
+            ThreadPool::sharedPool()->addJob(job);
+        else
+            job->runJob();
         jobs.push_back(job);
     }
 
     //wait for all workers to finish
-    ThreadPool::sharedPool()->waitForJobCompletion();
+    if(OGEParallelismSettings::isMultithreadingEnabled())
+        ThreadPool::sharedPool()->waitForJobCompletion();
     
     flushWrites();
 
@@ -702,7 +706,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 		stringstream cigarSeq;
 		int gtBonus = 0;
 		
-        const vector<CigarOp> & cigar_data = al.getCigarData();
+        const vector<CigarOp> cigar_data = al.getCigarData();
 		if (cigar_data.empty()) {
 			numStars++;
 			continue;
@@ -796,7 +800,7 @@ inline void Repeatseq::print_output(const string & region_line, stringstream &vc
 				
 				//Determine & print read size information:
 				int readSize = 0;
-                const vector<CigarOp> & cigar_data = al.getCigarData();
+                const vector<CigarOp> cigar_data = al.getCigarData();
 				for (vector<CigarOp>::const_iterator it=cigar_data.begin(); it < cigar_data.end(); it++){
 					if (it->type == 'M' || it->type == 'I' || it->type == 'S' || it->type == '=' || it->type == 'X'){
 						readSize += it->length;         //increment readsize by the length

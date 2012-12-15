@@ -43,7 +43,9 @@ MarkDuplicates::MarkDuplicates(string temp_directory)
 
 int MarkDuplicates::getReferenceLength(const OGERead &rec) {
     int length = 0;
-    for(vector<CigarOp>::const_iterator i = rec.getCigarData().begin(); i != rec.getCigarData().end(); i++) {
+
+    vector<CigarOp> cigar = rec.getCigarData();
+    for(vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++) {
         switch (i->type) {
             case 'M':
             case 'D':
@@ -86,7 +88,9 @@ int MarkDuplicates::getAlignmentEnd(const OGERead & rec) {
 int MarkDuplicates::getUnclippedStart(const OGERead & rec) {
     int pos = getAlignmentStart(rec);
     
-    for (vector<CigarOp>::const_iterator op = rec.getCigarData().begin(); op != rec.getCigarData().end(); op++ ) {
+    vector<CigarOp> cigar = rec.getCigarData();
+    
+    for (vector<CigarOp>::const_iterator op = cigar.begin(); op != cigar.end(); op++ ) {
         if (op->type == 'S' || op->type == 'H') {
             pos -= op->length;
         }
@@ -108,8 +112,10 @@ int MarkDuplicates::getUnclippedStart(const OGERead & rec) {
 int MarkDuplicates::getUnclippedEnd(const OGERead & rec) {
     int pos = getAlignmentEnd(rec);
     
-    for (int i=rec.getCigarData().size() - 1; i>=0; --i) {
-        const CigarOp & op = rec.getCigarData()[i];
+    vector<CigarOp> cigar = rec.getCigarData();
+    
+    for (int i=cigar.size() - 1; i>=0; --i) {
+        const CigarOp & op = cigar[i];
         
         if (op.type == 'S' || op.type =='H') {
             pos += op.length;
@@ -128,8 +134,9 @@ int MarkDuplicates::getUnclippedEnd(const OGERead & rec) {
 /** Calculates a score for the read which is the sum of scores over Q20. */
 short MarkDuplicates::getScore(const OGERead & rec) {
     short score = 0;
-    for (int i = 0; i < rec.getQualities().size(); i++) {
-        uint8_t b = rec.getQualities()[i]-33;   //33 comes from the conversion in OGERead
+    const string qualities = rec.getQualities();
+    for (int i = 0; i < qualities.size(); i++) {
+        uint8_t b = qualities[i]-33;   //33 comes from the conversion in OGERead
         if (b >= 15) score += b;
     }
     
@@ -182,7 +189,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
 
     BamHeader header = source->getHeader();
 
-    BamSerializer<ofstream> writer;
+    BamSerializer<BgzfOutputStream > writer;
     writer.open(bufferFilename, header);
     
     while (true) {

@@ -24,326 +24,252 @@
  ********************************************************************/
 
 #include "bgzf_output_stream.h"
-//#include "api/api_global.h"
 #include "thread_pool.h"
 #include <zlib.h>
 #include <iostream>
-#include <stdint.h>
 #include <cstring>
-
+#include <zlib.h>
 using namespace std;
 
-const uint32_t BGZF_BLOCK_SIZE       = 65536;
+//////////////////
+// BgzfBlock class
 
-const int8_t   GZIP_WINDOW_BITS          = -15;
-const int8_t   Z_DEFAULT_MEM_LEVEL       = 8;
-const uint8_t  BGZF_BLOCK_HEADER_LENGTH  = 18;
-const uint8_t  BGZF_BLOCK_FOOTER_LENGTH  = 8;
+void BgzfOutputStream::BgzfBlock::runJob() {
+    //keep a local copy of this variable in case
+    // this job object is destroyed under us.
+    // This object can theoretically be deleted any time
+    // after the notify_one();
+    BgzfOutputStream * stream = this->stream;
 
-void BgzfOutputStream::BgzfCompressJob::runJob() {
-    
-    ogeNameThread("ogeBgzfDeflate");
+    if(!compress()) {
+        cerr << "Bgzf block compression failed. Aborting." << endl;
+        exit(-1);
+    }
+
+    //tell the write thread to check for new data.
+    stream->write_thread_mutex.lock();
+    stream->write_thread_signal.notify_one();
+    stream->write_thread_mutex.unlock();
+}
+
+bool BgzfOutputStream::BgzfBlock::compress() {
+    int current_compression_level = stream->compression_level;
     
     data_access_lock.lock();
-    compressed_data.resize(BGZF_BLOCK_SIZE);
-
-    // initialize the gzip header
-    char* buffer = &compressed_data[0];
-    memset(buffer, 0, 18);
-    buffer[0]  = 31;    //magic
-    buffer[1]  = 139;   //magic
-    buffer[2]  = 8;     //deflate method
-    buffer[3]  = 4;     //extra fields
-    buffer[9]  = 255;   //unknown OS
-    buffer[10] = 6;     //XLen
-    buffer[12] = 'B';   //xtra field id
-    buffer[13] = 'C';   //xtra field id
-    buffer[14] = 2;     //xtra field len
-    
-    // loop to retry for blocks that do not compress enough
-    size_t compressedLength = 0;
-    
-    while ( true ) {
-        
-        // initialize zstream values
+    while(true) {
+        // compress
         z_stream zs = {0};
         zs.zalloc    = NULL;
         zs.zfree     = NULL;
         zs.next_in   = (Bytef*)&uncompressed_data[0];
-        zs.avail_in  = uncompressed_data.size();
-        zs.next_out  = (Bytef*)&compressed_data[BGZF_BLOCK_HEADER_LENGTH];
-        zs.avail_out = compressed_data.size() -
-        BGZF_BLOCK_HEADER_LENGTH -
-        BGZF_BLOCK_FOOTER_LENGTH;
+        zs.avail_in  = uncompressed_size;
+        zs.next_out  = (Bytef*)&compressed_data[18];
+        zs.avail_out = BGZF_BLOCK_SIZE - 18 - 8;
         
         // initialize the zlib compression algorithm
-        int status = deflateInit2(&zs,
-                                  compression_level,
+        int init_status = deflateInit2(&zs,
+                                  current_compression_level,
                                   Z_DEFLATED,
-                                  GZIP_WINDOW_BITS,
-                                  Z_DEFAULT_MEM_LEVEL,
+                                  -15,  //window
+                                  8,    //memory level
                                   Z_DEFAULT_STRATEGY);
-
-        if ( status != Z_OK ) {
+        
+        if ( init_status != Z_OK ) {
             cerr << "BGZF writer: zlib deflateInit2 failed" << endl;
             exit(-1);
         }
-        
         // compress the data
-        status = deflate(&zs, Z_FINISH);
+        int deflate_status = deflate(&zs, Z_FINISH);
         
-        // if not at stream end
-        if ( status != Z_STREAM_END ) {
-            
-            deflateEnd(&zs);
+        
+        // finalize the compression routine
+        int end_status = deflateEnd(&zs);
+        if ( end_status != Z_OK ){
+            cerr << "BGZF writer: zlib deflateEnd failed. Aborting." << endl;
+            exit(-1);
+        }
+        
+        if(deflate_status == Z_STREAM_END) {
+            compressed_size = zs.total_out + 18 + 8;
+
+            break;
+        } else {
             
             // there was not enough space available in buffer
             // try to reduce the input length & re-start loop
-            if ( status == Z_OK ) {
-                compression_level++;
-                if ( compression_level > Z_BEST_COMPRESSION ){
+            if ( deflate_status == Z_OK ) {
+                current_compression_level++;
+                if ( current_compression_level > Z_BEST_COMPRESSION ){
                     cerr << "BGZF writer: input reduction failed" << endl;
                     exit(-1);
                 }
-
+                
                 continue;
             }
             cerr << "BGZF writer: zlib deflate failed. Aborting." << endl;
             exit(-1);
         }
-        
-        // finalize the compression routine
-        status = deflateEnd(&zs);
-        if ( status != Z_OK ){
-            cerr << "BGZF writer: zlib deflateEnd failed. Aborting." << endl;
-            exit(-1);
-        }
-        
-        // update compressedLength
-        compressedLength = zs.total_out +
-        BGZF_BLOCK_HEADER_LENGTH +
-        BGZF_BLOCK_FOOTER_LENGTH;
-
-        compressed_data.resize(compressedLength);
-        if ( compressedLength > BGZF_BLOCK_SIZE ) {
-            if(compression_level > Z_BEST_COMPRESSION) {
-                cerr << "BGZF writer: compression overflow. Aborting." << endl;
-                exit(-1);
-            }
-            else {
-                compression_level++;
-                continue;
-            }
-        }
-
-        // quit while loop
-        break;
     }
-
-    // store the compressed length
-    *((uint16_t *)&buffer[16]) = (uint16_t)(compressedLength - 1);
-
-    // store the CRC32 checksum
-    uint32_t crc = crc32(0, NULL, 0);
-    crc = crc32(crc, (Bytef*)&uncompressed_data[0], uncompressed_data.size());
-    *((uint32_t *) &buffer[compressedLength - 8]) = crc;
-    *((uint32_t *) &buffer[compressedLength - 4]) = uncompressed_data.size();
     
+    // fill in GZ data fields in buffer
+    // some day we should avoid doing this manually and use deflateSetHeader()
+    compressed_data[0] = 31;  //magic
+    compressed_data[1] = 139; //magic
+    compressed_data[2] = 8;   //deflate
+    compressed_data[3] = 4;   //flags
+    *((uint32_t *)&compressed_data[4]) = 0;    //mod time
+    compressed_data[8] = 0;   //xflags
+    compressed_data[9] = 255; //unknown OS
+    compressed_data[10] = 6;  //xtra fields length
+    compressed_data[11] = 0;  //xtra fields length
+    compressed_data[12] = 66;// Subfield id 1
+    compressed_data[13] = 67;// Subfield id 2
+    compressed_data[14] = 2;// Subfield length (lower)
+    compressed_data[15] = 0;// Subfield length (upper)
+    *((uint16_t *)&compressed_data[16]) = compressed_size-1;    //block size minus one
+    
+    //data is in compressed_data[16..BGZF_BLOCK_SIZE-8]
+    
+    //now GZ footer..
+    unsigned int data_end = compressed_size - 8;
+    *((uint32_t *)&compressed_data[data_end]) = crc32(crc32(0, NULL, 0), (Bytef *)&uncompressed_data[0], uncompressed_size);
+    *((uint32_t *)&compressed_data[data_end+4]) = uncompressed_size;
     data_access_lock.unlock();
     
-    compressed_flag_lock.lock();
-    compressed = true;
-    compressed_flag_lock.unlock();
-    
-    stream->flushQueue();
+    return true;
 }
 
-void BgzfOutputStream::flushQueue() {
-    int error = pthread_mutex_lock(&write_wait_mutex);
-    if(0 != error)
-    {
-        cerr << "Error locking BGZF flush mutex for signalling. Aborting. (" << error << ")" << endl;
-        exit(-1);
-    }
-
-    error = pthread_cond_signal(&flush_signal);
-    if(0 != error)
-    {
-        cerr << "Error waiting for BGZF flush CV. Aborting. (" << error << ")" << endl;
-        exit(-1);
-    }
-    
-    error = pthread_mutex_unlock(&write_wait_mutex);
-    if(0 != error)
-    {
-        cerr << "Error unlocking BGZF flush mutex for signalling. Aborting. (" << error << ")" << endl;
-        exit(-1);
-    }
+bool BgzfOutputStream::BgzfBlock::isFull() {
+    unsigned int full_size = stream->compression_level == 0 ? BGZF_BLOCK_SIZE - 64 : BGZF_BLOCK_SIZE;
+    return full_size == uncompressed_size;
 }
 
-void * BgzfOutputStream::file_write_threadproc(void * data) {
-    BgzfOutputStream * stream = (BgzfOutputStream * ) data;
-    int error = pthread_mutex_lock(&stream->write_mutex);
-    if(0 != error)
-    {
-        cerr << "Error locking BGZF write mutex. Aborting. (" << error << ")" << endl;
-        exit(-1);
-    }
+unsigned int BgzfOutputStream::BgzfBlock::addData(const char * data, unsigned int length) {
+    unsigned int full_size = stream->compression_level == 0 ? BGZF_BLOCK_SIZE - 64 : BGZF_BLOCK_SIZE;
     
-    //wait for flush events
-    while(!stream->closing) {
-        error = pthread_mutex_lock(&stream->write_wait_mutex);
-        if(0 != error)
-        {
-            cerr << "Error locking BGZF flush mutex. Aborting. (" << error << ")" << endl;
-            exit(-1);
-        }
-        
-        while(stream->job_queue.empty() && !stream->closing) {
-            int error = pthread_cond_wait(&stream->flush_signal, &stream->write_wait_mutex);
-            if(0 != error)
-            {
-                cerr << "Error waiting for BGZF flush CV. Aborting. (" << error << ")" << endl;
-                exit(-1);
-            }
-        }
-
-        error = pthread_mutex_unlock(&stream->write_wait_mutex);
-        if(0 != error)
-        {
-            cerr << "Error unlocking BGZF flush mutex. Aborting. (" << error << ")" << endl;
-            exit(-1);
-        }
-
-        while( !stream->job_queue.empty()) {
-            BgzfCompressJob * job = stream->job_queue.front();
-
-            job->compressed_flag_lock.lock();
-            if(!stream->job_queue.front()->compressed) {
-                job->compressed_flag_lock.unlock();
-                break;
-            }
-            job->compressed_flag_lock.unlock();
-
-            job->data_access_lock.lock();
-            stream->output_stream.write(&job->compressed_data[0], job->compressed_data.size());
-            job->data_access_lock.unlock();
-            
-            stream->job_queue.pop();
-            delete job;
-        }
-    }
-
-    //write an empty block ("EOF marker")
-	static const uint8_t empty_block[29] = "\037\213\010\4\0\0\0\0\0\377\6\0\102\103\2\0\033\0\3\0\0\0\0\0\0\0\0\0";
-    stream->output_stream.write((const char *)empty_block, 28);
+    unsigned int copy_size = min(length, full_size - uncompressed_size);
     
-    stream->output_stream.close();
+    memcpy(&uncompressed_data[uncompressed_size], data, copy_size);
     
-    error = pthread_mutex_unlock(&stream->write_mutex);
-    if(0 != error)
-    {
-        cerr << "Error unlocking BGZF write mutex. Aborting. (" << error << ")" << endl;
-        exit(-1);
-    }
+    uncompressed_size += copy_size;
     
-    return NULL;
+    return copy_size;
 }
+
+bool BgzfOutputStream::BgzfBlock::write() {
+    data_access_lock.lock();
+    assert(true == isDone() || stream->closing.isSet());
+    stream->output_stream->write(compressed_data, compressed_size);
+    data_access_lock.unlock();
+    return !stream->output_stream->fail();
+}
+
+/////////////////////////
+// BgzfOutputStream class
 
 bool BgzfOutputStream::open(std::string filename) {
-    output_stream.open(filename.c_str());
+    if(filename == "stdout") {
+        output_stream = &cout;
+    } else {
+        output_stream = &output_stream_real;
+        output_stream_real.open(filename.c_str());
+    }
     
-    if(output_stream.fail())
+    if(output_stream->fail())
         return false;
-    
-    int ret = pthread_mutex_init(&write_mutex, NULL);
-    if(0 != ret) {
-        cerr << "Error opening BGZF write mutex. Aborting. (error " << ret << ")." << endl;
-        exit(-1);
-    }
 
-    ret = pthread_mutex_init(&write_wait_mutex, NULL);
-    if(0 != ret) {
-        cerr << "Error opening BGZF write wait mutex. Aborting. (error " << ret << ")." << endl;
-        exit(-1);
-    }
-
-    ret = pthread_cond_init(&flush_signal, NULL);
-    if(0 != ret) {
-        cerr << "Error opening BGZF flush signal. Aborting. (error " << ret << ")." << endl;
-        exit(-1);
-    }
+    current_block = new BgzfBlock(this);
     
-    ret = pthread_create(&write_thread, NULL, file_write_threadproc, this);
-    if(0 != ret) {
-        cerr << "Error creating BGZF write thread. (error " << ret << ")." << endl;
-        exit(-1);
+    if(use_threads) {
+        int ret = pthread_create(&write_thread, NULL, write_threadproc, this);
+        if(0 != ret) {
+            cerr << "Error creating BGZF write thread (error " << ret << ")." << endl;
+        }
     }
     
     return true;
 }
 
 void BgzfOutputStream::write(const char * data, size_t len) {
-    write_buffer.insert(write_buffer.end(), data, data + len);
-    
-    size_t block_write_size = BGZF_BLOCK_SIZE;
-    
-    // if we aren't compressing, we need to 
-    if(compression_level == Z_NO_COMPRESSION)
-        block_write_size -= 1024;
-    
-    while(write_buffer.size() > block_write_size) {
-        BgzfCompressJob * job = new BgzfCompressJob();
-        job->data_access_lock.lock();
-        job->compression_level = compression_level;
-        job->stream = this;
-        job->uncompressed_data.insert(job->uncompressed_data.begin(), write_buffer.begin(), write_buffer.begin() + block_write_size);
-        write_buffer.erase(write_buffer.begin(), write_buffer.begin() + block_write_size);
-        job->data_access_lock.unlock();
-
-        job_queue.push(job);
-        ThreadPool::sharedPool()->addJob(job);
+    while(len) {
+        int written = current_block->addData(data, len);
+        len -= written;
+        data += written;
+        
+        if(current_block->isFull()) {
+            if(use_threads) {
+                if(write_queue.size() > 2000) {
+                    usleep(80e3);  //80ms
+                }
+                write_queue.push(current_block);
+                ThreadPool::sharedPool()->addJob(current_block);
+            } else {
+                current_block->compress();
+                current_block->write();
+                delete current_block;
+            }
+            current_block = new BgzfBlock(this);
+        }
     }
 }
 
 void BgzfOutputStream::close() {
-    //write last bit of data out
-    if(!write_buffer.empty()) {
-        BgzfCompressJob * job = new BgzfCompressJob();
-        job->data_access_lock.lock();
-        job->compression_level = compression_level;
-        job->stream = this;
-        job->uncompressed_data.insert(job->uncompressed_data.begin(), write_buffer.begin(), write_buffer.end());
-        write_buffer.clear();
-        job->data_access_lock.unlock();
-
-        job_queue.push(job);
-        ThreadPool::sharedPool()->addJob(job);
+    if(use_threads) {
+        closing.set();
+        
+        write_thread_mutex.lock();
+        write_thread_signal.notify_one();
+        write_thread_mutex.unlock();
+        int ret = pthread_join(write_thread, NULL);
+        if(0 != ret) {
+            cerr << "Error joining BGZF write thread (error " << ret << ")." << endl;
+        }
     }
     
-    //wait for all compression to finish
-    ThreadPool::sharedPool()->waitForJobCompletion();
-        
-    //and we are done, wait for write thread to finish.
-    closing = true; //signal close to write thread
+    current_block->compress();
+    current_block->write();
+    delete current_block;
+    
+    //write empty block
+    BgzfBlock empty(this);
+    empty.compress();
+    empty.write();
+    
+    if(output_stream == &output_stream_real)
+        output_stream_real.close();
+}
 
-    //cause another flush so if the thread is waiting on signal, it will see that we changed the closing flag
-    flushQueue();
+void * BgzfOutputStream::write_threadproc(void * stream_p) {
+    BgzfOutputStream * stream = (BgzfOutputStream *) stream_p;
     
-    int ret = pthread_join(write_thread, NULL);
+    //keep processing while there are things in the queue
+    while(true) {
+        stream->write_thread_mutex.lock();
+        while(true) {
+            //if we are done, quit waiting
+            if(stream->write_queue.empty() && stream->closing.isSet())
+                break;
+            
+            //if there is work we can do, quit waiting
+            if(!stream->write_queue.empty() && stream->write_queue.front()->isCompressed())
+                break;
+            stream->write_thread_signal.wait(stream->write_thread_mutex);
+        }
+        stream->write_thread_mutex.unlock();
+        
+        if(stream->write_queue.empty() && stream->closing.isSet())
+            break;
+        
+        while(!stream->write_queue.empty()) {
+            BgzfBlock * front = stream->write_queue.front();
+            if(!front->isCompressed())
+                break;
+            
+            stream->write_queue.pop();
+            front->write();
+            delete front;
+        }
+    }
     
-    if(0 != ret)
-        cerr << "Error joining BGZF write thread (error " << ret << "." << endl;
-    
-    ret = pthread_mutex_destroy(&write_mutex);
-    if(0 != ret)
-        cerr << "Error closing BGZF write mutex (error " << ret << "." << endl;
-    
-    ret = pthread_mutex_destroy(&write_wait_mutex);
-    if(0 != ret)
-        cerr << "Error closing BGZF flush wait mutex (error " << ret << "." << endl;
-    
-    ret = pthread_cond_destroy(&flush_signal);
-    if(0 != ret)
-        cerr << "Error closing BGZF flush signal (error " << ret << "." << endl;
+    return NULL;
 }

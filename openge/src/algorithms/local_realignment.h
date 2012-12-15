@@ -279,7 +279,7 @@ private:
         // pull out the bases that aren't clipped out
         std::vector<CigarOp> reclipCigar(const std::vector<CigarOp> & cigar)const ;
     public:
-        const std::vector<CigarOp> & getCigar() const;
+        const std::vector<CigarOp> getCigar() const;
         // tentatively sets the new Cigar, but it needs to be confirmed later
         void setCigar(const std::vector<CigarOp> & cigar, bool fixClippedCigar = true);
         void clearCigar() { newCigar.clear(); }
@@ -436,45 +436,40 @@ private:
     class CleanJob; //runs clean() for CleanAndEmitReadList objects
 
     std::queue<Emittable *> emit_queue; //queue up reads ready to be emitted so that they are in order, including ReadBins that have been cleaned.
-    pthread_mutex_t emit_mutex; // only one thread should emit() at once
+    mutex emit_mutex; // only one thread should emit() at once
     
     void flushEmitQueue() {
+        // since multiple threads will call this, we need to ensure taht all thread pool workers
+        // don't get stuck waiting for this mutex. It isn't critical for each worker to run this
+        // function, and we will call it over and over at the end to ensure everything is flushed.
+        // We can give some threads an easy-out.
+        if(!emit_mutex.try_lock())
+            return;
         
-        if(0 != pthread_mutex_lock(&emit_mutex) ) {
-            perror("Error locking LR emit mutex.");
-            exit(-1);
-        }
         while(! emit_queue.empty() && emit_queue.front()->canEmit()) {
             emit_queue.front()->emit();
             delete emit_queue.front();
             emit_queue.pop();
         }
         
-        if(0 != pthread_mutex_unlock(&emit_mutex) ) {
-            perror("Error unlocking LR emit mutex.");
-            exit(-1);
-        }
+        emit_mutex.unlock();
     }
             
     void pushToEmitQueue(Emittable * e)
     {
         bool emit_queue_full = true;
         while(emit_queue_full) {
-            if(0 != pthread_mutex_lock(&emit_mutex) ) {
-                perror("Error locking LR emit push mutex.");
-                exit(-1);
-            }
-            emit_queue_full = emit_queue.size() > 1000000;
+            emit_mutex.lock();
+            emit_queue_full = emit_queue.size() > 1000;
             if(!emit_queue_full)
                 emit_queue.push(e);
             
-            if(0 != pthread_mutex_unlock(&emit_mutex) ) {
-                perror("Error unlocking LR emit push mutex.");
-                exit(-1);
-            }
+            emit_mutex.unlock();
             
-            if(emit_queue_full)
+            if(emit_queue_full) {
                 usleep(20000);
+                flushEmitQueue();
+            }
         }
     }
     

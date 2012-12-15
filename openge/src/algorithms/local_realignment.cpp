@@ -144,7 +144,8 @@ void LocalRealignment::AlignedRead::getUnclippedBases() {
 
     int fromIndex = 0, toIndex = 0;
     
-    for ( vector<CigarOp>::const_iterator ce = read->getCigarData().begin(); ce != read->getCigarData().end(); ce++ ) {
+    vector<CigarOp> cigar = read->getCigarData();
+    for ( vector<CigarOp>::const_iterator ce = cigar.begin(); ce != cigar.end(); ce++ ) {
         uint32_t elementLength = ce->length;
         switch ( ce->type ) {
             case 'S':
@@ -167,7 +168,7 @@ vector<CigarOp> LocalRealignment::AlignedRead::reclipCigar(const vector<CigarOp>
     return LocalRealignment::reclipCigar(cigar, read);
 }
 
-const vector<CigarOp> & LocalRealignment::AlignedRead::getCigar() const {
+const vector<CigarOp> LocalRealignment::AlignedRead::getCigar() const {
     return (newCigar.size() > 0 ? newCigar : read->getCigarData());
 }
 
@@ -357,12 +358,6 @@ void LocalRealignment::initialize() {
     if ( write_out_snps )
         snpsOutput.open(OUT_SNPS.c_str());
 #endif
-    
-    int ret = pthread_mutex_init(&emit_mutex, 0);
-    if(0 != ret ) {
-        cerr << "Error creating LR emit mutex. Aborting. (error " << ret << ")." << endl;
-        exit(-1);
-    }
 }
 
 void LocalRealignment::emit(IntervalData & interval_data, OGERead * read) {
@@ -449,6 +444,8 @@ public:
     : c(c)
     , self_delete(self_delete)
     {}
+    
+    virtual bool deleteOnCompletion() { return self_delete; }
 
     virtual void runJob()
     {
@@ -466,9 +463,6 @@ public:
         c->clean_done = true;
         
         c->lr.flushEmitQueue();
-
-        if(self_delete)
-            delete this;
     }
 };
 
@@ -598,19 +592,12 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     //wait for emits to finish
     bool finished = false;
     while(!finished) {
-        int ret = pthread_mutex_lock(&emit_mutex);
-        if(0 != ret) {
-            cerr << "Error locking LR emit mutex. Aborting. (error " << ret << ")." << endl;
-            exit(-1);
+        //if locking this mutex fails, we are busy elsewhere, so we know that we are for sure not finished.
+        if(emit_mutex.try_lock()) {
+            finished = emit_queue.empty();
+            emit_mutex.unlock();
         }
         
-        finished = emit_queue.empty();
-        
-        ret = pthread_mutex_unlock(&emit_mutex);
-        if(0 != ret) {
-            cerr << "Error unlocking LR emit mutex. (error " << ret << ")." << endl;
-            exit(-1);
-        }
         if(!finished) {
             usleep(20000);
             flushEmitQueue();
@@ -646,12 +633,6 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     
     for(vector<GenomeLoc *>::const_iterator interval_it = intervalsFile.begin(); interval_it != intervalsFile.end(); interval_it++)
         delete *interval_it;
-    
-    int error = pthread_mutex_destroy(&emit_mutex);
-    if(0 != error ) {
-        cerr << "Error destroying LR emit mutex (error " << error << "). Aborting." << endl;
-        exit(-1);
-    }
 }
 
 void LocalRealignment::populateKnownIndels(IntervalData & interval_data, const ReadMetaDataTracker & metaDataTracker) {
@@ -971,7 +952,9 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<OGERead *> & reads
         
         // first, move existing indels (for 1 indel reads only) to leftmost position within identical sequence
         int numBlocks = 0;
-        for(vector<CigarOp>::const_iterator i = read->getCigarData().begin(); i != read->getCigarData().end(); i++)
+
+        vector<CigarOp> cigar = read->getCigarData();
+        for(vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++)
             if(i->type == 'M' || i->type == '=' || i->type == 'X')
                 numBlocks++;
 
@@ -1321,7 +1304,9 @@ bool LocalRealignment::alternateReducesEntropy(const vector<AlignedRead *> & rea
         AlignedRead &read = *reads[i];
         
         int count_m_eq_x = 0;
-        for(vector<CigarOp>::const_iterator i = read.getRead()->getCigarData().begin(); i != read.getRead()->getCigarData().end(); i++)
+
+        vector<CigarOp> cigar = read.getRead()->getCigarData();
+        for(vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++)
             if(i->type == 'M' || i->type == '=' || i->type == 'X')
                 count_m_eq_x++;
 
@@ -1436,22 +1421,26 @@ bool LocalRealignment::isClipOperator(const CigarOp op) {
 }
 
 vector<CigarOp> LocalRealignment::reclipCigar(const vector<CigarOp> & cigar, OGERead * read) {
-    vector<CigarOp> elements;
+    vector<CigarOp> elements, cigarData;
+    
+    cigarData = read->getCigarData();
     
     int i = 0;
     int n = read->getCigarData().size();
-    while ( i < n && isClipOperator(read->getCigarData()[i]) )
-        elements.push_back(read->getCigarData()[i++]);
+
+    while ( i < n && isClipOperator(cigarData[i]) )
+        elements.push_back(cigarData[i++]);
     
     //add all elements of cigar to elements
     elements.insert(elements.end(), cigar.begin(), cigar.end());    
     
     i++;
-    while ( i < n && !isClipOperator(read->getCigarData()[i]) )
+
+    while ( i < n && !isClipOperator(cigarData[i]) )
         i++;
     
-    while ( i < n && isClipOperator(read->getCigarData()[i]) )
-        elements.push_back(read->getCigarData()[i++]);
+    while ( i < n && isClipOperator(cigarData[i]) )
+        elements.push_back(cigarData[i++]);
     
     return elements;
 }
@@ -1503,6 +1492,10 @@ int LocalRealignment::runInternal()
         
         const ReadMetaDataTracker rmdt(loc_parser, al, std::map<int, RODMetaDataContainer>() );
         map_func( al, rmdt);
+        
+        //throttle ourselves, so that we don't overwhelm the downstream queue.
+        while(manager->isReadAddQueueFull())
+            usleep(50000);
     };
     
     onTraversalDone(*loading_interval_data, 0);

@@ -98,7 +98,7 @@ protected:
     AlgorithmModule * source;
     SynchronizedQueue<OGERead *> input_queue;
     pthread_t thread;
-    bool finished_execution;
+    SynchronizedFlag finished_execution;
     int run_return_value;
     
     static bool verbose;

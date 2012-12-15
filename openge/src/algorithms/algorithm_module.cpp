@@ -156,7 +156,7 @@ void AlgorithmModule::putOutputAlignment(OGERead * read)
 OGERead * AlgorithmModule::getInputAlignment()
 {
     while(input_queue.size() == 0) {
-        if(source->finished_execution)
+        if(source->finished_execution.isSet())
             return NULL;
         usleep(10000);
     }

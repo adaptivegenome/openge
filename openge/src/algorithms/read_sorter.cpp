@@ -44,35 +44,6 @@ using namespace BamTools::Algorithms;
 #include <iostream>
 using namespace std;
 
-const unsigned int SORT_DEFAULT_MAX_BUFFER_COUNT  = 500000;  // max numberOfAlignments for buffer
-const unsigned int SORT_DEFAULT_MAX_BUFFER_MEMORY = 1024;    // Mb
-const unsigned int MERGESORT_MIN_SORT_SIZE = 30000;    //don't parallelize sort jobs smaller than this many alignments
-
-//actual run creates threads for other 'run'commands
-bool ReadSorter::Run(void)
-{
-    // options
-    if(!isNothreads()) {
-        thread_pool = new ThreadPool();
-    } else if(isVerbose())
-        cerr << "Thread pool use disabled." << endl;
-    
-    m_header_access.lock();
-    m_header = AlgorithmModule::getHeader();
-    m_header.setSortOrder(sort_order);
-    
-    header_loaded = true;
-    m_header_access.unlock();
-
-    RunSort();
-
-    if(!isNothreads()) {
-        delete thread_pool;
-    }
-    
-    return sort_retval && merge_retval;
-}
-
 // generates mutiple sorted temp BAM files from single unsorted BAM file
 bool ReadSorter::GenerateSortedRuns(void) {
     
@@ -82,64 +53,28 @@ bool ReadSorter::GenerateSortedRuns(void) {
     // set up alignments buffer
     vector<OGERead *> * buffer = new vector<OGERead *>();
     buffer->reserve( (size_t)(alignments_per_tempfile*1.1) );
-    bool bufferFull = false;
-    OGERead * al = NULL;
-    
-    // if sorting by name, we need to generate full char data
-    // so can't use GetNextAlignmentCore()
-    if ( sort_order == BamHeader::SORT_QUERYNAME ) {
+
+    // iterate through file
+    while (true) {
+        OGERead * al = getInputAlignment();
+        if(!al)
+            break;
+
+        // store alignments until buffer is "full"
+        if ( buffer->size() < alignments_per_tempfile )
+            buffer->push_back(al);
         
-        // iterate through file
-        while (true) {
-            al = getInputAlignment();
-            if(!al)
-                break;
-            
-            // check buffer's usage
-            bufferFull = ( buffer->size() >= alignments_per_tempfile );
-            
-            // store alignments until buffer is "full"
-            if ( !bufferFull )
-                buffer->push_back(al);
-            
-            // if buffer is "full"
-            else {
-                // so create a sorted temp file with current buffer contents
-                // then push "al" into fresh buffer
-                CreateSortedTempFile(buffer);
-                buffer = new vector<OGERead *>();
-                buffer->reserve( (size_t)(alignments_per_tempfile*1.1) );
-                buffer->push_back(al);
-            }
+        // if buffer is "full"
+        else {
+            // create a sorted temp file with current buffer contents
+            // then push "al" into fresh buffer
+            CreateSortedTempFile(buffer);
+            buffer = new vector<OGERead *>();
+            buffer->reserve( (size_t)(alignments_per_tempfile*1.1) );
+            buffer->push_back(al);
         }
-    }
-    
-    // sorting by position, can take advantage of GNACore() speedup
-    else {
-        // iterate through file
-        while (true) {
-            al = getInputAlignment();
-            if(!al)
-                break;
-            
-            // check buffer's usage
-            bufferFull = ( buffer->size() >= alignments_per_tempfile );
-            
-            // store alignments until buffer is "full"
-            if ( !bufferFull )
-                buffer->push_back(al);
-            
-            // if buffer is "full"
-            else {
-                // create a sorted temp file with current buffer contents
-                // then push "al" into fresh buffer
-                CreateSortedTempFile(buffer);
-                buffer = new vector<OGERead *>();
-                buffer->push_back(al);
-            }
-            if(read_count % 100000 == 0 && verbose)
-                cerr << "\rRead " << read_count/1000 << "K reads." << flush;
-        }
+        if(read_count % 100000 == 0 && verbose)
+            cerr << "\rRead " << read_count/1000 << "K reads." << flush;
     }
     
     // handle any leftover buffer contents
@@ -163,21 +98,16 @@ filename(filename), buffer(buffer), tool(tool)
 
 void ReadSorter::TempFileWriteJob::runJob()
 {
-    ogeNameThread("sort_tmp_sort");
-
     // do sorting
     tool->SortBuffer(*buffer);
-    
-    ogeNameThread("sort_tmp_write");
 
     // as noted in the comments of the original file, success is never
     // used so we never return it.
     bool success = tool->WriteTempFile( *buffer, filename );
-    if(!success)
-        cerr << "Problem writing out temporary file " << filename;
-    
-
-    ogeNameThread("sort_tmp_cleanup");
+    if(!success) {
+        cerr << "Problem writing out sorted temporary file. Aborting." << filename;
+        exit(-1);
+    }
 
     for(size_t i = 0; i < buffer->size(); i++)
         OGERead::deallocate((*buffer)[i]);
@@ -201,6 +131,8 @@ bool ReadSorter::CreateSortedTempFile(vector<OGERead* > * buffer) {
         
         // write sorted contents to temp file, store success/fail
         success = WriteTempFile( *buffer, filename );
+        for(size_t i = 0; i < buffer->size(); i++)
+            OGERead::deallocate((*buffer)[i]);
         delete buffer;
         
     } else {
@@ -246,9 +178,7 @@ bool ReadSorter::MergeSortedRuns(void) {
         cerr << "Clearing " << m_tempFilenames.size() << " temp files...";
     
     // delete all temp files
-    vector<string>::const_iterator tempIter = m_tempFilenames.begin();
-    vector<string>::const_iterator tempEnd  = m_tempFilenames.end();
-    for ( ; tempIter != tempEnd; ++tempIter ) {
+    for (vector<string>::const_iterator tempIter = m_tempFilenames.begin() ; tempIter != m_tempFilenames.end(); ++tempIter ) {
         remove(tempIter->c_str());
     }
 
@@ -257,16 +187,6 @@ bool ReadSorter::MergeSortedRuns(void) {
 
     // return success
     return true;
-}
-
-bool ReadSorter::RunSort(void) {
-    // this does a single pass, chunking up the input file into smaller sorted temp files,
-    // then merging in the results from multiple readers.
-    
-    if ( GenerateSortedRuns() )
-        return MergeSortedRuns();
-    else
-        return false;
 }
 
 //this function is designed to accept either OGERead or OGERead* as T
@@ -286,16 +206,12 @@ void ReadSorter::SortBuffer(vector<T>& buffer) {
     }
 }
 
-bool ReadSorter::WriteTempFile(const vector<OGERead *>& buffer,
-                                                                     const string& tempFilename)
+bool ReadSorter::WriteTempFile(const vector<OGERead *>& buffer, const string& tempFilename)
 {
     // open temp file for writing
     BamSerializer<BgzfOutputStream> tempWriter;
     
-    if(compress_temp_files)
-        tempWriter.getOutputStream().setCompressionLevel(6);
-    else
-        tempWriter.getOutputStream().setCompressionLevel(0);
+    tempWriter.getOutputStream().setCompressionLevel(compress_temp_files ? 6 : 0);
     
     m_header_access.lock();
     if ( !tempWriter.open(tempFilename, m_header) ) {
@@ -306,11 +222,8 @@ bool ReadSorter::WriteTempFile(const vector<OGERead *>& buffer,
     m_header_access.unlock();
     
     // write data
-    vector<OGERead *>::const_iterator buffIter = buffer.begin();
-    vector<OGERead *>::const_iterator buffEnd  = buffer.end();
-    for ( ; buffIter != buffEnd; ++buffIter )  {
-        const OGERead * al = (*buffIter);
-        tempWriter.write(*al);
+    for (vector<OGERead *>::const_iterator buffIter = buffer.begin() ; buffIter != buffer.end(); ++buffIter )  {
+        tempWriter.write(**buffIter);
     }
     
     // close temp file & return success
@@ -334,6 +247,27 @@ const BamHeader & ReadSorter::getHeader()
 
 int ReadSorter::runInternal()
 {
-    // run MergeSort, return success/fail
-    return Run();
+    // options
+    if(!isNothreads()) {
+        thread_pool = new ThreadPool();
+    } else if(isVerbose())
+        cerr << "Thread pool use disabled." << endl;
+    
+    m_header_access.lock();
+    m_header = AlgorithmModule::getHeader();
+    m_header.setSortOrder( sort_order );
+    
+    header_loaded = true;
+    m_header_access.unlock();
+    
+    bool retval = GenerateSortedRuns();
+    
+    if(retval)
+        retval = MergeSortedRuns();
+    
+    if(!isNothreads()) {
+        delete thread_pool;
+    }
+    
+    return retval;
 }

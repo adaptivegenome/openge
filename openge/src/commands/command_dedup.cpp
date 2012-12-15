@@ -62,7 +62,8 @@ int DedupCommand::runCommand()
 
         reader.addFiles(input_filenames);
         writer.setFilename(vm["out"].as<string>());
-        writer.addProgramLine(command_line);
+        if(!vm.count("nopg"))
+            writer.addProgramLine(command_line);
         writer.setCompressionLevel(compression_level);
         
         return writer.runChain();
@@ -99,7 +100,8 @@ int DedupCommand::runCommand()
         reader.addFiles(input_filenames);
         writer.setFilename(vm["out"].as<string>());
         writer.setCompressionLevel(compression_level);
-        writer.addProgramLine(command_line);
+        if(!vm.count("nopg"))
+            writer.addProgramLine(command_line);
         
         int ret = writer.runChain();
         
