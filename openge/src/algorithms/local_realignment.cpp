@@ -416,55 +416,41 @@ public:
     }
 };
 
-class LocalRealignment::CleanAndEmitReadList : public LocalRealignment::Emittable
+class LocalRealignment::CleanAndEmitReadList : public LocalRealignment::Emittable, public ThreadJob
 {
 public:
-    bool clean_done;
     LocalRealignment & lr;
     LocalRealignment::IntervalData * id;
 
     CleanAndEmitReadList(LocalRealignment & lr, IntervalData * id)
-    : clean_done(false)
-    , lr(lr)
+    : lr(lr)
     , id(id)
     { }
-    virtual bool canEmit() { return clean_done; }
+    virtual bool canEmit() { return isDone(); }
     virtual void emit() {
         lr.emitReadLists(*id);
     }
     virtual ~CleanAndEmitReadList() {
         delete id;
     }
-};
-
-class LocalRealignment::CleanJob : public ThreadJob
-{
-    CleanAndEmitReadList * c;
-    bool self_delete;
-public:
-    CleanJob(CleanAndEmitReadList * c, bool self_delete = false)
-    : c(c)
-    , self_delete(self_delete)
-    {}
     
-    virtual bool deleteOnCompletion() { return self_delete; }
-
     virtual void runJob()
     {
-        
         ogeNameThread("LRCleanJob");
-        IntervalData * interval_data = c->id;
+        IntervalData * interval_data = id;
         if ( interval_data->readsToClean.size() > 0 ) {
-            GenomeLoc earliestPossibleMove = c->lr.loc_parser->createGenomeLoc(*(interval_data->readsToClean.getReads()[0]));
-            if ( c->lr.manager->canMoveReads(earliestPossibleMove) )
-                c->lr.clean(*interval_data);
+            GenomeLoc earliestPossibleMove = lr.loc_parser->createGenomeLoc(*(interval_data->readsToClean.getReads()[0]));
+            if ( lr.manager->canMoveReads(earliestPossibleMove) )
+                lr.clean(*interval_data);
         }
         interval_data->knownIndelsToTry.clear();
         interval_data->indelRodsSeen.clear();
         
-        c->clean_done = true;
+        lr.flushEmitQueue();
         
-        c->lr.flushEmitQueue();
+        //when this jobs is directly called in no-threads mode, we must indicate that we are done.
+        if(!OGEParallelismSettings::isMultithreadingEnabled())
+            done.set();
     }
 };
 
@@ -484,9 +470,9 @@ int LocalRealignment::map_func(OGERead * read, const ReadMetaDataTracker & metaD
         CleanAndEmitReadList * read_list = new CleanAndEmitReadList(*this, loading_interval_data);
         pushToEmitQueue(read_list);
         if(nothreads)
-            CleanJob(read_list).runJob();
+            read_list->runJob();
         else
-            ThreadPool::sharedPool()->addJob(new CleanJob(read_list));
+            ThreadPool::sharedPool()->addJob(read_list);
         flushEmitQueue();
 
         do {
@@ -545,9 +531,9 @@ int LocalRealignment::map_func(OGERead * read, const ReadMetaDataTracker & metaD
         CleanAndEmitReadList * read_list = new CleanAndEmitReadList(*this, loading_interval_data);
         pushToEmitQueue(read_list);
         if(nothreads)
-            CleanJob(read_list).runJob();
+            read_list->runJob();
         else
-            ThreadPool::sharedPool()->addJob(new CleanJob(read_list, true));
+            ThreadPool::sharedPool()->addJob(read_list);
         flushEmitQueue();
 
         do {
