@@ -136,10 +136,11 @@ void ThreadPool::stopJob(ThreadJob * job)
     num_jobs_running--;
     bool all_jobs_complete = (0 == num_jobs_running) && jobs.empty();
     jobs_running_mutex.unlock();
-
-    job->done.set();
+    
     if(job->deleteOnCompletion())
         delete job;
+    else
+        job->done.set();
     
 	if(all_jobs_complete) {
         busy_mutex.lock();
