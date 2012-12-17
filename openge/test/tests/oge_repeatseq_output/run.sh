@@ -1,3 +1,4 @@
+#!/bin/bash
 source $(dirname $0)/../common.sh
 
 BAM=$(dirname $0)/801.2L.10k.bam

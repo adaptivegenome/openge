@@ -432,8 +432,6 @@ private:
     class EmittableRead;
     class EmittableReadList;
     class CleanAndEmitReadList;
-    
-    class CleanJob; //runs clean() for CleanAndEmitReadList objects
 
     std::queue<Emittable *> emit_queue; //queue up reads ready to be emitted so that they are in order, including ReadBins that have been cleaned.
     mutex emit_mutex; // only one thread should emit() at once
