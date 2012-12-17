@@ -1,3 +1,19 @@
+/*********************************************************************
+ *
+ * bam_header.cpp: Store information related to a BAM/SAM header
+ * Open Genomics Engine
+ *
+ * Author: Lee C. Baker, VBI
+ * Last modified: 17 Dec 2012
+ *
+ *********************************************************************
+ *
+ * This file is released under the Virginia Tech Non-Commercial
+ * Purpose License. A copy of this license has been provided in
+ * the openge/ directory.
+ *
+ *********************************************************************/
+
 #include "bam_header.h"
 
 #include <algorithm>
