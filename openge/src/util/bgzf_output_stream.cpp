@@ -36,7 +36,7 @@ void BgzfOutputStream::BgzfBlock::runJob() {
     //keep a local copy of this variable in case
     // this job object is destroyed under us.
     // This object can theoretically be deleted any time
-    // after the notify_one();
+    // after the notify_one() block;
     BgzfOutputStream * stream = this->stream;
 
     if(!compress()) {
@@ -213,9 +213,8 @@ void BgzfOutputStream::write(const char * data, size_t len) {
 
 void BgzfOutputStream::close() {
     if(use_threads) {
-        closing.set();
-        
         write_thread_mutex.lock();
+        closing.set();
         write_thread_signal.notify_one();
         write_thread_mutex.unlock();
         int ret = pthread_join(write_thread, NULL);
