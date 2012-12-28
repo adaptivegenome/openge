@@ -76,14 +76,8 @@ int SortedMerge::runInternal()
     {
         OGERead * read = input_proxies[ctr]->getInputAlignment();
 
-        if(!read) {
-            done_signal_mutex.lock();
-            done_signal.notify_all();
-            done_signal_mutex.unlock();
-            continue;
-        }
-
-        reads.insert(SortedMergeElement(read, input_proxies[ctr]));
+        if(read)
+            reads.insert(SortedMergeElement(read, input_proxies[ctr]));
     }
 
     //now handle the steady state situation. When sources are done, We
@@ -95,15 +89,14 @@ int SortedMerge::runInternal()
         putOutputAlignment(el.read);
 
         el.read = el.source->getInputAlignment();
-        if(!el.read) {
-            done_signal_mutex.lock();
-            done_signal.notify_all();
-            done_signal_mutex.unlock();
-            continue;
-        }
-
-        reads.insert(el);
+        if(el.read)
+            reads.insert(el);
     }
+    
+    done_signal_mutex.lock();
+    done.set();
+    done_signal.notify_all();
+    done_signal_mutex.unlock();
 
     return 0;
 }
