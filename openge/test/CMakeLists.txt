@@ -19,6 +19,7 @@ add_test(NAME oge_bam_input_multi COMMAND openge count ${OPENGE_TEST_DATA}/simpl
 add_test(NAME oge_bam_truncated COMMAND openge count ${OPENGE_TEST_DATA}/208.truncated.bam)
 add_test(NAME oge_bam_samtools_truncated COMMAND samtools view ${OPENGE_TEST_DATA}/208.truncated.bam)
 set_tests_properties(oge_bam_truncated oge_bam_samtools_truncated PROPERTIES WILL_FAIL true)
+add_test(NAME oge_bam_index COMMAND ${OPENGE_TEST_TESTS}/oge_bam_index/run.sh)
 
 ## Test count command
 add_test(NAME oge_count COMMAND openge count ${OPENGE_TEST_DATA}/simple.bam)
