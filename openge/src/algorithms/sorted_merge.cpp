@@ -33,60 +33,16 @@ SortedMerge::~SortedMerge()
 
 SortedMerge::SortedMergeInputProxy::SortedMergeInputProxy(SortedMerge * parent) 
 : merge_class(parent)
-{
-    int retval = pthread_mutex_init(&merge_complete, NULL);
-    
-	if(0 != retval) {
-		cerr << "Error opening sortedmerge completion mutex. Aborting. (error " << retval << ")" << endl;;
-        exit(-1);
-    }
-    
-    retval = pthread_mutex_lock(&merge_complete);    //hold this mutex until we are done.
-    
-	if(0 != retval) {
-		cerr << "Error opening sortedmerge completion mutex. Aborting. (error " << retval << ")" << endl;
-        exit(-1);
-    }
-}
+{ }
 
 int SortedMerge::SortedMergeInputProxy::runInternal()
 {
-    int retval = pthread_mutex_lock(&merge_complete);
-    
-	if(0 != retval) {
-		cerr << "Error locking completion mutex in SortedMergeInputProxy class. Aborting. (error " << retval << ")" << endl;
-        exit(-1);
-    }
-    
-    retval = pthread_mutex_unlock(&merge_complete);
-    
-	if(0 != retval) {
-		cerr << "Error locking completion mutex in SortedMergeInputProxy class. Aborting. (error " << retval << ")" << endl;
-        exit(-1);
-    }
-    
-    retval = pthread_mutex_destroy(&merge_complete);
-    
-	if(0 != retval) {
-		cerr << "Error destroying completion mutex in SortedMergeInputProxy class. Aborting. (error " << retval << ")" << endl;
-        exit(-1);
-    }
+    merge_class->done_signal_mutex.lock();
+    while(!merge_class->done.isSet())
+        merge_class->done_signal.wait(merge_class->done_signal_mutex);
+    merge_class->done_signal_mutex.unlock();
 
     return 0;
-}
-
-void SortedMerge::SortedMergeInputProxy::mergeDone()
-{
-    int retval = pthread_mutex_unlock(&merge_complete);
-    
-	if(0 != retval) {
-		cerr << "Error unlocking completion mutex after merge completion. Aborting. (error " << retval << ")" << endl;
-        exit(-1);
-    }
-}
-
-SortedMerge::SortedMerge()
-{
 }
 
 void SortedMerge::addSource(AlgorithmModule * source)
@@ -123,7 +79,9 @@ int SortedMerge::runInternal()
         OGERead * read = input_proxies[ctr]->getInputAlignment();
 
         if(!read) {
-            input_proxies[ctr]->mergeDone();
+            done_signal_mutex.lock();
+            done_signal.notify_all();
+            done_signal_mutex.unlock();
             continue;
         }
 
@@ -140,7 +98,9 @@ int SortedMerge::runInternal()
 
         el.read = el.source->getInputAlignment();
         if(!el.read) {
-            el.source->mergeDone();
+            done_signal_mutex.lock();
+            done_signal.notify_all();
+            done_signal_mutex.unlock();
             continue;
         }
 
