@@ -2,6 +2,7 @@ set(UTIL_DIR "util")
 
 set(OPENGE_UTIL_SOURCES 
   ${UTIL_DIR}/bam_deserializer.h
+  ${UTIL_DIR}/bam_serializer.h
   ${UTIL_DIR}/bgzf_input_stream.h
   ${UTIL_DIR}/bgzf_input_stream.cpp
   ${UTIL_DIR}/bgzf_output_stream.h
