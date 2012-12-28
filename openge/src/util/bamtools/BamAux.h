@@ -15,6 +15,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <stdint.h>
 
 /*! \file BamAux.h
 

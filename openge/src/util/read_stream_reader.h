@@ -23,6 +23,8 @@
 
 #include <iostream>
 
+#include <stdio.h>
+
 #include <set>
 
 class ReadStreamReader {

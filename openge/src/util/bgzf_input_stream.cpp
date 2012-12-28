@@ -20,6 +20,7 @@
 #include <iostream>
 #include <cassert>
 #include <cstring>
+#include <stdint.h>
 
 using namespace std;
 
