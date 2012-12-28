@@ -20,7 +20,6 @@
 #include <string>
 #include <map>
 #include <vector>
-#include "api/SamSequenceDictionary.h"
 
 class FastaReader {
 public:
@@ -41,7 +40,7 @@ protected:
 public:
     FastaReader();
     ~FastaReader();
-    BamTools::SamSequenceDictionary getSequenceDictionary();
+    BamSequenceRecords getSequenceDictionary();
     bool open(const std::string filename);
     size_t getSequenceLength(const std::string & name) const;
     std::string readSequence(const std::string & name, size_t start, size_t length) const;

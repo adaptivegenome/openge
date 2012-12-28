@@ -18,18 +18,19 @@
  *********************************************************************/
 
 #include "read_stream_reader.h"
+#include "bamtools/BamAux.h"
 
 template <class input_stream_t>
 class BamDeserializer : public ReadStreamReader {
 public:
     virtual bool open(const std::string & filename);
-    virtual const BamTools::SamHeader & getHeader() const { return header; };
+    virtual const BamHeader & getHeader() const { return header; };
     virtual void close();
     virtual OGERead * read();
     virtual bool is_open() { return input_stream.is_open(); }
 protected:
     input_stream_t input_stream;
-    BamTools::SamHeader header;
+    BamHeader header;
     Spinlock read_lock;
 };
 
@@ -76,7 +77,7 @@ bool BamDeserializer<input_stream_t>::open(const std::string & filename) {
         exit(-1);
     }
     
-    header.SetHeaderText(text);
+    header = BamHeader(text);
     
     //read in references, checking values as we go
     
@@ -88,7 +89,7 @@ bool BamDeserializer<input_stream_t>::open(const std::string & filename) {
         exit(-1);
     }
 
-    if(header.Sequences.Size() != reference_ct) {
+    if(header.getSequences().size() != reference_ct) {
         std::cerr << "WARNING: BAM header text sequence data count doesn't match reference sequence list. Is this file corrupted?" << std::endl;
     }
 
@@ -119,10 +120,10 @@ bool BamDeserializer<input_stream_t>::open(const std::string & filename) {
             exit(-1);
         }
 
-        BamTools::SamSequence & seq = header.Sequences[i];
+        BamSequenceRecord & seq = header.getSequences()[i];
         
-        int seq_length = atoi(seq.Length.c_str());
-        if(seq.Name.compare(name) != 0 || seq_length != length) {
+        int seq_length = seq.getLength();
+        if(seq.getName().compare(name) != 0 || seq_length != length) {
             std::cerr << "WARNING: BAM header text doesn't match sequence information. Is this file corrupted?" << std::endl;
             exit(-1);
         }

@@ -23,6 +23,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <fstream>
 
 class Repeatseq : public AlgorithmModule {
     int MAX_READ_SIZE;

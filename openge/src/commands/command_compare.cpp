@@ -18,14 +18,13 @@
 #include "commands.h"
 
 #include "../util/read_stream_reader.h"
+#include "../util/bamtools/BamAux.h"
 
 #include <vector>
 #include <string>
 #include <iomanip>
 using namespace std;
-using BamTools::CigarOp;
 using BamTools::BamRegion;
-using BamTools::SamSequenceDictionary;
 
 #include "../algorithms/filter.h"
 namespace po = boost::program_options;
@@ -57,17 +56,17 @@ public:
         if(cigar.size() != e.cigar.size())
             return cigar.size() < e.cigar.size();
         for(int i = 0; i < cigar.size(); i++) {
-            if(cigar[i].Length != e.cigar[i].Length)
-                return cigar[i].Length < e.cigar[i].Length;
-            if(cigar[i].Type != e.cigar[i].Type)
-                return cigar[i].Type < e.cigar[i].Type;
+            if(cigar[i].length != e.cigar[i].length)
+                return cigar[i].length < e.cigar[i].length;
+            if(cigar[i].type != e.cigar[i].type)
+                return cigar[i].type < e.cigar[i].type;
         }
         return false;
     }
     
-    string toString(const SamSequenceDictionary & sequence_dictionary) const {
+    string toString(const BamSequenceRecords & sequence_dictionary) const {
         stringstream ss;
-        ss << sequence_dictionary[ chr].Name << ":" << position << " " << cigarToString(cigar);
+        ss << sequence_dictionary[ chr].getName() << ":" << position << " " << cigarToString(cigar);
         return ss.str();
     }
 };
@@ -96,7 +95,7 @@ int CompareCommand::runCommand()
     }
     vector<BamRegion> regions;
     vector<string> region_strings;
-    const SamSequenceDictionary sequences = ref_reader.getHeader().Sequences;
+    const BamSequenceRecords sequences = ref_reader.getHeader().getSequences();
 
     size_t longest_region_string = 0;
     if(vm.count("region")) {
@@ -138,7 +137,7 @@ int CompareCommand::runCommand()
             exit(-1);
         }
         
-        const SamSequenceDictionary compare_sequences = ref_reader.getHeader().Sequences;
+        const BamSequenceRecords compare_sequences = ref_reader.getHeader().getSequences();
 
         if(compare_sequences != sequences) {
             cerr << "Sequence dictionaries between " << input_filenames[0] << " and " << input_filenames[file] << " differ. This may produce inconsistent results." << endl;

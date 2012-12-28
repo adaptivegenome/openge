@@ -10,10 +10,10 @@
 #ifndef BAMALIGNMENT_H
 #define BAMALIGNMENT_H
 
-#include "api/api_global.h"
-#include "api/BamAux.h"
-#include "api/BamConstants.h"
-#include "api/BamParallelismSettings.h"
+//#include "api/api_global.h"
+//#include "api/BamAux.h"
+#include "BamConstants.h"
+#include "../thread_pool.h"
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -22,12 +22,20 @@
 
 template <class> class BamDeserializer;
 
-std::string cigarToString(const std::vector<BamTools::CigarOp> cigar);
+typedef struct CigarOp {
+    char type;
+    int length;
+    CigarOp() {}
+    CigarOp(char t, int l) : type(t), length(l) {}
+    bool operator==(const CigarOp c) const { return length == c.length && type == c.type; }
+} CigarOp;
+
+std::string cigarToString(const std::vector<CigarOp> cigar);
 
 namespace BamTools {
     
     // BamAlignment data structure
-    class API_EXPORT BamAlignment {
+    class BamAlignment {
         
         // constructors & destructor
     public:
@@ -35,7 +43,7 @@ namespace BamTools {
         BamAlignment(const BamAlignment& other);
         ~BamAlignment(void);
         void clear();    //go back to a freshly constructed state
-        
+        const BamAlignment & operator=(BamAlignment & a);
         // queries against alignment flags
     public:
         bool IsDuplicate(void) const;         // returns true if this read is a PCR duplicate

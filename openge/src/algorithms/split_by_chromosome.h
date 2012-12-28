@@ -19,7 +19,6 @@
  *********************************************************************/
 
 #include "algorithm_module.h"
-#include "api/BamAlignment.h"
 
 #include <string>
 

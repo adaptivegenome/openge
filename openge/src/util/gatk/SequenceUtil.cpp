@@ -46,7 +46,6 @@
 #include <iostream>
 #include <vector>
 using namespace std;
-using BamTools::CigarOp;
 
 /**
  * Returns blocks of the read sequence that have been aligned directly to the
@@ -62,25 +61,25 @@ vector<AlignmentBlock> getAlignmentBlocks(const OGERead * read) {
 
     vector<CigarOp> cigar = read->getCigarData();
     for (vector<CigarOp>::const_iterator e = cigar.begin(); e != cigar.end(); e++) {
-        switch (e->Type) {
+        switch (e->type) {
             case 'H' : break; // ignore hard clips
             case 'P' : break; // ignore pads
-            case 'S' : readBase += e->Length; break; // soft clip read bases
-            case 'N' : refBase += e->Length; break;  // reference skip
-            case 'D' : refBase += e->Length; break;
-            case 'I' : readBase += e->Length; break;
+            case 'S' : readBase += e->length; break; // soft clip read bases
+            case 'N' : refBase += e->length; break;  // reference skip
+            case 'D' : refBase += e->length; break;
+            case 'I' : readBase += e->length; break;
             case 'M' :
             case '=' :
             case 'X' :
                 {
-                    const int length = e->Length;
+                    const int length = e->length;
                     alignmentBlocks.push_back( AlignmentBlock(readBase, refBase, length));
                     readBase += length;
                     refBase  += length;
                     break;
                 }
             default : 
-                cerr << "Case statement didn't deal with cigar op: " << e->Type << endl;
+                cerr << "Case statement didn't deal with cigar op: " << e->type << endl;
                 break;
         }
     }
@@ -175,8 +174,8 @@ int SequenceUtil::calculateSamNmTag(const OGERead * read, const std::string refe
     
     vector<CigarOp> cigar = read->getCigarData();
     for (vector<CigarOp>::const_iterator el = cigar.begin(); el != cigar.end(); el++) {
-        if (el->Type == 'I' || el->Type == 'D') {
-            samNm += el->Length;
+        if (el->type == 'I' || el->type == 'D') {
+            samNm += el->length;
         }
     }
     return samNm;

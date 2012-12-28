@@ -17,8 +17,8 @@
  *
  *********************************************************************/
 
-#include <api/SamHeader.h>
-#include <api/algorithms/Sort.h>
+#include "bam_header.h"
+#include "bamtools/Sort.h"
 #include "oge_read.h"
 
 #include <iostream>
@@ -33,7 +33,7 @@ public:
     } file_format_t;
 
     virtual bool open(const std::string & filename) = 0;
-    virtual const BamTools::SamHeader & getHeader() const = 0;
+    virtual const BamHeader & getHeader() const = 0;
     virtual void close() = 0;
     virtual OGERead * read() = 0;
     
@@ -111,10 +111,10 @@ public:
 
     virtual bool open(const std::vector<std::string> & filenames);
 
-    virtual const BamTools::SamHeader & getHeader() const {
-        BamTools::SamSequenceDictionary s = readers.front()->getHeader().Sequences;
+    virtual const BamHeader & getHeader() const {
+        const BamSequenceRecords s = readers.front()->getHeader().getSequences();
         for( std::vector<ReadStreamReader *>::const_iterator i = readers.begin(); i != readers.end(); i++) {
-            if(s != (*i)->getHeader().Sequences) {
+            if(s != (*i)->getHeader().getSequences()) {
                 std::cerr << "Warning; sequence headers vary between files. Data may be corrupt." << std::endl;
             }
         }

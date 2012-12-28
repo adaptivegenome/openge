@@ -25,12 +25,12 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include "bam_header.h"
 #include "fasta_reader.h"
 #include <sys/mman.h>
 
 #include <algorithm>
 using namespace std;
-using BamTools::SamSequenceDictionary;
 
 FastaReader::FastaReader()
 : is_open(false)
@@ -44,12 +44,16 @@ FastaReader::~FastaReader()
         close();
 }
 
-SamSequenceDictionary FastaReader::getSequenceDictionary()
+BamSequenceRecords FastaReader::getSequenceDictionary()
 {
-    SamSequenceDictionary d;
+    BamSequenceRecords d;
     
-    for(vector<fasta_sequence_t>::const_iterator i = ordered_sequences.begin(); i != ordered_sequences.end(); i++)
-        d.Add(i->name, i->length);
+    for(vector<fasta_sequence_t>::const_iterator i = ordered_sequences.begin(); i != ordered_sequences.end(); i++) {
+        BamSequenceRecord r;
+        r.name = i->name;
+        r.length = i->length;
+        d.add(r);
+    }
 
     return d;
 }

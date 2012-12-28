@@ -22,8 +22,7 @@
 #ifndef OGE_ALGO_MODULE_H
 #define OGE_ALGO_MODULE_H
 
-#include <api/SamHeader.h>
-#include <api/BamAux.h>
+#include "../util/bam_header.h"
 #include "../util/oge_read.h"
 
 #include <vector>
@@ -73,7 +72,7 @@ protected:
     OGERead * getInputAlignment();
 
 public:
-    virtual const BamTools::SamHeader & getHeader();
+    virtual const BamHeader & getHeader();
     
     bool isVerbose() const { return AlgorithmModule::verbose; }
     bool isNothreads() const { return AlgorithmModule::nothreads; }

@@ -29,7 +29,6 @@
 
 #include <cstring>
 using namespace std;
-using namespace BamTools;
 
 #define SAM_READER_MT
 
@@ -168,7 +167,7 @@ void * SamReader::LineGenerationThread(void * data)
             header_txt << string(line_s);
         } else {
             if(parsing_header) {
-                reader->header.SetHeaderText(header_txt.str());
+                reader->header = BamHeader(header_txt.str());
 
                 parsing_header = false;
                 reader->loaded = true;
@@ -262,7 +261,7 @@ void SamReader::close()
 #endif
 }
 
-const SamHeader & SamReader::getHeader() const
+const BamHeader & SamReader::getHeader() const
 {
     while (!loaded)
         usleep(20000);
@@ -355,8 +354,8 @@ OGERead * SamReader::ParseAlignment(const char * line_s) const
     // rname
     if(rname[0] == '*')
         alignment.setRefID(-1);
-    else if(header.Sequences.Contains(rname))
-        alignment.setRefID(header.Sequences.IndexOfString(rname));
+    else if(header.getSequences().contains(rname))
+        alignment.setRefID(header.getSequences().indexOfString(rname));
     else {
         cerr << "Rname " << rname << " missing from sequence dictionary" << endl;
         alignment.setRefID(-1);
@@ -368,8 +367,8 @@ OGERead * SamReader::ParseAlignment(const char * line_s) const
         alignment.setMateRefID(alignment.getRefID());
     else if(rnext[0] == '*')
         alignment.setMateRefID(-1);
-    else if(header.Sequences.Contains(rnext))
-        alignment.setMateRefID(header.Sequences.IndexOfString(rnext));
+    else if(header.getSequences().contains(rnext))
+        alignment.setMateRefID(header.getSequences().indexOfString(rnext));
     else {
         cerr << "RNext " << rnext << " missing from sequence dictionary" << endl;
         alignment.setMateRefID(-1);

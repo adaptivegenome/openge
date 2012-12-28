@@ -25,6 +25,8 @@
 
 #include "algorithm_module.h"
 
+#include "../util/bamtools/BamAux.h"
+
 #include <string>
 
 class Filter : public AlgorithmModule
@@ -42,7 +44,7 @@ public:
     void setTrimBeginLength(int length) { trim_begin_length = length; }
     void setTrimEndLength(int length) { trim_end_length = length; }
     bool setReadLengths(const std::string & length_string);
-    static bool ParseRegionString(const std::string& regionString, BamTools::BamRegion& region, const BamTools::SamSequenceDictionary & sequences);
+    static bool ParseRegionString(const std::string& regionString, BamTools::BamRegion& region, const BamSequenceRecords & sequences);
 protected:
     virtual int runInternal();
     void trim(OGERead & al);

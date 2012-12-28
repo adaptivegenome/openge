@@ -18,7 +18,8 @@
 #define OGE_SAMWRITER_H
 #include <string>
 #include <iostream>
-#include <api/SamHeader.h>
+#include <fstream>
+#include "bam_header.h"
 #include "read_stream_writer.h"
 
 // SamReader is capable of sequentially reading a SAM file. It doesn't support
@@ -29,14 +30,14 @@ class SamWriter : public ReadStreamWriter
 public:
     SamWriter();
     bool open(const std::string& filename,
-              const BamTools::SamHeader & samHeader);
+              const BamHeader & samHeader);
     void close();
     bool write( const OGERead & al);
     bool is_open() const { return m_open; }
 protected:
     std::ofstream file;
     std::ostream * output_stream;
-    BamTools::SamHeader header;
+    BamHeader header;
     std::string filename;
 
     bool m_open;

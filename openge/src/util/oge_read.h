@@ -23,12 +23,9 @@
 #ifndef OGE_READ_H
 #define OGE_READ_H
 
-#include <api/BamAlignment.h>
+#include "bamtools/BamAlignment.h"
 
 #include "thread_pool.h"
-
-using BamTools::CigarOp;
-using BamTools::BamRegion;
 
 class OGERead : public BamTools::BamAlignment {
 public:

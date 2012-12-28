@@ -26,9 +26,8 @@
 #include <algorithm>
 #include <numeric>
 #include <cassert>
+#include <fstream>
 
-using BamTools::SamHeader;
-using BamTools::SamSequenceConstIterator;
 using namespace std;
 
 MeasureCoverage::MeasureCoverage()
@@ -40,7 +39,7 @@ MeasureCoverage::MeasureCoverage()
 
 int MeasureCoverage::runInternal()
 {
-    SamHeader header = this->getHeader();
+    BamHeader header = this->getHeader();
     int total_length = 0;
     int num_correct_maps = 0;
     int num_skipped_reads = 0;
@@ -48,16 +47,16 @@ int MeasureCoverage::runInternal()
     try {
         if(verbose)
             cerr << "Setting up coverage counting structures" << endl;
-        for(SamSequenceConstIterator i = header.Sequences.Begin(); i != header.Sequences.End(); i++) {
-            size_t length = (atol(i->Length.c_str()) + binsize - 1) / binsize;
+        for(BamSequenceRecords::const_iterator i = header.getSequences().begin(); i != header.getSequences().end(); i++) {
+            size_t length = (i->getLength() + binsize - 1) / binsize;
             total_length += length;
             
-            coverage_map[i->Name].reserve(length);
-            coverage_map[i->Name].insert(coverage_map[i->Name].begin(), length, 0);
+            coverage_map[i->getName()].reserve(length);
+            coverage_map[i->getName()].insert(coverage_map[i->getName()].begin(), length, 0);
             
             if(verify_mapping) {
-                correctness_map[i->Name].reserve(length);
-                correctness_map[i->Name].insert(correctness_map[i->Name].begin(), length, 0);
+                correctness_map[i->getName()].reserve(length);
+                correctness_map[i->getName()].insert(correctness_map[i->getName()].begin(), length, 0);
             }
         }
     } catch (bad_alloc& ba) {
@@ -78,7 +77,7 @@ int MeasureCoverage::runInternal()
             continue;
         }
 
-        string & chr = header.Sequences[al->getRefID()].Name;
+        const string & chr = header.getSequences()[al->getRefID()].getName();
         assert(coverage_map.count(chr) > 0);
         vector<unsigned int> & chr_vector = coverage_map[chr];
 
@@ -135,7 +134,7 @@ int MeasureCoverage::runInternal()
         int64_t total_coverage = 0;
         for(int i = 0; i < vec->second.size(); i++)
             total_coverage += vec->second[i];
-        cerr << "   " << setw(20) << vec->first << ": " << setw(8) << double( total_coverage) / atoi(header.Sequences[vec->first].Length.c_str()) << "x" << endl;
+        cerr << "   " << setw(20) << vec->first << ": " << setw(8) << double( total_coverage) / header.getSequences()[vec->first].getLength() << "x" << endl;
     }
     
     if(verbose && verify_mapping)

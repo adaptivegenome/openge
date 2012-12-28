@@ -2,13 +2,20 @@
 // BamAlignment.cpp (c) 2009 Derek Barnett
 // Marth Lab, Department of Biology, Boston College
 // ---------------------------------------------------------------------------
-// Last modified: 4 April 2012 (DB)
+// Last modified: 16 Nov 2012 (Lee Baker)
 // ---------------------------------------------------------------------------
 // Provides the BamAlignment data structure
 // ***************************************************************************
+//
+// This file originally comes from bamtools, where it is released under the
+// BSD license. It has been extensively modified as part of OpenGE to allow
+// lazy loading of data, among other things.
+//
 
-#include "api/BamAlignment.h"
-#include "api/BamConstants.h"
+#include "BamAlignment.h"
+#include "BamConstants.h"
+
+#include "BamAux.h"
 
 #include <sstream>
 
@@ -87,6 +94,19 @@ BamAlignment::BamAlignment(void)
     , InsertSize(0)
 { }
 
+const BamAlignment & BamAlignment::operator=(BamAlignment & other) {
+    RefID = other.RefID;
+    Position = other.Position;
+    Bin = other.Bin;
+    MapQuality = other.MapQuality;
+    AlignmentFlag = other.AlignmentFlag;
+    MateRefID = other.MateRefID;
+    MatePosition = other.MatePosition;
+    InsertSize = other.InsertSize;
+    SupportData = other.SupportData;
+    return *this;
+}
+
 /*! \fn BamAlignment::BamAlignment(const BamAlignment& other)
     \brief copy constructor
 */
@@ -131,7 +151,7 @@ void DecodeSequenceData(const string & encoded_sequence, string & decoded_sequen
 
 // The implementation of this function is originally from BamWriter_p.cpp from bamtools.
 // Bamtools is released under the BSD license.
-void CreatePackedCigar(const std::vector<BamTools::CigarOp>& cigarOperations, std::string& packedCigar) {
+void CreatePackedCigar(const std::vector<CigarOp>& cigarOperations, std::string& packedCigar) {
     
     // initialize
     const size_t numCigarOperations = cigarOperations.size();
@@ -141,13 +161,13 @@ void CreatePackedCigar(const std::vector<BamTools::CigarOp>& cigarOperations, st
     unsigned int* pPackedCigar = (unsigned int*)packedCigar.data();
     
     // iterate over cigar operations
-    std::vector<BamTools::CigarOp>::const_iterator coIter = cigarOperations.begin();
-    std::vector<BamTools::CigarOp>::const_iterator coEnd  = cigarOperations.end();
+    std::vector<CigarOp>::const_iterator coIter = cigarOperations.begin();
+    std::vector<CigarOp>::const_iterator coEnd  = cigarOperations.end();
     for ( ; coIter != coEnd; ++coIter ) {
         
         // store op in packedCigar ("MIDNSHP=X")
         uint8_t cigarOp;
-        switch ( coIter->Type ) {
+        switch ( coIter->type ) {
             case 'M': cigarOp = 0; break;
             case 'I': cigarOp = 1; break;
             case 'D': cigarOp = 2; break;
@@ -158,11 +178,11 @@ void CreatePackedCigar(const std::vector<BamTools::CigarOp>& cigarOperations, st
             case '=': cigarOp = 7; break;
             case 'X': cigarOp = 8; break;
             default:
-                std::cerr << std::string("BamSerializer: invalid CIGAR operation type ") << coIter->Type << " . Aborting." << std::endl;
+                std::cerr << std::string("BamSerializer: invalid CIGAR operation type ") << coIter->type << " . Aborting." << std::endl;
                 exit(-1);
         }
         
-        *pPackedCigar = coIter->Length << 4 | cigarOp;
+        *pPackedCigar = coIter->length << 4 | cigarOp;
         pPackedCigar++;
     }
 }
@@ -298,7 +318,7 @@ int BamAlignment::GetEndPosition(bool usePadded, bool closedInterval) const {
     for (vector<CigarOp>::const_iterator cigarIter = cigar.begin() ; cigarIter != cigar.end(); cigarIter++) {
         const CigarOp& op = (*cigarIter);
 
-        switch ( op.Type ) {
+        switch ( op.type ) {
 
             // increase end position on CIGAR chars [DMXN=]
             case Constants::BAM_CIGAR_DEL_CHAR      :
@@ -306,13 +326,13 @@ int BamAlignment::GetEndPosition(bool usePadded, bool closedInterval) const {
             case Constants::BAM_CIGAR_MISMATCH_CHAR :
             case Constants::BAM_CIGAR_REFSKIP_CHAR  :
             case Constants::BAM_CIGAR_SEQMATCH_CHAR :
-                alignEnd += op.Length;
+                alignEnd += op.length;
                 break;
 
             // increase end position on insertion, only if @usePadded is true
             case Constants::BAM_CIGAR_INS_CHAR :
                 if ( usePadded )
-                    alignEnd += op.Length;
+                    alignEnd += op.length;
                 break;
 
             // all other CIGAR chars do not affect end position
@@ -769,7 +789,7 @@ string cigarToString(const vector<CigarOp> cigar)
 {
     stringstream ss;
     for(vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++)
-        ss << i->Length << i->Type;
+        ss << i->length << i->type;
 
     return string(ss.str());
 }
@@ -793,8 +813,8 @@ const std::vector<CigarOp> BamAlignment::BamAlignmentSupportData::getCigar() con
         
         // build CigarOp structure
         CigarOp op;
-        op.Length = (cigarData[i] >> Constants::BAM_CIGAR_SHIFT);
-        op.Type   = Constants::BAM_CIGAR_LOOKUP[ (cigarData[i] & Constants::BAM_CIGAR_MASK) ];
+        op.length = (cigarData[i] >> Constants::BAM_CIGAR_SHIFT);
+        op.type   = Constants::BAM_CIGAR_LOOKUP[ (cigarData[i] & Constants::BAM_CIGAR_MASK) ];
         
         // save CigarOp
         CigarData.push_back(op);

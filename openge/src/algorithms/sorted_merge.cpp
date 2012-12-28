@@ -21,7 +21,7 @@
 #include <numeric>
 #include <pthread.h>
 
-#include <api/algorithms/Sort.h>
+#include "../util/bamtools/Sort.h"
 
 using namespace std;
 
@@ -57,11 +57,9 @@ void SortedMerge::addSource(AlgorithmModule * source)
     source->addSink(proxy);
 }
 
-using namespace BamTools::Algorithms;
-
 bool SortedMerge::SortedMergeElement::operator<(const SortedMergeElement & t) const
 {
-    Sort::ByPosition cmp = Sort::ByPosition();
+    BamTools::Algorithms::Sort::ByPosition cmp = BamTools::Algorithms::Sort::ByPosition();
     return cmp(this->read, t.read);
 }
 

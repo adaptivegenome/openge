@@ -25,9 +25,7 @@
 #include <cassert>
 using namespace std;
 
-#include <api/algorithms/Sort.h>
-
-#include <api/SamConstants.h>
+#include "../util/bamtools/Sort.h"
 
 #include "mark_duplicates.h"
 
@@ -36,7 +34,6 @@ using namespace std;
 
 #include <pthread.h>
 
-using BamTools::SamHeader;
 using namespace BamTools::Algorithms;
 
 #include <iostream>
@@ -197,12 +194,12 @@ template<class T>
 void ReadSorter::SortBuffer(vector<T>& buffer) {
     if(isNothreads())
     {
-        if(sort_order == SORT_NAME)
+        if(sort_order == BamHeader::SORT_COORDINATE)
             std::stable_sort( buffer.begin(), buffer.end(), Sort::ByName() );
         else
             std::stable_sort( buffer.begin(), buffer.end(), Sort::ByPosition() );
     } else {
-        if(sort_order == SORT_NAME)
+        if(sort_order == BamHeader::SORT_QUERYNAME)
             ogeSortMt( buffer.begin(), buffer.end(), Sort::ByName() );
         else
             ogeSortMt( buffer.begin(), buffer.end(), Sort::ByPosition() );
@@ -234,7 +231,7 @@ bool ReadSorter::WriteTempFile(const vector<OGERead *>& buffer, const string& te
     return true;
 }
 
-const SamHeader & ReadSorter::getHeader()
+const BamHeader & ReadSorter::getHeader()
 {
     while(true) {
         m_header_access.lock();
@@ -258,9 +255,7 @@ int ReadSorter::runInternal()
     
     m_header_access.lock();
     m_header = AlgorithmModule::getHeader();
-    m_header.SortOrder = ( sort_order == SORT_NAME
-                          ? BamTools::Constants::SAM_HD_SORTORDER_QUERYNAME
-                          : BamTools::Constants::SAM_HD_SORTORDER_COORDINATE );
+    m_header.setSortOrder( sort_order );
     
     header_loaded = true;
     m_header_access.unlock();
