@@ -19,6 +19,7 @@
 
 #include <fstream>
 #include <vector>
+#include <map>
 #include <stdint.h>
 #include "thread_pool.h"
 
@@ -37,9 +38,11 @@ class BgzfOutputStream {
         unsigned int uncompressed_size, compressed_size;
         Spinlock data_access_lock;
     public:
-        BgzfBlock(BgzfOutputStream * stream)
+        size_t write_offset;
+        BgzfBlock(BgzfOutputStream * stream, size_t write_offset)
         : stream(stream)
         , uncompressed_size(0)
+        , write_offset(write_offset)
         { }
         
         unsigned int addData(const char * data, unsigned int length);
@@ -59,6 +62,9 @@ class BgzfOutputStream {
     SynchronizedFlag closing;
     SynchronizedQueue<BgzfBlock *> write_queue;
     
+    std::map<uint64_t, uint64_t> write_position_map;    //access synchronized by data_access_lock
+    size_t bytes_written;
+    
     static void * write_threadproc(void * stream_p);
 public:
     BgzfOutputStream()
@@ -73,6 +79,8 @@ public:
     bool is_open() const { if(output_stream == &output_stream_real) return output_stream_real.is_open(); else return true; }
     bool fail() { return output_stream->fail(); }
     void setCompressionLevel(int level) { compression_level = level; }
+    //maps a byte offset that was written to a BGZF address, as described in the SAM spec
+    uint64_t mapWriteLocationToBgzfPosition(const uint64_t write_offset) const;
 };
 
 #endif

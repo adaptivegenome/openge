@@ -159,7 +159,9 @@ unsigned int BgzfOutputStream::BgzfBlock::addData(const char * data, unsigned in
 bool BgzfOutputStream::BgzfBlock::write() {
     data_access_lock.lock();
     assert(true == isDone() || stream->closing.isSet());
+    size_t position = stream->output_stream->tellp();
     stream->output_stream->write(compressed_data, compressed_size);
+    stream->write_position_map[write_offset] = position;
     data_access_lock.unlock();
     return !stream->output_stream->fail();
 }
@@ -177,8 +179,9 @@ bool BgzfOutputStream::open(std::string filename) {
     
     if(output_stream->fail())
         return false;
-
-    current_block = new BgzfBlock(this);
+    
+    bytes_written = 0;
+    current_block = new BgzfBlock(this,bytes_written);
     
     if(use_threads) {
         int ret = pthread_create(&write_thread, NULL, write_threadproc, this);
@@ -195,6 +198,7 @@ void BgzfOutputStream::write(const char * data, size_t len) {
         int written = current_block->addData(data, len);
         len -= written;
         data += written;
+        bytes_written += written;
         
         if(current_block->isFull()) {
             if(use_threads) {
@@ -208,7 +212,7 @@ void BgzfOutputStream::write(const char * data, size_t len) {
                 current_block->write();
                 delete current_block;
             }
-            current_block = new BgzfBlock(this);
+            current_block = new BgzfBlock(this, bytes_written);
         }
     }
 }
@@ -230,9 +234,12 @@ void BgzfOutputStream::close() {
     delete current_block;
     
     //write empty block
-    BgzfBlock empty(this);
+    BgzfBlock empty(this,bytes_written);
     empty.compress();
     empty.write();
+    
+    //write final position for indexes
+    write_position_map[bytes_written] = output_stream->tellp();
     
     if(output_stream == &output_stream_real)
         output_stream_real.close();
@@ -271,4 +278,20 @@ void * BgzfOutputStream::write_threadproc(void * stream_p) {
     }
     
     return NULL;
+}
+
+uint64_t BgzfOutputStream::mapWriteLocationToBgzfPosition(const uint64_t write_offset) const {
+    if(write_offset == UINT64_MAX)
+        return 0;
+    
+    map<uint64_t, uint64_t>::const_iterator lb = write_position_map.find( write_offset);
+    
+    if(lb == write_position_map.end()) {
+        lb = (--write_position_map.lower_bound(write_offset+1));
+    }
+    
+    assert(2<<16 > (write_offset - lb->first));
+    
+    uint64_t ret = (lb->second << 16) | (write_offset - lb->first);
+    return ret;
 }

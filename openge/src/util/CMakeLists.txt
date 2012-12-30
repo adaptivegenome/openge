@@ -4,6 +4,8 @@ set(OPENGE_UTIL_SOURCES
   ${UTIL_DIR}/bam_deserializer.h
   ${UTIL_DIR}/bam_header.h
   ${UTIL_DIR}/bam_header.cpp
+  ${UTIL_DIR}/bam_index.h
+  ${UTIL_DIR}/bam_index.cpp
   ${UTIL_DIR}/bam_serializer.h
   ${UTIL_DIR}/bgzf_input_stream.h
   ${UTIL_DIR}/bgzf_input_stream.cpp

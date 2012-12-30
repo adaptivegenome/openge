@@ -18,10 +18,13 @@
  *********************************************************************/
 
 #include "read_stream_writer.h"
+#include "bgzf_output_stream.h"
+#include "bam_index.h"
 
 template <class output_stream_t>
 class BamSerializer : public ReadStreamWriter {
 public:
+    BamSerializer(bool generate_index = false) : generate_index(generate_index), index(NULL) {}
     virtual bool open(const std::string & filename, const BamHeader & header);
     virtual void close();
     virtual bool is_open() const { return output_stream.is_open(); }
@@ -32,12 +35,16 @@ public:
     // like compression level for bgzfstream.
     output_stream_t & getOutputStream() { return output_stream; }
 protected:
+    bool generate_index;
+    std::string filename;
     output_stream_t output_stream;
+    BamIndex * index;
+    size_t write_offset;
 };
 
 template <class output_stream_t>
 bool BamSerializer<output_stream_t>::open(const std::string & filename, const BamHeader & header) {
-    
+    this->filename = filename;
     output_stream.open(filename.c_str());
     
     if(output_stream.fail()) return false;
@@ -55,6 +62,7 @@ bool BamSerializer<output_stream_t>::open(const std::string & filename, const Ba
     //references
     int seq_size = header.getSequences().size();
     output_stream.write((char *) &seq_size, sizeof(seq_size));
+    write_offset = 4 + 4 + header_size + sizeof(seq_size);
     for(BamSequenceRecords::const_iterator i = header.getSequences().begin(); i != header.getSequences().end(); i++) {
         int name_size = i->getName().size() + 1;
         int length = i->getLength();
@@ -62,6 +70,11 @@ bool BamSerializer<output_stream_t>::open(const std::string & filename, const Ba
         output_stream.write(i->getName().c_str(), i->getName().size());
         output_stream.write(&zero,1);
         output_stream.write((char *)&length,4);
+        write_offset += 4 + 1 + i->getName().size() + 4;
+    }
+    
+    if(generate_index && header.getSortOrder() == BamHeader::SORT_COORDINATE && NULL != dynamic_cast<BgzfOutputStream *>(&output_stream)) {
+        index = new BamIndex(header);
     }
 
     return !output_stream.fail() ;
@@ -70,6 +83,8 @@ bool BamSerializer<output_stream_t>::open(const std::string & filename, const Ba
 template <class output_stream_t>
 void BamSerializer<output_stream_t>::close() {
     output_stream.close();
+    if(index)
+        index->writeFile(filename + ".bai", dynamic_cast<BgzfOutputStream *>(&output_stream));
 }
 
 // calculates minimum bin for a BAM alignment interval [begin, end)
@@ -93,10 +108,12 @@ bool BamSerializer<output_stream_t>::write(const OGERead & al) {
     const unsigned int nameLength         = al.getNameLength();
     const unsigned int numCigarOperations = al.getNumCigarOps();
     const unsigned int queryLength        = al.getLength();
+    
+    const unsigned int end_pos = al.GetEndPosition();
 
     // no way to tell if alignment's bin is already defined (there is no default, invalid value)
     // so we'll go ahead calculate its bin ID before storing
-    const uint32_t alignmentBin = CalculateMinimumBin(al.getPosition(), al.GetEndPosition());
+    const uint32_t alignmentBin = CalculateMinimumBin(al.getPosition(), end_pos);
 
     // write the block size
     unsigned int blockSize = al.getSupportData().getBlockLength();
@@ -119,6 +136,12 @@ bool BamSerializer<output_stream_t>::write(const OGERead & al) {
     const std::string & char_data = al.getSupportData().getAllCharData();
 
     output_stream.write(&char_data[0] , char_data.size());
+    
+    if(index) {
+        size_t write_len = char_data.size() + 32 + 4;
+        index->addRead(&al, end_pos, alignmentBin, write_offset, write_offset + write_len);
+        write_offset += write_len;
+    }
 
     return true;
 }

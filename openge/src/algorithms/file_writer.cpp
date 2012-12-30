@@ -141,7 +141,7 @@ int FileWriter::runInternal()
             break;
         case FORMAT_BAM:
             {
-                BamSerializer<BgzfOutputStream> writer;
+                BamSerializer<BgzfOutputStream> writer(true);
 
                 writer.getOutputStream().setCompressionLevel(compression_level);
 
