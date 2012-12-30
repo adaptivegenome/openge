@@ -203,7 +203,7 @@ const string BamHeader::toString() const {
 
 	//print CO
 	for(vector<string>::const_iterator i = co.begin(); i != co.end(); i++)
-		s << "@CO:\t" << *i << "\n";
+		s << "@CO\t" << *i << "\n";
 
 	return s.str();
 }
