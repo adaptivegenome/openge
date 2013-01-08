@@ -866,7 +866,7 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
                     int neededBases = max(neededBasesToLeft, neededBasesToRight);
                     if ( neededBases > 0 ) {
                         int padLeft = max(leftmostIndex-neededBases, 1);
-                        int padRight = min(leftmostIndex+reference.size()+neededBases, (unsigned long)referenceReader->getSequenceDictionary()[interval_data.current_interval.getContig()].getLength());
+                        int padRight = min<size_t>(leftmostIndex+reference.size()+neededBases, (unsigned long)referenceReader->getSequenceDictionary()[interval_data.current_interval.getContig()].getLength());
                         reference = referenceReader->getSubsequenceAt(interval_data.current_interval.getContig(), padLeft, padRight);
                         leftmostIndex = padLeft;
                     }
