@@ -23,13 +23,11 @@
 
 #include <iostream>
 
-const int BGZF_BLOCK_SIZE = 65536;
-
 class BgzfInputStream
 {
     class BgzfBlock : public ThreadJob {
-        char compressed_data[BGZF_BLOCK_SIZE];
-        char uncompressed_data[BGZF_BLOCK_SIZE];
+        char compressed_data[65536];
+        char uncompressed_data[65536];
         unsigned int compressed_size;
         unsigned int uncompressed_size;
         unsigned int read_size;

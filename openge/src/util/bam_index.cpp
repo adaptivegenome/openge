@@ -16,6 +16,7 @@
 
 #include "bam_index.h"
 #include "bgzf_output_stream.h"
+#include "bgzf_input_stream.h"
 
 using namespace std;
 
@@ -46,6 +47,16 @@ void BamIndex::BamIndexSequence::BamIndexBin::addRead(int start_pos, uint64_t fi
     else // case #1
 		chunks.push_back(pair<uint64_t, uint64_t>(file_start, file_stop));
 }
+void BamIndex::BamIndexSequence::BamIndexBin::read(std::ifstream & stream) {
+    int32_t size;
+    stream.read((char *) &size, sizeof(size));
+    for(int i = 0; i < size; i++) {
+        uint64_t first, second;
+        stream.read((char *)&first, sizeof(first));
+        stream.read((char *)&second, sizeof(second));
+        chunks.push_back(pair<uint64_t,uint64_t>(first, second));
+    }
+}
 
 void BamIndex::BamIndexSequence::BamIndexBin::write(ofstream & stream) const {
 	int32_t size = chunks.size();
@@ -60,17 +71,63 @@ void BamIndex::BamIndexSequence::BamIndexBin::write(ofstream & stream) const {
 void BamIndex::BamIndexSequence::BamIndexBin::remap(BgzfOutputStream * remapper_stream) {
     for(vector<pair<uint64_t, uint64_t> >::iterator i = chunks.begin(); i != chunks.end(); i++)
         *i = pair<uint64_t, uint64_t>(remapper_stream->mapWriteLocationToBgzfPosition(i->first),remapper_stream->mapWriteLocationToBgzfPosition(i->second));
+    
+    // coalesce chunks, again to match samtools behaviour
+    /*bool changed = false;
+    do {
+        changed = false;
+        for(vector<pair<uint64_t, uint64_t> >::iterator i = chunks.begin(); i != chunks.end(); i++) {
+            if((i + 1) == chunks.end())
+                break;
+            
+            if(((i+1)->first >> 16) != (i->second >> 16) && ( ((i+1)->first >> 16) - (i->second >> 16)) <= BAM_MIN_CHUNK_GAP) {
+                i->second = (i+1)->second;
+                cerr << "removing chunk " << ((i+1)->first >> 16) << " " << (i->second >> 16) << endl;
+                chunks.erase(i+1);
+                changed = true;
+                break;
+            }
+        }
+    } while(changed);*/
+}
+
+void BamIndex::BamIndexSequence::fillMissing() {
+    
+    // fill in leading zeros
+    vector<uint64_t>::iterator first = lower_bound(linear_index.begin(), linear_index.end(), 0);
+    //fill(linear_index.begin(), first, *first);
+    
+    //fill in blocks of zeros where necessary
+    for(vector<uint64_t>::iterator i = first; i != (linear_index.end()-1); i++) {
+        vector<uint64_t>::iterator j = i + 1;
+        if(*j == 0)
+            *j = *i;
+    }
 }
 
 BamIndex::BamIndexSequence::BamIndexSequence(const BamSequenceRecord & record) {
-	int num_lin_bins = ((record.getLength() - 1) / (1<<14)) + 1;
-	linear_index.reserve(num_lin_bins);
-	for(int i = 0; i < num_lin_bins; i++)
-		linear_index.push_back(UINT64_MAX);	//TODO: what should this value be?
 }
 
 void BamIndex::BamIndexSequence::setMetadataFrame(uint64_t unmapped_reads, uint64_t mapped_reads, uint64_t data_start, uint64_t data_stop) {
     bins[37450] = new BamIndexBin(unmapped_reads, mapped_reads, data_start, data_stop);
+}
+
+void BamIndex::BamIndexSequence::read(std::ifstream & stream) {
+    int32_t num_bins;
+    stream.read((char *) & num_bins, sizeof(num_bins));
+    
+    for(int i = 0; i < num_bins; i++) {
+        uint32_t k;
+        BamIndexBin * v = new BamIndexBin();
+        stream.read((char *) &k, sizeof(k));
+        bins[k] = v;
+        v->read(stream);
+    }
+    
+    int32_t intervals;
+    stream.read((char *) &intervals, sizeof(intervals));
+    linear_index.resize(intervals);
+    stream.read((char *) &linear_index[0], sizeof(linear_index[0]) * intervals);
 }
 
 void BamIndex::BamIndexSequence::write(ofstream & stream) const {
@@ -99,10 +156,20 @@ void BamIndex::BamIndexSequence::addRead(const OGERead * read, int end_pos, int 
     if(read->IsMapped()) {
         int ix_start = read->getPosition() / (1 << 14);
         int ix_end = (end_pos-1) / (1 << 14);
+        
+        if(linear_index.size() <= ix_end) {
+            linear_index.resize(ix_end +1, 0);
+        }
+        for(int ix = ix_start; ix <= ix_end; ++ix) {
+            if(linear_index[ix] == 0)
+                linear_index[ix] = file_start;
+            else
+                linear_index[ix] = min(linear_index[ix], file_start);
+        }
+        fillMissing();
+        
         assert(ix_start < linear_index.size());
         assert(ix_end < linear_index.size());
-        for(int ix = ix_start; ix <= ix_end; ++ix)
-            linear_index[ix] = min(linear_index[ix], file_start);
     }
     
 	//normal index
@@ -153,14 +220,34 @@ void BamIndex::addRead(const OGERead * read, int end_pos, int bin, uint64_t file
         sequences[read->getRefID()]->addRead(read, end_pos, bin, file_start, file_stop);
 }
 
+void BamIndex::readFile(const std::string & filename, BgzfInputStream * remapper_stream) {
+    assert(remapper_stream == NULL);    //remapping not supported
+    ifstream f;
+    f.open(filename.c_str());
+    
+    if(f.fail())
+		cerr << "Warning: failed to open BAM index file " << filename << "." << endl;
+    
+    char magic[5] = {0};
+    f.read(magic, 4);
+    uint32_t seq_ct;
+    f.read((char *) &seq_ct, sizeof(seq_ct));
+    
+    for(int i = 0; i < seq_ct; i++) {
+        sequences[i]->read(f);
+    }
+    
+    f.read((char *)&num_coordless_reads, sizeof(num_coordless_reads));
+    
+    f.close();
+}
+
 void BamIndex::writeFile(const string & filename, BgzfOutputStream * remapper_stream) const {
 	ofstream f;
 	f.open(filename.c_str());
     
-	if(f.fail()) {
-		cerr << "Failed to open BAM index file " << filename << ". Quitting." << endl;
-		exit(-1);
-	}
+	if(f.fail())
+		cerr << "Warning: failed to open BAM index file " << filename << "." << endl;
     
 	const char * magic = "BAI\1";
 	f.write(magic, 4);
@@ -168,14 +255,19 @@ void BamIndex::writeFile(const string & filename, BgzfOutputStream * remapper_st
 	uint32_t sequence_ct = sequences.size();
 	f.write((const char *)&sequence_ct, sizeof(sequence_ct));
     
-	for(vector<BamIndexSequence *>::const_iterator i = sequences.begin(); i != sequences.end(); i++)
-        (*i)->remap(remapper_stream);
+    if(remapper_stream)
+        for(vector<BamIndexSequence *>::const_iterator i = sequences.begin(); i != sequences.end(); i++)
+            (*i)->remap(remapper_stream);
 
     // some metadata fields can't be remapped as they arent file offsets, so we have to do this manually
     for(int i = 0; i < sequences.size(); i++) {
         const metadata_t & m = metadata[i];
-        if(m.num_mapped_reads + m.num_unmapped_reads != 0)
-            sequences[i]->setMetadataFrame(m.num_unmapped_reads, m.num_mapped_reads, remapper_stream->mapWriteLocationToBgzfPosition(m.read_start_position), remapper_stream->mapWriteLocationToBgzfPosition(m.read_stop_position));
+        if(m.num_mapped_reads + m.num_unmapped_reads != 0) {
+            if(remapper_stream)
+                sequences[i]->setMetadataFrame(m.num_unmapped_reads, m.num_mapped_reads, remapper_stream->mapWriteLocationToBgzfPosition(m.read_start_position), remapper_stream->mapWriteLocationToBgzfPosition(m.read_stop_position));
+            else
+                sequences[i]->setMetadataFrame(m.num_unmapped_reads, m.num_mapped_reads, m.read_start_position, m.read_stop_position);
+        }
     }
 
     for(vector<BamIndexSequence *>::const_iterator i = sequences.begin(); i != sequences.end(); i++)

@@ -110,7 +110,7 @@ bool BgzfInputStream::BgzfBlock::decompress() {
         zs.next_in   = (unsigned char *)data;
         zs.avail_in  = bsize - 16;
         zs.next_out  =  (unsigned char *) &uncompressed_data[0];
-        zs.avail_out = BGZF_BLOCK_SIZE;
+        zs.avail_out = 65536;
         
         // initialize
         int status = inflateInit2(&zs, -15);

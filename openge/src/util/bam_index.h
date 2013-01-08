@@ -25,6 +25,7 @@
 #include "oge_read.h"
 
 class BgzfOutputStream;
+class BgzfInputStream;
 
 class BamIndex {
     typedef struct __metadata_t{
@@ -46,15 +47,18 @@ class BamIndex {
             BamIndexBin() {}
             BamIndexBin(uint64_t unmapped_reads, uint64_t mapped_reads, uint64_t data_start, uint64_t data_stop);  //special constructor for samtools' undocumented metadata bin :(
 			void addRead(int start_pos, uint64_t file_start, uint64_t file_stop);
+            void read(std::ifstream & stream);
 			void write(std::ofstream & stream) const;
             void remap(BgzfOutputStream * remapper_stream);
 		};
         std::vector<uint64_t> linear_index;
         std::map<uint32_t, BamIndexBin *> bins;
+        void fillMissing();
 	public:
 		BamIndexSequence(const BamSequenceRecord & record);
         void setMetadataFrame(uint64_t unmapped_reads, uint64_t mapped_reads, uint64_t data_start, uint64_t data_stop);
 		void addRead(const OGERead * read, int end_pos, int bin, uint64_t file_start, uint64_t file_stop);
+        void read(std::ifstream & stream);
 		void write(std::ofstream & stream) const;
         void remap(BgzfOutputStream * remapper_stream);
 	};
@@ -64,6 +68,7 @@ public:
 	BamIndex(const BamHeader & h);
 	~BamIndex();
 	void addRead(const OGERead * read, int end_pos, int bin, uint64_t file_start, uint64_t file_stop);
+    void readFile(const std::string & filename, BgzfInputStream * remapper_stream);
 	void writeFile(const std::string & filename, BgzfOutputStream * remapper_stream) const;
 };
 
