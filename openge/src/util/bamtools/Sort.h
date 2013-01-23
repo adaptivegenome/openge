@@ -11,8 +11,7 @@
 #ifndef ALGORITHMS_SORT_H
 #define ALGORITHMS_SORT_H
 
-#include "api/api_global.h"
-#include "api/BamAlignment.h"
+#include "BamAlignment.h"
 #include <cassert>
 #include <algorithm>
 #include <functional>
@@ -25,7 +24,7 @@ namespace Algorithms {
 /*! \struct BamTools::Algorithms::Sort
     \brief Provides classes & methods related to sorting BamAlignments
 */
-struct API_EXPORT Sort {
+struct Sort {
 
     //! Provides explicit values for specifying desired sort ordering
     enum Order { AscendingOrder = 0
@@ -42,7 +41,7 @@ struct API_EXPORT Sort {
         switch ( order ) {
             case ( Sort::AscendingOrder  ) : { std::less<ElemType> comp;    return comp(lhs, rhs); }
             case ( Sort::DescendingOrder ) : { std::greater<ElemType> comp; return comp(lhs, rhs); }
-            default : BT_ASSERT_UNREACHABLE;
+            default : assert(0);
         }
         return false; // <-- unreachable
     }

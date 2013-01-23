@@ -15,20 +15,17 @@
  *********************************************************************/
 
 #include "print_history.h"
-#include <api/SamHeader.h>
 using namespace std;
-using BamTools::SamHeader;
-using BamTools::SamProgramConstIterator;
 
 int PrintHistory::runInternal()
 {
-    SamHeader h = getHeader();
+    BamHeader h = getHeader();
     
-    for( SamProgramConstIterator i = h.Programs.Begin(); i < h.Programs.End(); i++ ) {
-        if( i->HasCommandLine())
-            cout << i->CommandLine << endl;
+    for( BamProgramRecords::const_iterator i = h.getPrograms().begin(); i < h.getPrograms().end(); i++ ) {
+        if( i->getCommandLine().empty())
+            cout << i->id << endl;
         else
-            cout << i->ID << endl;
+            cout << i->getCommandLine() << endl;
     }
     
     while(true) {

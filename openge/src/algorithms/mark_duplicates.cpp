@@ -22,10 +22,6 @@
 #include "../util/read_stream_reader.h"
 
 #include <algorithm>
-using BamTools::CigarOp;
-using BamTools::SamHeader;
-using BamTools::SamReadGroupDictionary;
-using BamTools::SamReadGroup;
 using namespace std;
 
 MarkDuplicates::MarkDuplicates(string temp_directory)
@@ -50,13 +46,13 @@ int MarkDuplicates::getReferenceLength(const OGERead &rec) {
 
     vector<CigarOp> cigar = rec.getCigarData();
     for(vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++) {
-        switch (i->Type) {
+        switch (i->type) {
             case 'M':
             case 'D':
             case 'N':
             case '=':
             case 'X':
-                length += i->Length;
+                length += i->length;
             default:
                 break;
         }
@@ -95,8 +91,8 @@ int MarkDuplicates::getUnclippedStart(const OGERead & rec) {
     vector<CigarOp> cigar = rec.getCigarData();
     
     for (vector<CigarOp>::const_iterator op = cigar.begin(); op != cigar.end(); op++ ) {
-        if (op->Type == 'S' || op->Type == 'H') {
-            pos -= op->Length;
+        if (op->type == 'S' || op->type == 'H') {
+            pos -= op->length;
         }
         else {
             break;
@@ -121,8 +117,8 @@ int MarkDuplicates::getUnclippedEnd(const OGERead & rec) {
     for (int i=cigar.size() - 1; i>=0; --i) {
         const CigarOp & op = cigar[i];
         
-        if (op.Type == 'S' || op.Type =='H') {
-            pos += op.Length;
+        if (op.type == 'S' || op.type =='H') {
+            pos += op.length;
         }
         else {
             break;
@@ -138,7 +134,7 @@ int MarkDuplicates::getUnclippedEnd(const OGERead & rec) {
 /** Calculates a score for the read which is the sum of scores over Q20. */
 short MarkDuplicates::getScore(const OGERead & rec) {
     short score = 0;
-    const string & qualities = rec.getQualities();
+    const string qualities = rec.getQualities();
     for (int i = 0; i < qualities.size(); i++) {
         uint8_t b = qualities[i]-33;   //33 comes from the conversion in OGERead
         if (b >= 15) score += b;
@@ -148,7 +144,7 @@ short MarkDuplicates::getScore(const OGERead & rec) {
 }
 
 /** Builds a read ends object that represents a single read. */
-ReadEnds * MarkDuplicates::buildReadEnds(SamHeader & header, long index, const OGERead & rec) {
+ReadEnds * MarkDuplicates::buildReadEnds(BamHeader & header, long index, const OGERead & rec) {
     ReadEnds * ends = new ReadEnds();
     ends->read1Sequence    = rec.getRefID();
     ends->read1Coordinate  = rec.IsReverseStrand() ? getUnclippedEnd(rec) : getUnclippedStart(rec);
@@ -191,9 +187,9 @@ void MarkDuplicates::buildSortedReadEndLists() {
     ReadEndsMap tmp;
     long index = 0;
 
-    SamHeader header = source->getHeader();
+    BamHeader header = source->getHeader();
 
-    BamSerializer<ofstream> writer;
+    BamSerializer<BgzfOutputStream > writer;
     writer.open(bufferFilename, header);
     
     while (true) {
@@ -283,7 +279,7 @@ void MarkDuplicates::buildSortedReadEndLists() {
 }
 
 /** Get the library ID for the given SAM record. */
-short MarkDuplicates::getLibraryId(SamHeader & header, const OGERead & rec) {
+short MarkDuplicates::getLibraryId(BamHeader & header, const OGERead & rec) {
     string library = getLibraryName(header, rec);
     
     short libraryId;
@@ -302,19 +298,19 @@ short MarkDuplicates::getLibraryId(SamHeader & header, const OGERead & rec) {
  * the record, or the library isn't denoted on the read group, a constant string is
  * returned.
  */
-string MarkDuplicates::getLibraryName(SamHeader & header, const OGERead & rec) {     
+string MarkDuplicates::getLibraryName(BamHeader & header, const OGERead & rec) {
     
     string read_group;
     static const string RG("RG");
     static const string unknown_library("Unknown Library");
     rec.GetTag(RG, read_group);
     
-    if (read_group.size() > 0 && header.ReadGroups.Contains(read_group)) {
-        SamReadGroupDictionary & d = header.ReadGroups;
-        const SamReadGroup & rg = d[read_group];
+    if (read_group.size() > 0 && header.getReadGroups().contains(read_group)) {
+        BamReadGroupRecords & d = header.getReadGroups();
+        const BamReadGroupRecord & rg = d[read_group];
         
-        if(rg.HasLibrary()) {
-            return rg.Library;
+        if(!rg.getLibrary().empty()) {
+            return rg.getLibrary();
         }
     }
     

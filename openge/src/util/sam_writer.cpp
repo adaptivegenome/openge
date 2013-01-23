@@ -47,6 +47,7 @@
 #include <sstream>
 #include <cassert>
 #include "sam_writer.h"
+#include "bamtools/BamAux.h"
 
 using namespace std;
 using namespace BamTools;
@@ -59,7 +60,7 @@ SamWriter::SamWriter()
 }
 
 bool SamWriter::open(const string& filename,
-                     const SamHeader & samHeader) {
+                     const BamHeader & samHeader) {
     this->filename = filename;
 
     if(filename != "stdout") {
@@ -72,7 +73,7 @@ bool SamWriter::open(const string& filename,
         }
     }
     this->header = samHeader;
-    *output_stream << header.ToString();
+    *output_stream << header.toString();
     
     m_open = true;
     
@@ -96,8 +97,8 @@ bool SamWriter::write(const OGERead & a) {
     m_out << a.getName() << "\t" << a.getAlignmentFlag() << "\t";
     
     // write reference name
-    if ( (a.getRefID() >= 0) && (a.getRefID() < (int)header.Sequences.Size()) )
-        m_out << header.Sequences[a.getRefID()].Name << "\t";
+    if ( (a.getRefID() >= 0) && (a.getRefID() < (int)header.getSequences().size()) )
+        m_out << header.getSequences()[a.getRefID()].getName() << "\t";
     else 
         m_out << "*\t";
     
@@ -105,24 +106,24 @@ bool SamWriter::write(const OGERead & a) {
     m_out << a.getPosition()+1 << "\t" << a.getMapQuality() << "\t";
     
     // write CIGAR
-    const vector<CigarOp>& cigarData = a.getCigarData();
+    const vector<CigarOp> cigarData = a.getCigarData();
     if ( cigarData.empty() ) m_out << "*\t";
     else {
         vector<CigarOp>::const_iterator cigarIter = cigarData.begin();
         vector<CigarOp>::const_iterator cigarEnd  = cigarData.end();
         for ( ; cigarIter != cigarEnd; ++cigarIter ) {
             const CigarOp& op = (*cigarIter);
-            m_out << op.Length << op.Type;
+            m_out << op.length << op.type;
         }
         m_out << "\t";
     }
     
     // write mate reference name, mate position, & insert size
-    if ( a.IsPaired() && (a.getMateRefID() >= 0) && (a.getMateRefID() < (int)header.Sequences.Size()) ) {
+    if ( a.IsPaired() && (a.getMateRefID() >= 0) && (a.getMateRefID() < (int)header.getSequences().size()) ) {
         if ( a.getMateRefID() == a.getRefID() )
             m_out << "=\t";
         else
-            m_out << header.Sequences[a.getMateRefID()].Name << "\t";
+            m_out << header.getSequences()[a.getMateRefID()].getName() << "\t";
         m_out << a.getMatePosition()+1 << "\t" << a.getInsertSize() << "\t";
     } 
     else
@@ -141,19 +142,19 @@ bool SamWriter::write(const OGERead & a) {
         m_out << a.getQualities();
     
     // write tag data
-    const char* tagData = a.getTagData().c_str();
-    const size_t tagDataLength = a.getTagData().length();
+    const string tagData = a.getTagData();
+    const size_t tagDataLength = tagData.size();
     
     size_t index = 0;
     while ( index < tagDataLength ) {
         
         // write tag name   
-        string tagName = a.getTagData().substr(index, 2);
+        string tagName = tagData.substr(index, 2);
         m_out << "\t" << tagName << ":";
         index += 2;
         
         // get data type
-        char type = a.getTagData().at(index);
+        char type = tagData.at(index);
         ++index;
         switch ( type ) {
             case (Constants::BAM_TAG_TYPE_ASCII) :

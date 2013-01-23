@@ -42,11 +42,10 @@
 #ifndef OpenGE_ConstrainedMateFixingManager_h
 #define OpenGE_ConstrainedMateFixingManager_h
 
-#include "api/SamHeader.h"
 #include "GenomeLoc.h"
 #include "GenomeLocParser.h"
 
-#include "api/algorithms/Sort.h"
+#include "../bamtools/Sort.h"
 
 #include "../oge_read.h"
 #include "../thread_pool.h"
@@ -92,7 +91,7 @@ private:
     } cmfm_read_t;
     SynchronizedBlockingQueue<cmfm_read_t> addReadQueue;
     pthread_t add_read_thread;
-    pthread_mutex_t add_read_lock;
+    mutex add_read_lock;
 
     GenomeLoc * lastLocFlushed;
     
@@ -137,6 +136,17 @@ private:
 public:
     void addReads(const std::vector<OGERead *> & newReads, const std::set<OGERead *> & modifiedReads);
     void addRead(OGERead * newRead, bool readWasModified, bool canFlush);
+    // In some situations, the read queue can fill up faster than we can process reads.
+    // The class feeding reads into CMFM should throttle itself to ensure we don't end up
+    // eating all system memory by making this queue enormous.
+    //
+    // Ideally we would check how much free memory we have in the system- something like
+    // getrsuage()'s ru_maxrss, but unfortunately Linux has chosen not to implement this,
+    // so it isn't a workable solution.
+    //
+    // 10000 is just a number I picked- there really should be more analysis behind this.
+    // This is not a hard limit.
+    bool isReadAddQueueFull() { return addReadQueue.size() > 10000; }
 private:
     static void * addread_threadproc(void * data);
     void addReadInternal( OGERead * newRead, bool readWasModified, bool canFlush);

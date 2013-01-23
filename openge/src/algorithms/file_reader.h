@@ -35,11 +35,11 @@ protected:
     std::vector<std::string> filenames;
     Spinlock header_access;
     bool open;
-    BamTools::SamHeader header;
+    BamHeader header;
     bool format_specified;
     bool load_string_data;
 
-    virtual const BamTools::SamHeader & getHeader();
+    virtual const BamHeader & getHeader();
     
 public:
     FileReader() : open(false), format_specified(false), load_string_data(true) {}

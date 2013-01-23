@@ -39,21 +39,6 @@
 #define ogeNameThread(X)
 #endif
 
-class ThreadPool;
-
-// The ThreadJob abstract class provides a way to provide jobs to 
-// the ThreadPool thread pool. To use, create a thread pool, subclass ThreadJob,
-// implement the runJob method of your subclass, and pass an instance to the pool's
-// addJob method.
-class ThreadJob
-{
-	friend class ThreadPool;
-public:
-    virtual ~ThreadJob();
-	virtual void runJob() = 0;
-protected:
-};
-
 class Spinlock
 {
 private:    //private copy-ctor and assignment operator ensure the lock never gets copied, which might cause issues.
@@ -68,6 +53,9 @@ public:
     void lock() {
         OSSpinLockLock(&m_lock);
     }
+    bool try_lock() {
+        return OSSpinLockTry(&m_lock);
+    }
     void unlock() {
         OSSpinLockUnlock(&m_lock);
     }
@@ -80,6 +68,10 @@ public:
     
     void lock() {
         pthread_spin_lock(&m_lock);
+    }
+    bool try_lock() {
+        int ret = pthread_spin_trylock(&m_lock);
+        return ret != 16;   //EBUSY == 16, lock is already taken
     }
     void unlock() {
         pthread_spin_unlock(&m_lock);
@@ -286,6 +278,25 @@ protected:
 };
 
 // The shared thread pool should only be used for non-blocking tasks!
+
+class ThreadPool;
+
+// The ThreadJob abstract class provides a way to provide jobs to
+// the ThreadPool thread pool. To use, create a thread pool, subclass ThreadJob,
+// implement the runJob method of your subclass, and pass an instance to the pool's
+// addJob method.
+class ThreadJob
+{
+	friend class ThreadPool;
+public:
+    ThreadJob() : done(false) {}
+    virtual ~ThreadJob();
+	virtual void runJob() = 0;
+    virtual bool deleteOnCompletion() { return false; }
+    bool isDone() { return done.isSet(); }
+protected:
+    SynchronizedFlag done;
+};
 
 class ThreadPool
 {

@@ -17,8 +17,7 @@
  *
  *********************************************************************/
 
-#include <api/BamAlignment.h>
-#include <api/SamHeader.h>
+#include "oge_read.h"
 
 #include <string>
 #include <algorithm>

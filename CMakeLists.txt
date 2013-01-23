@@ -12,8 +12,6 @@ IF( NOT CMAKE_BUILD_TYPE )
 ENDIF()
 
 enable_testing()
-add_subdirectory(bamtools)
 add_subdirectory(openge)
-add_dependencies(openge BamTools-static)
 
 link_directories(${LIBRARY_OUTPUT_PATH})

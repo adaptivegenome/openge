@@ -23,31 +23,27 @@
 
 #include <iostream>
 
-const int BGZF_BLOCK_SIZE = 65536;
-
 class BgzfInputStream
 {
     class BgzfBlock : public ThreadJob {
-        char compressed_data[BGZF_BLOCK_SIZE];
-        char uncompressed_data[BGZF_BLOCK_SIZE];
+        char compressed_data[65536];
+        char uncompressed_data[65536];
         unsigned int compressed_size;
         unsigned int uncompressed_size;
         unsigned int read_size;
         
-        SynchronizedFlag decompressed, decompression_started;
+        SynchronizedFlag decompression_started;
         Spinlock decompression_start;
         BgzfInputStream * stream;
     public:
         BgzfBlock(BgzfInputStream * stream)
         : read_size(0)
+        , decompression_started(false)
         , stream(stream)
-        {
-            decompressed.clear();
-            decompression_started.clear();
-        }
+        { }
         unsigned int read();
         bool decompress();
-        bool isDecompressed() { return decompressed.isSet(); }
+        bool isDecompressed() { return isDone(); }
         unsigned int readData(void * dest, unsigned int max_size);
         virtual void runJob();
         bool dataRemaining() { return read_size != uncompressed_size; }

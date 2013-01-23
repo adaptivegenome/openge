@@ -44,7 +44,6 @@
 #include <string>
 #include <vector>
 using namespace std;
-using BamTools::CigarOp;
 
 long AlignmentUtils::mismatchingQualities(const OGERead *  r, string refSeq, int refIndex) {
     return getMismatchCount(r, refSeq, refIndex).mismatchQualities;
@@ -68,9 +67,9 @@ AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const OGERead *  
         if (readIdx > endOnRead) break;
         
         CigarOp ce = c[i];
-        switch (ce.Type) {
+        switch (ce.type) {
             case 'M':
-                for (int j = 0; j < ce.Length; j++, refIndex++, readIdx++) {
+                for (int j = 0; j < ce.length; j++, refIndex++, readIdx++) {
                     if (refIndex >= refSeq.size())
                         continue;
                     if (readIdx < startOnRead) continue;
@@ -89,18 +88,18 @@ AlignmentUtils::MismatchCount AlignmentUtils::getMismatchCount(const OGERead *  
                 break;
             case 'I':
             case 'S':
-                readIdx += ce.Length;
+                readIdx += ce.length;
                 break;
             case 'D':
             case 'N':
-                refIndex += ce.Length;
+                refIndex += ce.length;
                 break;
             case 'H':
             case 'P':
                 break;
             default:
                 assert(0);
-                cerr << "The " << ce.Type << " cigar element is not currently supported"<< endl;
+                cerr << "The " << ce.type << " cigar element is not currently supported"<< endl;
         }
         
     }
@@ -635,7 +634,7 @@ vector<CigarOp> AlignmentUtils::leftAlignIndel( vector<CigarOp> cigar, const str
     int indexOfIndel = -1;
     for (int i = 0; i < cigar.size(); i++) {
         CigarOp ce = cigar[i];
-        if (ce.Type == 'D' || ce.Type == 'I') {
+        if (ce.type == 'D' || ce.type == 'I') {
             // if there is more than 1 indel, don't left align
             if (indexOfIndel != -1)
                 return cigar;
@@ -647,7 +646,7 @@ vector<CigarOp> AlignmentUtils::leftAlignIndel( vector<CigarOp> cigar, const str
     // is no place on the read to move that insertion further left), we are done
     if (indexOfIndel < 1) return cigar;
     
-    const int indelLength = cigar[indexOfIndel].Length;
+    const int indelLength = cigar[indexOfIndel].length;
     
     string altString = createIndelString(cigar, indexOfIndel, refSeq, readSeq, refIndex, readIndex);
     if (altString.size() == 0)
@@ -679,7 +678,7 @@ vector<CigarOp> AlignmentUtils::leftAlignIndel( vector<CigarOp> cigar, const str
 
 bool AlignmentUtils::cigarHasZeroSizeElement(const vector<CigarOp> & c) {
     for (int i = 0; i < c.size(); i++) {
-        if (c[i].Length == 0)
+        if (c[i].length == 0)
             return true;
     }
     return false;
@@ -690,8 +689,8 @@ vector<CigarOp> AlignmentUtils::cleanUpCigar(const vector<CigarOp> & c) {
     elements.reserve(c.size() - 1);
 
     for (vector<CigarOp>::const_iterator ce = c.begin(); ce != c.end(); ce++) {
-        if (ce->Length != 0 &&
-            (elements.size() != 0 || ce->Type != 'D')) {
+        if (ce->length != 0 &&
+            (elements.size() != 0 || ce->type != 'D')) {
             elements.push_back(*ce);
         }
     }
@@ -707,11 +706,11 @@ vector<CigarOp> AlignmentUtils::moveCigarLeft(const vector<CigarOp> & cigar, int
     
     // get the indel element and move it left one base
     CigarOp ce = cigar[indexOfIndel - 1];
-    elements.push_back(CigarOp(ce.Type, ce.Length - 1));
+    elements.push_back(CigarOp(ce.type, ce.length - 1));
     elements.push_back(cigar[indexOfIndel]);
     if (indexOfIndel + 1 < cigar.size()) {
         ce = cigar[indexOfIndel + 1];
-        elements.push_back( CigarOp(ce.Type, ce.Length + 1));
+        elements.push_back( CigarOp(ce.type, ce.length + 1));
     } else {
         elements.push_back( CigarOp('M', 1));
     }
@@ -724,14 +723,14 @@ vector<CigarOp> AlignmentUtils::moveCigarLeft(const vector<CigarOp> & cigar, int
 
 string AlignmentUtils::createIndelString(const vector<CigarOp> & cigar, const int indexOfIndel, const string refSeq, const string readSeq, int refIndex, int readIndex) {
     CigarOp indel = cigar[indexOfIndel];
-    int indelLength = indel.Length;
+    int indelLength = indel.length;
     
     int totalRefBases = 0;
     for (int i = 0; i < indexOfIndel; i++) {
         CigarOp ce = cigar[i];
-        int length = ce.Length;
+        int length = ce.length;
         
-        switch (ce.Type) {
+        switch (ce.type) {
             case 'M':
                 readIndex += length;
                 refIndex += length;
@@ -754,7 +753,7 @@ string AlignmentUtils::createIndelString(const vector<CigarOp> & cigar, const in
         indelLength -= (totalRefBases + indelLength - refSeq.size());
     
     // the indel-based reference string
-    string alt(refSeq.size() + (indelLength * (indel.Type == 'D' ? -1 : 1)), ' ');// string padded with spaces
+    string alt(refSeq.size() + (indelLength * (indel.type == 'D' ? -1 : 1)), ' ');// string padded with spaces
     
     // add the bases before the indel, making sure it's not aligned off the end of the reference
     if (refIndex > alt.size() || refIndex > refSeq.size())
@@ -765,7 +764,7 @@ string AlignmentUtils::createIndelString(const vector<CigarOp> & cigar, const in
     int currentPos = refIndex;
     
     // take care of the indel
-    if (indel.Type == 'D') {
+    if (indel.type == 'D') {
         refIndex += indelLength;
     } else {
         memcpy(&alt[currentPos], &readSeq[readIndex], indelLength);

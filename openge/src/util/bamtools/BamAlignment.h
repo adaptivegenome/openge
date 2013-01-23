@@ -10,10 +10,10 @@
 #ifndef BAMALIGNMENT_H
 #define BAMALIGNMENT_H
 
-#include "api/api_global.h"
-#include "api/BamAux.h"
-#include "api/BamConstants.h"
-#include "api/BamParallelismSettings.h"
+//#include "api/api_global.h"
+//#include "api/BamAux.h"
+#include "BamConstants.h"
+#include "../thread_pool.h"
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -22,12 +22,20 @@
 
 template <class> class BamDeserializer;
 
-std::string cigarToString(const std::vector<BamTools::CigarOp> cigar);
+typedef struct CigarOp {
+    char type;
+    int length;
+    CigarOp() {}
+    CigarOp(char t, int l) : type(t), length(l) {}
+    bool operator==(const CigarOp c) const { return length == c.length && type == c.type; }
+} CigarOp;
+
+std::string cigarToString(const std::vector<CigarOp> cigar);
 
 namespace BamTools {
     
     // BamAlignment data structure
-    class API_EXPORT BamAlignment {
+    class BamAlignment {
         
         // constructors & destructor
     public:
@@ -35,7 +43,7 @@ namespace BamTools {
         BamAlignment(const BamAlignment& other);
         ~BamAlignment(void);
         void clear();    //go back to a freshly constructed state
-        
+        const BamAlignment & operator=(BamAlignment & a);
         // queries against alignment flags
     public:
         bool IsDuplicate(void) const;         // returns true if this read is a PCR duplicate
@@ -157,6 +165,17 @@ namespace BamTools {
         // internal data
     public:
         
+        class TagDataView {
+            const char * p_data;
+            size_t length;
+        public:
+            TagDataView(const char * start, size_t length) : p_data(start), length(length) {}
+            const char & operator[](int i) const { assert(i < length && i >= 0); return p_data[i]; }
+            size_t size() const { return length; }
+            bool empty() const { return length == 0; }
+            const char * data() const {return p_data; }
+        };
+        
         class BamAlignmentSupportData {
         protected:
             // data members
@@ -217,6 +236,7 @@ namespace BamTools {
             
             void setTagData(const std::string & data) { AllCharData.replace(beginTagData(), endTagData(), data); }
             const std::string getTagData() const { return std::string(beginTagData(), endTagData()); }
+            const TagDataView getTagDataView() const { return TagDataView(&*beginTagData(), distance(beginTagData(), endTagData())); }
             
             uint32_t getQueryNameLength() const { return QueryNameLength; }
             uint32_t getQuerySequenceLength() const { return QuerySequenceLength; }
@@ -262,7 +282,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::AddTag(const std::string& tag, const std::string& type, const T& value) {
         
-        std::string TagData = SupportData.getTagData();
+        const std::string TagData = SupportData.getTagData();
         
         // check tag/type size
         if ( !IsValidSize(tag, type) ) {
@@ -305,9 +325,8 @@ namespace BamTools {
         
         // store temp buffer back in TagData
         const char* newTagData = (const char*)originalTagData;
-        TagData.assign(newTagData, newTagDataLength);
         
-        SupportData.setTagData(TagData);
+        SupportData.setTagData(std::string(newTagData, newTagDataLength));
         
         return true;
     }
@@ -317,7 +336,7 @@ namespace BamTools {
                                                   const std::string& type,
                                                   const std::string& value)
     {
-        std::string TagData = SupportData.getTagData();
+        const std::string TagData = SupportData.getTagData();
         
         // check tag/type size
         if ( !IsValidSize(tag, type) ) {
@@ -354,9 +373,8 @@ namespace BamTools {
         
         // store temp buffer back in TagData
         const char* newTagData = (const char*)originalTagData;
-        TagData.assign(newTagData, newTagDataLength);
 
-        SupportData.setTagData(TagData);
+        SupportData.setTagData(std::string(newTagData, newTagDataLength));
         return true;
     }
     
@@ -481,7 +499,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::GetTag(const std::string& tag, T& destination) const {
         
-        const std::string TagData = SupportData.getTagData();
+        const TagDataView TagData = SupportData.getTagDataView();
         
         // skip if no tags present
         if ( TagData.empty() ) {
@@ -558,7 +576,7 @@ namespace BamTools {
     inline bool BamAlignment::GetTag<std::string>(const std::string& tag,
                                                   std::string& destination) const
     {
-        const std::string TagData = SupportData.getTagData();
+        const TagDataView TagData = SupportData.getTagDataView();
         
         // skip if no tags present
         if ( TagData.empty() ) {
@@ -597,7 +615,7 @@ namespace BamTools {
     template<typename T>
     inline bool BamAlignment::GetTag(const std::string& tag, std::vector<T>& destination) const {
         
-        const std::string TagData = SupportData.getTagData();
+        const TagDataView TagData = SupportData.getTagDataView();
         
         // skip if no tags present
         if ( TagData.empty() ) {

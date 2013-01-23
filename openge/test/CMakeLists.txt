@@ -3,8 +3,9 @@ set( OPENGE_TEST_SCRIPT ${PROJECT_SOURCE_DIR}/openge/test)
 set( OPENGE_TEST_TESTS ${PROJECT_SOURCE_DIR}/openge/test/tests)
 
 ## Test file formats
+add_test(NAME oge_io COMMAND ${OPENGE_TEST_TESTS}/oge_bam_sam_io/run.sh)
+
 # SAM
-# TODO: test console redirection as well
 add_test(NAME oge_sam_input COMMAND openge count ${OPENGE_TEST_DATA}/simple.sam)
 add_test(NAME oge_sam_input_pipe COMMAND bash ${OPENGE_TEST_SCRIPT}/pipe_assist.sh ${OPENGE_TEST_DATA}/simple.sam "${EXECUTABLE_OUTPUT_PATH}/openge count")
 add_test(NAME oge_sam_input_multi COMMAND openge count ${OPENGE_TEST_DATA}/simple.sam ${OPENGE_TEST_DATA}/simple.sam)
@@ -18,6 +19,7 @@ add_test(NAME oge_bam_input_multi COMMAND openge count ${OPENGE_TEST_DATA}/simpl
 add_test(NAME oge_bam_truncated COMMAND openge count ${OPENGE_TEST_DATA}/208.truncated.bam)
 add_test(NAME oge_bam_samtools_truncated COMMAND samtools view ${OPENGE_TEST_DATA}/208.truncated.bam)
 set_tests_properties(oge_bam_truncated oge_bam_samtools_truncated PROPERTIES WILL_FAIL true)
+add_test(NAME oge_bam_index COMMAND ${OPENGE_TEST_TESTS}/oge_bam_index/run.sh)
 
 ## Test count command
 add_test(NAME oge_count COMMAND openge count ${OPENGE_TEST_DATA}/simple.bam)

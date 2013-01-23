@@ -21,7 +21,7 @@
 #include <numeric>
 #include <pthread.h>
 
-#include <api/algorithms/Sort.h>
+#include "../util/bamtools/Sort.h"
 
 using namespace std;
 
@@ -33,60 +33,16 @@ SortedMerge::~SortedMerge()
 
 SortedMerge::SortedMergeInputProxy::SortedMergeInputProxy(SortedMerge * parent) 
 : merge_class(parent)
-{
-    int retval = pthread_mutex_init(&merge_complete, NULL);
-    
-	if(0 != retval) {
-		cerr << "Error opening sortedmerge completion mutex. Aborting. (error " << retval << ")" << endl;;
-        exit(-1);
-    }
-    
-    retval = pthread_mutex_lock(&merge_complete);    //hold this mutex until we are done.
-    
-	if(0 != retval) {
-		cerr << "Error opening sortedmerge completion mutex. Aborting. (error " << retval << ")" << endl;
-        exit(-1);
-    }
-}
+{ }
 
 int SortedMerge::SortedMergeInputProxy::runInternal()
 {
-    int retval = pthread_mutex_lock(&merge_complete);
-    
-	if(0 != retval) {
-		cerr << "Error locking completion mutex in SortedMergeInputProxy class. Aborting. (error " << retval << ")" << endl;
-        exit(-1);
-    }
-    
-    retval = pthread_mutex_unlock(&merge_complete);
-    
-	if(0 != retval) {
-		cerr << "Error locking completion mutex in SortedMergeInputProxy class. Aborting. (error " << retval << ")" << endl;
-        exit(-1);
-    }
-    
-    retval = pthread_mutex_destroy(&merge_complete);
-    
-	if(0 != retval) {
-		cerr << "Error destroying completion mutex in SortedMergeInputProxy class. Aborting. (error " << retval << ")" << endl;
-        exit(-1);
-    }
+    merge_class->done_signal_mutex.lock();
+    while(!merge_class->done.isSet())
+        merge_class->done_signal.wait(merge_class->done_signal_mutex);
+    merge_class->done_signal_mutex.unlock();
 
     return 0;
-}
-
-void SortedMerge::SortedMergeInputProxy::mergeDone()
-{
-    int retval = pthread_mutex_unlock(&merge_complete);
-    
-	if(0 != retval) {
-		cerr << "Error unlocking completion mutex after merge completion. Aborting. (error " << retval << ")" << endl;
-        exit(-1);
-    }
-}
-
-SortedMerge::SortedMerge()
-{
 }
 
 void SortedMerge::addSource(AlgorithmModule * source)
@@ -101,11 +57,9 @@ void SortedMerge::addSource(AlgorithmModule * source)
     source->addSink(proxy);
 }
 
-using namespace BamTools::Algorithms;
-
 bool SortedMerge::SortedMergeElement::operator<(const SortedMergeElement & t) const
 {
-    Sort::ByPosition cmp = Sort::ByPosition();
+    BamTools::Algorithms::Sort::ByPosition cmp = BamTools::Algorithms::Sort::ByPosition();
     return cmp(this->read, t.read);
 }
 
@@ -122,12 +76,8 @@ int SortedMerge::runInternal()
     {
         OGERead * read = input_proxies[ctr]->getInputAlignment();
 
-        if(!read) {
-            input_proxies[ctr]->mergeDone();
-            continue;
-        }
-
-        reads.insert(SortedMergeElement(read, input_proxies[ctr]));
+        if(read)
+            reads.insert(SortedMergeElement(read, input_proxies[ctr]));
     }
 
     //now handle the steady state situation. When sources are done, We
@@ -139,13 +89,14 @@ int SortedMerge::runInternal()
         putOutputAlignment(el.read);
 
         el.read = el.source->getInputAlignment();
-        if(!el.read) {
-            el.source->mergeDone();
-            continue;
-        }
-
-        reads.insert(el);
+        if(el.read)
+            reads.insert(el);
     }
+    
+    done_signal_mutex.lock();
+    done.set();
+    done_signal.notify_all();
+    done_signal_mutex.unlock();
 
     return 0;
 }

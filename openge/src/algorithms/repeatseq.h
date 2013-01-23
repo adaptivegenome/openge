@@ -23,6 +23,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <fstream>
 
 class Repeatseq : public AlgorithmModule {
 public:
@@ -106,8 +107,8 @@ protected:
         int length(void) const;
     };
     struct RegionStringComparator {
-        const BamTools::SamSequenceDictionary & d;
-        RegionStringComparator(const BamTools::SamSequenceDictionary & d);
+        const BamSequenceRecords & d;
+        RegionStringComparator(const BamSequenceRecords & d);
         bool operator() (std::string a, std::string b) const;
     };
     struct Sequences {
@@ -164,14 +165,12 @@ protected:
         : repeatseq(rs)
         , job_id(job_id)
         , region(region)
-        , complete(false)
         {}
 
         Repeatseq * repeatseq;
         int job_id;
         std::vector<OGERead *> reads, somatic_reads;
         const std::string & region;
-        bool complete;
         std::stringstream vcfFile, oFile, callsFile;
         
         virtual void runJob();

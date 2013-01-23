@@ -137,6 +137,11 @@ void ThreadPool::stopJob(ThreadJob * job)
     bool all_jobs_complete = (0 == num_jobs_running) && jobs.empty();
     jobs_running_mutex.unlock();
     
+    if(job->deleteOnCompletion())
+        delete job;
+    else
+        job->done.set();
+    
 	if(all_jobs_complete) {
         busy_mutex.lock();
         busy_cond.notify_all();
@@ -149,7 +154,9 @@ void ThreadPool::waitForJobCompletion()
     busy_mutex.lock();
     
     while(true) {
-        bool empty = jobs.empty();
+        jobs_running_mutex.lock();
+        bool empty = jobs.empty() && 0 == num_jobs_running;
+        jobs_running_mutex.unlock();
 
         if(empty) break;
         
@@ -166,6 +173,7 @@ int ThreadPool::numJobs()
 
 void * ThreadPool::thread_start(void * thread_pool)
 {
+    ogeNameThread("TPoolWorker");
 	ThreadPool * pool = (ThreadPool *)thread_pool;
 	while(true)
 	{		
@@ -266,7 +274,7 @@ bool mutex::try_lock() {
     if(ret == 16)   //16 = EBUSY
         return false;
     if(0 != ret) {
-        cerr << "Error locking mutex (error " << ret << ")." << endl;
+        cerr << "Error trylocking mutex (error " << ret << ")." << endl;
         exit(-1);
     }
     return true;

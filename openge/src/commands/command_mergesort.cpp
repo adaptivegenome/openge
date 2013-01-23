@@ -102,7 +102,7 @@ int MergeSortCommand::runCommand()
             sort_reads.addSink(&writer);
         }
 
-        sort_reads.setSortBy(sort_by_names ? SORT_NAME : SORT_POSITION);
+        sort_reads.setSortBy(sort_by_names ? BamHeader::SORT_QUERYNAME : BamHeader::SORT_COORDINATE);
         sort_reads.setCompressTempFiles(compresstempfiles);
         sort_reads.setAlignmentsPerTempfile(alignments_per_tempfile);
 
@@ -159,7 +159,7 @@ int MergeSortCommand::runCommand()
             mark_duplicates->removeDuplicates = do_remove_duplicates;
         }
 
-        sort_reads.setSortBy(sort_by_names ? SORT_NAME : SORT_POSITION);
+        sort_reads.setSortBy(sort_by_names ? BamHeader::SORT_QUERYNAME : BamHeader::SORT_COORDINATE);
         sort_reads.setCompressTempFiles(compresstempfiles);
         sort_reads.setAlignmentsPerTempfile(alignments_per_tempfile);
         

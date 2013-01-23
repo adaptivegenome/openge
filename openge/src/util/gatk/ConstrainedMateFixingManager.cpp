@@ -85,7 +85,7 @@
 
 #include "../../algorithms/local_realignment.h"
 
-#include <api/algorithms/Sort.h>
+#include "../bamtools/Sort.h"
 
 #include <map>
 #include <string>
@@ -97,19 +97,18 @@
 #include <sstream>
 using namespace std;
 
-using BamTools::CigarOp;
-
 size_t getReferenceLength(const OGERead & read) {
     size_t length = 0;
+
     vector<CigarOp> cigar = read.getCigarData();
     for (vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++) {
-        switch (i->Type) {
+        switch (i->type) {
             case 'M':
             case 'D':
             case 'N':
             case '=':
             case 'X':
-                length += i->Length;
+                length += i->length;
                 break;
         }
     }
@@ -157,16 +156,6 @@ void setMateInfo( OGERead & rec1, OGERead & rec2) {
         rec2.SetIsMateReverseStrand( rec1.IsReverseStrand() );
         rec2.SetIsMateMapped(true);
         rec2.AddTag("MQ", "S", rec1.getMapQuality());
-
-        // we should remove and readd the XT tag so that tag order in OGE matches tag order from GATK. This 
-        // is just needed for the debug stage.
-        uint8_t xt;
-        rec1.GetTag<uint8_t>("XT", xt);
-        rec1.RemoveTag("XT");
-        rec1.AddTag<uint8_t>("XT", "A", xt);
-        rec2.GetTag("XT", xt);
-        rec2.RemoveTag("XT");
-        rec2.AddTag<uint8_t>("XT", "A", xt);
     }
     // Else if they're both unmapped set that straight
     else if (!rec1.IsMapped() && !rec2.IsMapped()) {
@@ -249,29 +238,10 @@ ConstrainedMateFixingManager::ConstrainedMateFixingManager( LocalRealignment * w
             cerr << "Error creating ConstrainedMateFixingManager thread. Aborting. (error " << ret << ")." << endl;
             exit(-1);
         }
-
-        ret = pthread_mutex_init(&add_read_lock, NULL);
-        if(0 != ret) {
-            cerr << "Error opening ConstrainedMateFixingManager queueing mutex. Aborting. (error " << ret << ")." << endl;
-            exit(-1);
-        }
-    }
-    
-    int ret = pthread_mutex_init(&add_read_lock, NULL);
-	if(0 != ret) {
-		cerr << "Error opening ConstrainedMateFixingManager queueing mutex. Aborting. (error " << ret << ")." << endl;
-        exit(-1);
     }
 }
 
 ConstrainedMateFixingManager::~ConstrainedMateFixingManager() {
-    if(!output_module->isNothreads()) {
-        int error = pthread_mutex_destroy(&add_read_lock);
-        if(0 != error) {
-            cerr << "Error closing ConstrainedMateFixingManager queueing mutex (error " << error << endl;
-            exit(-1);
-        }
-    }
 }
 
 bool ConstrainedMateFixingManager::canMoveReads(const GenomeLoc & earliestPosition) const {
@@ -305,13 +275,8 @@ void * ConstrainedMateFixingManager::addread_threadproc(void * data)
 }
 
 void ConstrainedMateFixingManager::addReads(const vector<OGERead *> & newReads, const set<OGERead *> & modifiedReads) {
-	if(!output_module->isNothreads()) {
-        int ret = pthread_mutex_lock(&add_read_lock);
-        if(0 != ret) {
-            cerr << "Error locking ConstrainedMateFixingManager queueing mutex. Aborting. (error " << ret << ")" << endl;
-            exit(-1);            
-        }
-    }
+	if(!output_module->isNothreads())
+        add_read_lock.lock();
 
     for (vector<OGERead *>::const_iterator newRead =  newReads.begin(); newRead != newReads.end(); newRead++ ) {
         cmfm_read_t r;
@@ -325,13 +290,8 @@ void ConstrainedMateFixingManager::addReads(const vector<OGERead *> & newReads, 
             addReadQueue.push(r);
     }
 
-	if(!output_module->isNothreads()) {
-        int ret = pthread_mutex_unlock(&add_read_lock);
-        if(0 != ret) {
-            cerr << "Error unlocking ConstrainedMateFixingManager queueing mutex. Aborting. (error " << ret << ")" << endl;
-            exit(-1);
-        }
-    }
+	if(!output_module->isNothreads())
+        add_read_lock.unlock();
 }
 
 void ConstrainedMateFixingManager::addRead(OGERead * newRead, bool readWasModified, bool canFlush) {
@@ -339,24 +299,16 @@ void ConstrainedMateFixingManager::addRead(OGERead * newRead, bool readWasModifi
     r.read = newRead;
     r.readWasModified = readWasModified;
     r.canFlush = canFlush;
-	if(!output_module->isNothreads()) {
-        int ret = pthread_mutex_lock(&add_read_lock);
-        if(0 != ret) {
-            cerr << "Error locking ConstrainedMateFixingManager queueing mutex. Aborting. (error " << ret << ")" << endl;
-            exit(-1);
-        }
-    }
+	if(!output_module->isNothreads())
+        add_read_lock.lock();
+    
     if(output_module->isNothreads())
         addReadInternal(r.read, r.readWasModified, r.canFlush);
     else
         addReadQueue.push(r);
-	if(!output_module->isNothreads()) {
-        int ret = pthread_mutex_unlock(&add_read_lock);
-        if(0 != ret) {
-            cerr << "Error unlocking ConstrainedMateFixingManager queueing mutex. Aborting. (error " << ret << ")" << endl;
-            exit(-1);
-        }
-    }
+    
+	if(!output_module->isNothreads())
+        add_read_lock.unlock();
 }
 
 void ConstrainedMateFixingManager::addReadInternal( OGERead * newRead, const bool readWasModified, bool canFlush ) {

@@ -20,8 +20,8 @@
 #include "file_io.h"
 #include <string>
 #include <iostream>
-#include <api/BamAlignment.h>
-#include <api/SamHeader.h>
+#include <fstream>
+#include "bam_header.h"
 #include "read_stream_writer.h"
 
 #include <map>
@@ -31,18 +31,18 @@ class FastqWriter : public ReadStreamWriter
 {
 public:
     FastqWriter();
-    virtual bool open(const std::string& filename, const BamTools::SamHeader & samHeader);
+    virtual bool open(const std::string& filename, const BamHeader & samHeader);
     virtual void close();
     virtual bool write( const OGERead & al);
     virtual bool is_open() const { return m_open; }
 protected:
-    typedef struct {
+    typedef struct fast_record {
         std::string qual, seq;
     } fastq_record_t;
 
     std::ofstream fwd_file, rev_file, orphan_file;
     std::ostream * fwd_stream, * rev_stream, * orphan_stream;
-    BamTools::SamHeader header;
+    BamHeader header;
     std::string filename;
     std::map<std::string, fastq_record_t> potential_pairs;
 

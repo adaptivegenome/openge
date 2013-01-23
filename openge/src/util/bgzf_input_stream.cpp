@@ -14,13 +14,13 @@
  *
  *********************************************************************/
 
-#include "api/api_global.h"
 #include "bgzf_input_stream.h"
 #include <zlib.h>
 
 #include <iostream>
 #include <cassert>
 #include <cstring>
+#include <stdint.h>
 
 using namespace std;
 
@@ -29,7 +29,6 @@ using namespace std;
 
 void BgzfInputStream::BgzfBlock::runJob() {
     decompress();
-    decompressed.set();
 }
 
 unsigned int BgzfInputStream::BgzfBlock::read() {
@@ -111,7 +110,7 @@ bool BgzfInputStream::BgzfBlock::decompress() {
         zs.next_in   = (unsigned char *)data;
         zs.avail_in  = bsize - 16;
         zs.next_out  =  (unsigned char *) &uncompressed_data[0];
-        zs.avail_out = BGZF_BLOCK_SIZE;
+        zs.avail_out = 65536;
         
         // initialize
         int status = inflateInit2(&zs, -15);
@@ -139,13 +138,11 @@ bool BgzfInputStream::BgzfBlock::decompress() {
         assert(zs.total_out == uncompressed_size);
     }
     
-    decompressed.set();
-    
     return true;
 }
 
 unsigned int BgzfInputStream::BgzfBlock::readData(void * dest, unsigned int max_size) {
-    assert(decompressed.isSet());
+    assert(isDone());
     
     unsigned int actual_read_len = min(max_size, uncompressed_size - read_size);
     
@@ -221,6 +218,7 @@ bool BgzfInputStream::read(char * data, size_t len) {
         }
         
         BgzfBlock * block = block_queue.front();
+        assert(block->isDecompressed());
         
         unsigned int actual_read_length = block->readData(&((char *)data)[read_len], len - read_len);
         

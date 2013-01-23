@@ -14,6 +14,7 @@
  *
  *********************************************************************/
  
+#include "../util/bamtools/BamAux.h"
 #include "repeatseq.h"
 #include "../util/fasta_reader.h"
 #include "../util/thread_pool.h"
@@ -23,7 +24,6 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-#include <fstream>
 #include <cmath>
 using namespace std;
 
@@ -226,11 +226,11 @@ void Repeatseq::RepeatseqJob::runJob() {
     for(vector<OGERead *>::const_iterator i = reads.begin(); i != reads.end(); i++) {
         OGERead::deallocate(*i);
     }
-    complete = true;
+
     repeatseq->flushWrites();
 }
 
-bool readOverlapsRegion(const OGERead & read, const BamRegion & region) {
+bool readOverlapsRegion(const OGERead & read, const BamTools::BamRegion & region) {
     if(read.getRefID() != region.LeftRefID)
         return false;
     if(read.GetEndPosition() >= region.LeftPosition && read.getPosition() < region.RightPosition)
@@ -248,7 +248,7 @@ void Repeatseq::flushWrites() {
         if(!jobs[i])
             continue;
         
-        if(jobs[i]->complete) {
+        if(jobs[i]->isDone()) {
             //flush
             if (makeRepeatseqFile){ oFile << jobs[i]->oFile.str(); }
             if (makeCallsFile){ callsFile << jobs[i]->callsFile.str(); }
@@ -268,15 +268,15 @@ void Repeatseq::flushWrites() {
     busy = false;
 }
 
-Repeatseq::RegionStringComparator::RegionStringComparator(const BamTools::SamSequenceDictionary & d)
+Repeatseq::RegionStringComparator::RegionStringComparator(const BamSequenceRecords & d)
 : d(d)
 {}
 
 bool Repeatseq::RegionStringComparator::operator() (string a, string b) const {
     const Repeatseq::Region r1(a);
     const Repeatseq::Region r2(b);
-    int rid1 = d.IndexOfString(r1.startSeq);
-    int rid2 = d.IndexOfString(r2.startSeq);
+    int rid1 = d.indexOfString(r1.startSeq);
+    int rid2 = d.indexOfString(r2.startSeq);
     if(rid1 != rid2)
         return rid1 < rid2;
     return r1.startPos < r2.startPos;
@@ -317,7 +317,7 @@ int Repeatseq::runInternal() {
     while(getline(range_file,line))
         regions.push_back(line);
     
-    BamTools::SamSequenceDictionary sequence_dictionary = getHeader().Sequences;
+    BamSequenceRecords sequence_dictionary = getHeader().getSequences();
     ogeSortMt(regions.begin(), regions.end(), RegionStringComparator(sequence_dictionary));
 
     int num_jobs = regions.size();
@@ -332,13 +332,13 @@ int Repeatseq::runInternal() {
     //set up threads to actually print the output
     for(int job_id = 0; job_id != num_jobs; job_id++) {
         const Region r(regions[job_id]);
-        if(!sequence_dictionary.Contains(r.startSeq)) {
+        if(!sequence_dictionary.contains(r.startSeq)) {
             cerr << "Sequence " << r.startSeq << " from regions file is not in BAM header. Quitting." << endl;
             exit(-1);
         }
-        int RID = sequence_dictionary.IndexOfString(r.startSeq);
-        const BamRegion btregion(RID, r.startPos, RID, r.stopPos);
 
+        int RID = sequence_dictionary.indexOfString(r.startSeq);
+        const BamTools::BamRegion btregion(RID, r.startPos, RID, r.stopPos);
         // add reads to a buffer until we are sure we have all reads that might be in this region
         while(true) {
             OGERead * read = getInputAlignment();
@@ -664,8 +664,8 @@ std::vector<Repeatseq::STRING_GT> Repeatseq::makeToPrint(const std::vector<OGERe
 		
 		//load cigarSeq
 		for ( vector<CigarOp>::const_iterator it=cigar_data.begin(); it < cigar_data.end(); it++ ) {
-			cigarSeq << it->Length;
-			cigarSeq << it->Type;
+			cigarSeq << it->length;
+			cigarSeq << it->type;
 		}
 		
 		//run parseCigar:
@@ -750,8 +750,8 @@ std::vector<Repeatseq::STRING_GT> Repeatseq::makeToPrint(const std::vector<OGERe
 				int readSize = 0;
                 const vector<CigarOp> cigar_data = al.getCigarData();
 				for (vector<CigarOp>::const_iterator it=cigar_data.begin(); it < cigar_data.end(); it++){
-					if (it->Type == 'M' || it->Type == 'I' || it->Type == 'S' || it->Type == '=' || it->Type == 'X'){
-						readSize += it->Length;         //increment readsize by the length
+					if (it->type == 'M' || it->type == 'I' || it->type == 'S' || it->type == '=' || it->type == 'X'){
+						readSize += it->length;         //increment readsize by the length
 					}
 				}
 				ssPrint << readSize << " ";      //read size
@@ -831,8 +831,8 @@ std::vector<Repeatseq::STRING_GT> Repeatseq::makeToPrint(const std::vector<OGERe
 				//print CIGAR string:
 				ssPrint << " C:";
 				for (vector<CigarOp>::const_iterator it=cigar_data.begin(); it < cigar_data.end(); it++) {
-					ssPrint << it->Length;
-					ssPrint << it->Type;
+					ssPrint << it->length;
+					ssPrint << it->type;
 				}
 				
 				//-MULTI filter (check for XT:A:R tag):

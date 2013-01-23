@@ -25,21 +25,19 @@
 #include <algorithm>
 #include <numeric>
 
-using BamTools::SamSequenceDictionary;
-using BamTools::SamSequence;
 using BamTools::BamRegion;
 using namespace std;
 
 
 // this has been copied from bamtools utilities, since it isn't in the API. Original file is bamtools_utilities.cpp.
 // Like the rest of Bamtools, it is under the BSD license.
-bool Filter::ParseRegionString(const string& regionString, BamRegion& region, const SamSequenceDictionary & sequences)
+bool Filter::ParseRegionString(const string& regionString, BamRegion& region, const BamSequenceRecords & sequences)
 {
     // -------------------------------
     // parse region string
     
     // check first for empty string
-    if ( regionString.empty() ) 
+    if ( regionString.empty() )
         return false;   
     
     // non-empty string, look for a colom
@@ -99,8 +97,8 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region, co
     // validate reference IDs & genomic positions
 
     int RefID = -1;
-    for(int i = 0; i < sequences.Size(); i++) {
-        if(sequences[i].Name == chrom)
+    for(int i = 0; i < sequences.size(); i++) {
+        if(sequences[i].getName()== chrom)
             RefID = i;
     }
     
@@ -111,8 +109,8 @@ bool Filter::ParseRegionString(const string& regionString, BamRegion& region, co
     }
     
     // startPos cannot be greater than or equal to reference length
-    const SamSequence startReference = sequences[RefID];
-    int sequence_length = atoi(startReference.Length.c_str());
+    const BamSequenceRecord startReference = sequences[RefID];
+    int sequence_length = startReference.getLength();
     if ( startPos >= sequence_length ) {
         cerr << "Start position (" << startPos << ") after end of the reference sequence (" << sequence_length << ")" << endl;
         return false;
@@ -187,7 +185,7 @@ void Filter::trim(OGERead & al)
     if(trim_begin_length == 0 && trim_end_length == 0)
         return;
 
-    al.setQueryBases(al.getQueryBases().substr(trim_begin_length, (al.getQueryBases().size() - trim_begin_length - trim_end_length)));
+    al.setQueryBases(al.getQueryBases().substr(trim_begin_length, (al.getQueryBasesLength() - trim_begin_length - trim_end_length)));
     al.setQualities(al.getQualities().substr(trim_begin_length, (al.getQualities().size() - trim_begin_length - trim_end_length)));
 }
 
@@ -222,7 +220,7 @@ int Filter::runInternal()
         
         // if region string parses OK
         BamRegion region;
-        if (ParseRegionString(region_string, region, getHeader().Sequences) ) {
+        if (ParseRegionString(region_string, region, getHeader().getSequences()) ) {
             OGERead * al;
             while ( NULL != (al = getInputAlignment())  && count < count_limit) {
                 if ( (al->getRefID() >= region.LeftRefID)  && ( (al->getPosition() + al->getLength()) >= region.LeftPosition ) &&

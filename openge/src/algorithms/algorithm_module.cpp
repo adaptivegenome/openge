@@ -17,7 +17,6 @@
 #include "algorithm_module.h"
 #include <pthread.h>
 
-using BamTools::SamHeader;
 using namespace std;
 
 int BlackHoleModule::runInternal()
@@ -167,7 +166,7 @@ OGERead * AlgorithmModule::getInputAlignment()
     return input_queue.pop();
 }
 
-const SamHeader & AlgorithmModule::getHeader()
+const BamHeader & AlgorithmModule::getHeader()
 {
     return source->getHeader();
 }

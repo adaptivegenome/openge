@@ -20,7 +20,9 @@
  * 
  * To merge, a SortedMergeInputProxy is created for each source,
  * and these are polled in turn by the SortedMerge parent class.
- * No work is actually done by the SortedMergeInputProxy class.
+ * No work is actually done by the SortedMergeInputProxy class. 
+ * When all reads have been read, all the proxies are notified with
+ * a condition variable.
  * 
  *********************************************************************/
 
@@ -35,12 +37,9 @@ class SortedMerge : public AlgorithmModule
     public:
         SortedMergeInputProxy(SortedMerge * parent);
         SortedMerge * merge_class;
-        void mergeDone();   //< call when the last read comes in from this source.
         using AlgorithmModule::getInputAlignment;
     protected:
         virtual int runInternal();
-
-        pthread_mutex_t merge_complete;
     };
     
     class SortedMergeElement{
@@ -55,12 +54,14 @@ class SortedMerge : public AlgorithmModule
     };
     
 public:
-    SortedMerge();
     ~SortedMerge();
     void addSource(AlgorithmModule * source);
 protected:
     virtual int runInternal();
     std::vector<SortedMergeInputProxy *> input_proxies;
+    SynchronizedFlag done;
+    condition_variable done_signal;
+    mutex done_signal_mutex;
 };
 
 #endif

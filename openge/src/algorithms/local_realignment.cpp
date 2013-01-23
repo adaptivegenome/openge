@@ -39,9 +39,7 @@
  */
 
 #include "local_realignment.h"
-#include "api/algorithms/Sort.h"
-
-using BamTools::CigarOp;
+#include "../util/bamtools/Sort.h"
 
 #include <cassert>
 #include <ctime>
@@ -148,8 +146,8 @@ void LocalRealignment::AlignedRead::getUnclippedBases() {
     
     vector<CigarOp> cigar = read->getCigarData();
     for ( vector<CigarOp>::const_iterator ce = cigar.begin(); ce != cigar.end(); ce++ ) {
-        uint32_t elementLength = ce->Length;
-        switch ( ce->Type ) {
+        uint32_t elementLength = ce->length;
+        switch ( ce->type ) {
             case 'S':
                 fromIndex += elementLength;
                 break;
@@ -193,11 +191,11 @@ void LocalRealignment::AlignedRead::setCigar(const vector<CigarOp> & cigar_in, b
     // no indel?
     bool has_i_or_d = false;
     for (vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++)
-        if(i->Type == 'I' || i->Type == 'D')
+        if(i->type == 'I' || i->type == 'D')
             has_i_or_d = true;
 
     if ( !has_i_or_d) {
-        cerr << "Modifying a read with no associated indel; although this is possible, it is highly unlikely.  Perhaps this region should be double-checked: " << read->getName() << " near " << (*sequences)[read->getRefID()].Name << ":" << read->getPosition() << endl;
+        cerr << "Modifying a read with no associated indel; although this is possible, it is highly unlikely.  Perhaps this region should be double-checked: " << read->getName() << " near " << (*sequences)[read->getRefID()].getName() << ":" << read->getPosition() << endl;
     }
     newCigar = cigar;
 }
@@ -281,7 +279,7 @@ string LocalRealignment::ReadBin::getReference(FastaReader & referenceReader) {
     if ( reference.size() == 0 ) {
         // first, pad the reference to handle deletions in narrow windows (e.g. those with only 1 read)
         int padLeft = max(loc->getStart()-REFERENCE_PADDING, 0);    //LCB 1->0
-        int padRight = min(loc->getStop()+REFERENCE_PADDING, atoi(referenceReader.getSequenceDictionary()[loc->getContig()].Length.c_str())-1);
+        int padRight = min(loc->getStop()+REFERENCE_PADDING, (int)referenceReader.getSequenceDictionary()[loc->getContig()].getLength()-1);
         GenomeLoc * old_loc = loc;
         loc = new GenomeLoc(loc_parser->createGenomeLoc(loc->getContig(), padLeft, padRight));
         delete old_loc;
@@ -360,12 +358,6 @@ void LocalRealignment::initialize() {
     if ( write_out_snps )
         snpsOutput.open(OUT_SNPS.c_str());
 #endif
-    
-    int ret = pthread_mutex_init(&emit_mutex, 0);
-    if(0 != ret ) {
-        cerr << "Error creating LR emit mutex. Aborting. (error " << ret << ")." << endl;
-        exit(-1);
-    }
 }
 
 void LocalRealignment::emit(IntervalData & interval_data, OGERead * read) {
@@ -422,56 +414,41 @@ public:
     }
 };
 
-class LocalRealignment::CleanAndEmitReadList : public LocalRealignment::Emittable
+class LocalRealignment::CleanAndEmitReadList : public LocalRealignment::Emittable, public ThreadJob
 {
 public:
-    bool clean_done;
     LocalRealignment & lr;
     LocalRealignment::IntervalData * id;
 
     CleanAndEmitReadList(LocalRealignment & lr, IntervalData * id)
-    : clean_done(false)
-    , lr(lr)
+    : lr(lr)
     , id(id)
     { }
-    virtual bool canEmit() { return clean_done; }
+    virtual bool canEmit() { return isDone(); }
     virtual void emit() {
         lr.emitReadLists(*id);
     }
     virtual ~CleanAndEmitReadList() {
         delete id;
     }
-};
-
-class LocalRealignment::CleanJob : public ThreadJob
-{
-    CleanAndEmitReadList * c;
-    bool self_delete;
-public:
-    CleanJob(CleanAndEmitReadList * c, bool self_delete = false)
-    : c(c)
-    , self_delete(self_delete)
-    {}
-
+    
     virtual void runJob()
     {
-        
         ogeNameThread("LRCleanJob");
-        IntervalData * interval_data = c->id;
+        IntervalData * interval_data = id;
         if ( interval_data->readsToClean.size() > 0 ) {
-            GenomeLoc earliestPossibleMove = c->lr.loc_parser->createGenomeLoc(*(interval_data->readsToClean.getReads()[0]));
-            if ( c->lr.manager->canMoveReads(earliestPossibleMove) )
-                c->lr.clean(*interval_data);
+            GenomeLoc earliestPossibleMove = lr.loc_parser->createGenomeLoc(*(interval_data->readsToClean.getReads()[0]));
+            if ( lr.manager->canMoveReads(earliestPossibleMove) )
+                lr.clean(*interval_data);
         }
         interval_data->knownIndelsToTry.clear();
         interval_data->indelRodsSeen.clear();
         
-        c->clean_done = true;
+        lr.flushEmitQueue();
         
-        c->lr.flushEmitQueue();
-
-        if(self_delete)
-            delete this;
+        //when this jobs is directly called in no-threads mode, we must indicate that we are done.
+        if(!OGEParallelismSettings::isMultithreadingEnabled())
+            done.set();
     }
 };
 
@@ -491,9 +468,9 @@ int LocalRealignment::map_func(OGERead * read, const ReadMetaDataTracker & metaD
         CleanAndEmitReadList * read_list = new CleanAndEmitReadList(*this, loading_interval_data);
         pushToEmitQueue(read_list);
         if(nothreads)
-            CleanJob(read_list).runJob();
+            read_list->runJob();
         else
-            ThreadPool::sharedPool()->addJob(new CleanJob(read_list));
+            ThreadPool::sharedPool()->addJob(read_list);
         flushEmitQueue();
 
         do {
@@ -552,9 +529,9 @@ int LocalRealignment::map_func(OGERead * read, const ReadMetaDataTracker & metaD
         CleanAndEmitReadList * read_list = new CleanAndEmitReadList(*this, loading_interval_data);
         pushToEmitQueue(read_list);
         if(nothreads)
-            CleanJob(read_list).runJob();
+            read_list->runJob();
         else
-            ThreadPool::sharedPool()->addJob(new CleanJob(read_list, true));
+            ThreadPool::sharedPool()->addJob(read_list);
         flushEmitQueue();
 
         do {
@@ -601,19 +578,12 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     //wait for emits to finish
     bool finished = false;
     while(!finished) {
-        int ret = pthread_mutex_lock(&emit_mutex);
-        if(0 != ret) {
-            cerr << "Error locking LR emit mutex. Aborting. (error " << ret << ")." << endl;
-            exit(-1);
+        //if locking this mutex fails, we are busy elsewhere, so we know that we are for sure not finished.
+        if(emit_mutex.try_lock()) {
+            finished = emit_queue.empty();
+            emit_mutex.unlock();
         }
         
-        finished = emit_queue.empty();
-        
-        ret = pthread_mutex_unlock(&emit_mutex);
-        if(0 != ret) {
-            cerr << "Error unlocking LR emit mutex. (error " << ret << ")." << endl;
-            exit(-1);
-        }
         if(!finished) {
             usleep(20000);
             flushEmitQueue();
@@ -649,12 +619,6 @@ void LocalRealignment::onTraversalDone(IntervalData & interval_data, int result)
     
     for(vector<GenomeLoc *>::const_iterator interval_it = intervalsFile.begin(); interval_it != intervalsFile.end(); interval_it++)
         delete *interval_it;
-    
-    int error = pthread_mutex_destroy(&emit_mutex);
-    if(0 != error ) {
-        cerr << "Error destroying LR emit mutex (error " << error << "). Aborting." << endl;
-        exit(-1);
-    }
 }
 
 void LocalRealignment::populateKnownIndels(IntervalData & interval_data, const ReadMetaDataTracker & metaDataTracker) {
@@ -758,10 +722,10 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
             int z = 0;
             for ( ; z < consensus.positionOnReference; z++ ) 
                 cerr << ".";
-            for ( z=0 ; z < consensus.cigar[0].Length ; z++ ) 
+            for ( z=0 ; z < consensus.cigar[0].length ; z++ )
                 cerr << ".";
-            if ( consensus.cigar[1].Type == 'I' ) 
-                for ( z= 0; z < consensus.cigar[1].Length; z++ )  
+            if ( consensus.cigar[1].type == 'I' )
+                for ( z= 0; z < consensus.cigar[1].length; z++ )  
                     cerr << "I";
             cerr << endl;
         }
@@ -862,12 +826,12 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
 
                 str << sequence_dictionary[reads[0]->getRefID()].Name;
 
-                int position = bestConsensus->positionOnReference + bestConsensus->cigar[0].Length;
+                int position = bestConsensus->positionOnReference + bestConsensus->cigar[0].length;
                 str << "\t" << (leftmostIndex + position - 1);
                 CigarOp ce = bestConsensus->cigar[1];
-                str << "\t"  << ce.Length << "\t" << ce.Type << "\t";
-                int length = ce.Length;
-                if ( ce.Type == 'D' ) {
+                str << "\t"  << ce.length << "\t" << ce.type << "\t";
+                int length = ce.length;
+                if ( ce.type == 'D' ) {
                     for ( int i = 0; i < length; i++)
                         str << reference[position+i] ;
                 } else {
@@ -902,7 +866,7 @@ void LocalRealignment::clean(IntervalData & interval_data) const {
                     int neededBases = max(neededBasesToLeft, neededBasesToRight);
                     if ( neededBases > 0 ) {
                         int padLeft = max(leftmostIndex-neededBases, 1);
-                        int padRight = min(leftmostIndex+reference.size()+neededBases, (unsigned long)atol(referenceReader->getSequenceDictionary()[interval_data.current_interval.getContig()].Length.c_str()));
+                        int padRight = min<size_t>(leftmostIndex+reference.size()+neededBases, (unsigned long)referenceReader->getSequenceDictionary()[interval_data.current_interval.getContig()].getLength());
                         reference = referenceReader->getSubsequenceAt(interval_data.current_interval.getContig(), padLeft, padRight);
                         leftmostIndex = padLeft;
                     }
@@ -974,9 +938,10 @@ long LocalRealignment::determineReadsThatNeedCleaning( vector<OGERead *> & reads
         
         // first, move existing indels (for 1 indel reads only) to leftmost position within identical sequence
         int numBlocks = 0;
+
         vector<CigarOp> cigar = read->getCigarData();
         for(vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++)
-            if(i->Type == 'M' || i->Type == '=' || i->Type == 'X')
+            if(i->type == 'M' || i->type == '=' || i->type == 'X')
                 numBlocks++;
 
         if ( numBlocks == 2 ) {
@@ -1059,7 +1024,7 @@ LocalRealignment::Consensus * LocalRealignment::createAlternateConsensus(const i
         return NULL;
     
     // if there are no indels, we do not need this consensus, can abort early:
-    if ( c.size() == 1 && c[0].Type == 'M' ) return NULL;
+    if ( c.size() == 1 && c[0].type == 'M' ) return NULL;
     
     // create the new consensus
     vector<CigarOp> elements;
@@ -1074,8 +1039,8 @@ LocalRealignment::Consensus * LocalRealignment::createAlternateConsensus(const i
     bool ok_flag = true;
     for ( int i = 0 ; i < c.size() ; i++ ) {
         CigarOp ce = c[i];
-        int elementLength = ce.Length;
-        switch( ce.Type ) {
+        int elementLength = ce.length;
+        switch( ce.type ) {
             case 'D':
                 refIdx += elementLength;
                 indelCount++;
@@ -1215,25 +1180,25 @@ bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int al
     int leadingMatchingBlockLength = 0; // length of the leading M element or 0 if the leading element is I
     
     CigarOp indelCE;
-    if ( altCE1.Type == 'I'  ) {
+    if ( altCE1.type == 'I'  ) {
         indelCE=altCE1;
-        if ( altCE2.Type != 'M' ) {
+        if ( altCE2.type != 'M' ) {
             cerr << "When the first element of the alt consensus is I, the second one must be M. Actual: " << cigarToString(altCigar) << ".  Skipping this site..." << endl;
             return false;
         }
     }
     else {
-        if ( altCE1.Type != 'M'  ) {
+        if ( altCE1.type != 'M'  ) {
             cerr << "First element of the alt consensus cigar must be M or I. Actual: " << cigarToString(altCigar) << ".  Skipping this site..." << endl;
             return false;
         }
-        if ( altCE2.Type == 'I'  || altCE2.Type == 'D' ) {
+        if ( altCE2.type == 'I'  || altCE2.type == 'D' ) {
             indelCE=altCE2;
         } else {
             cerr << "When first element of the alt consensus is M, the second one must be I or D. Actual: " << cigarToString(altCigar) << ".  Skipping this site..." << endl;
             return false;
         }
-        leadingMatchingBlockLength = altCE1.Length;
+        leadingMatchingBlockLength = altCE1.length;
     }
     
     // the easiest thing to do is to take each case separately
@@ -1257,9 +1222,9 @@ bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int al
     
     // forward along the indel
     //int indelOffsetOnRef = 0, indelOffsetOnRead = 0;
-    if ( indelCE.Type == 'I' ) {
+    if ( indelCE.type == 'I' ) {
         // for reads that end in an insertion
-        if ( myPosOnAlt + aRead.getReadLength() < endOfFirstBlock + indelCE.Length ) {
+        if ( myPosOnAlt + aRead.getReadLength() < endOfFirstBlock + indelCE.length ) {
             int partialInsertionLength = myPosOnAlt + aRead.getReadLength() - endOfFirstBlock;
             // if we also started inside the insertion, then we need to modify the length
             if ( !sawAlignmentStart )
@@ -1270,16 +1235,16 @@ bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int al
         }
         
         // for reads that start in an insertion
-        if ( !sawAlignmentStart && myPosOnAlt < endOfFirstBlock + indelCE.Length ) {
+        if ( !sawAlignmentStart && myPosOnAlt < endOfFirstBlock + indelCE.length ) {
             aRead.setAlignmentStart(leftmostIndex + endOfFirstBlock);
-            readCigar.push_back(CigarOp('I', indelCE.Length - (myPosOnAlt - endOfFirstBlock)));
+            readCigar.push_back(CigarOp('I', indelCE.length - (myPosOnAlt - endOfFirstBlock)));
             //indelOffsetOnRead = myPosOnAlt - endOfFirstBlock;
             sawAlignmentStart = true;
         } else if ( sawAlignmentStart ) {
             readCigar.push_back(indelCE);
             //indelOffsetOnRead = indelCE.getLength();
         }
-    } else if ( indelCE.Type == 'D' ) {
+    } else if ( indelCE.type == 'D' ) {
         if ( sawAlignmentStart )
             readCigar.push_back(indelCE);
         //indelOffsetOnRef = indelCE.getLength();
@@ -1296,8 +1261,8 @@ bool LocalRealignment::updateRead(const vector<CigarOp> & altCigar, const int al
     
     int readRemaining = aRead.getReadBases().size();
     for ( vector<CigarOp>::iterator ce = readCigar.begin(); ce != readCigar.end(); ce++ ) {
-        if ( ce->Type != 'D' )
-            readRemaining -= ce->Length;
+        if ( ce->type != 'D' )
+            readRemaining -= ce->length;
     }
     if ( readRemaining > 0 )
         readCigar.push_back(CigarOp('M', readRemaining));
@@ -1325,10 +1290,10 @@ bool LocalRealignment::alternateReducesEntropy(const vector<AlignedRead *> & rea
         AlignedRead &read = *reads[i];
         
         int count_m_eq_x = 0;
-        
+
         vector<CigarOp> cigar = read.getRead()->getCigarData();
         for(vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++)
-            if(i->Type == 'M' || i->Type == '=' || i->Type == 'X')
+            if(i->type == 'M' || i->type == '=' || i->type == 'X')
                 count_m_eq_x++;
 
         //if ( read.getRead()->getAlignmentBlocks().size() > 1 )
@@ -1356,8 +1321,8 @@ bool LocalRealignment::alternateReducesEntropy(const vector<AlignedRead *> & rea
         vector<CigarOp> c = read.getCigar();
         for (int j = 0 ; j < c.size() ; j++) {
             CigarOp ce = c[j];
-            int elementLength = ce.Length;
-            switch ( ce.Type ) {
+            int elementLength = ce.length;
+            switch ( ce.type ) {
                 case 'M':
                     for (int k = 0 ; k < elementLength ; k++, refIdx++, altIdx++ ) {
                         if ( refIdx >= reference.size() )
@@ -1431,33 +1396,37 @@ vector<CigarOp> LocalRealignment::unclipCigar(const vector<CigarOp> & cigar) {
 
     for (int i = 0; i < cigar.size(); i++ ) {
         CigarOp ce = cigar[i];
-        if ( !isClipOperator(ce.Type) )
+        if ( !isClipOperator(ce) )
             elements.push_back(ce);
     }
     return elements;
 }
 
 bool LocalRealignment::isClipOperator(const CigarOp op) {
-    return op.Type == 'S' || op.Type == 'H' || op.Type == 'P';
+    return op.type == 'S' || op.type == 'H' || op.type == 'P';
 }
 
 vector<CigarOp> LocalRealignment::reclipCigar(const vector<CigarOp> & cigar, OGERead * read) {
-    vector<CigarOp> elements;
+    vector<CigarOp> elements, cigarData;
+    
+    cigarData = read->getCigarData();
     
     int i = 0;
     int n = read->getCigarData().size();
-    while ( i < n && isClipOperator(read->getCigarData()[i].Type) )
-        elements.push_back(read->getCigarData()[i++]);
+
+    while ( i < n && isClipOperator(cigarData[i]) )
+        elements.push_back(cigarData[i++]);
     
     //add all elements of cigar to elements
     elements.insert(elements.end(), cigar.begin(), cigar.end());    
     
     i++;
-    while ( i < n && !isClipOperator(read->getCigarData()[i].Type) )
+
+    while ( i < n && !isClipOperator(cigarData[i]) )
         i++;
     
-    while ( i < n && isClipOperator(read->getCigarData()[i].Type) )
-        elements.push_back(read->getCigarData()[i++]);
+    while ( i < n && isClipOperator(cigarData[i]) )
+        elements.push_back(cigarData[i++]);
     
     return elements;
 }
@@ -1493,7 +1462,7 @@ LocalRealignment::LocalRealignment()
 int LocalRealignment::runInternal()
 {
     ogeNameThread("LRmain");
-    sequence_dictionary = getHeader().Sequences;
+    sequence_dictionary = getHeader().getSequences();
     initialize();
 
     interval_it = intervalsFile.begin();
@@ -1509,6 +1478,10 @@ int LocalRealignment::runInternal()
         
         const ReadMetaDataTracker rmdt(loc_parser, al, std::map<int, RODMetaDataContainer>() );
         map_func( al, rmdt);
+        
+        //throttle ourselves, so that we don't overwhelm the downstream queue.
+        while(manager->isReadAddQueueFull())
+            usleep(50000);
     };
     
     onTraversalDone(*loading_interval_data, 0);

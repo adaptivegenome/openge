@@ -1,3 +1,4 @@
+#!/bin/bash
 source $(dirname $0)/../common.sh
 rm test.out test2.out
 

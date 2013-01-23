@@ -199,25 +199,25 @@ protected:
 #endif
     
 private:
-    static std::vector<BamTools::CigarOp> unclipCigar(const std::vector<BamTools::CigarOp> & cigar);    
-    static bool isClipOperator(const BamTools::CigarOp op);
-    static std::vector<BamTools::CigarOp> reclipCigar(const std::vector<BamTools::CigarOp> & cigar, OGERead * read);
+    static std::vector<CigarOp> unclipCigar(const std::vector<CigarOp> & cigar);
+    static bool isClipOperator(const CigarOp op);
+    static std::vector<CigarOp> reclipCigar(const std::vector<CigarOp> & cigar, OGERead * read);
 
 #pragma mark AlignedRead
     class AlignedRead {
     private:
         OGERead * read;
-        const BamTools::SamSequenceDictionary * sequences;
+        const BamSequenceRecords * sequences;
         std::string readBases;
         std::string baseQuals;
-        std::vector<BamTools::CigarOp> newCigar;
+        std::vector<CigarOp> newCigar;
         int newStart;
         int mismatchScoreToReference;
         long alignerMismatchScore;
     public:
         static int MAX_POS_MOVE_ALLOWED;
         static int NO_ORIGINAL_ALIGNMENT_TAGS;
-        AlignedRead(OGERead * read, const BamTools::SamSequenceDictionary * sequences)
+        AlignedRead(OGERead * read, const BamSequenceRecords * sequences)
         : read(read)
         , sequences(sequences)
         , newStart(-1)
@@ -249,11 +249,11 @@ private:
         
         
         size_t getCigarLength() const {
-            const std::vector<BamTools::CigarOp> & cigar = (newCigar.size() > 0) ? newCigar : read->getCigarData();
+            const std::vector<CigarOp> & cigar = (newCigar.size() > 0) ? newCigar : read->getCigarData();
             size_t len = 0;
             
-            for(std::vector<BamTools::CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++) {
-                switch(i->Type)
+            for(std::vector<CigarOp>::const_iterator i = cigar.begin(); i != cigar.end(); i++) {
+                switch(i->type)
                 {
                     case 'H':
                     case 'S':
@@ -261,7 +261,7 @@ private:
                         break;
                     case 'I':
                     default:
-                        len += i->Length;
+                        len += i->length;
                         break;
                 }
             }
@@ -277,11 +277,11 @@ private:
         void getUnclippedBases();
         
         // pull out the bases that aren't clipped out
-        std::vector<BamTools::CigarOp> reclipCigar(const std::vector<BamTools::CigarOp> & cigar)const ;
+        std::vector<CigarOp> reclipCigar(const std::vector<CigarOp> & cigar)const ;
     public:
-        const std::vector<BamTools::CigarOp> getCigar() const;
+        const std::vector<CigarOp> getCigar() const;
         // tentatively sets the new Cigar, but it needs to be confirmed later
-        void setCigar(const std::vector<BamTools::CigarOp> & cigar, bool fixClippedCigar = true);
+        void setCigar(const std::vector<CigarOp> & cigar, bool fixClippedCigar = true);
         void clearCigar() { newCigar.clear(); }
 
     public:
@@ -303,9 +303,9 @@ private:
         std::vector<std::pair<int, int> > readIndexes;
         int positionOnReference;
         int mismatchSum;
-        std::vector<BamTools::CigarOp> cigar;
+        std::vector<CigarOp> cigar;
         
-        Consensus(std::string str, std::vector<BamTools::CigarOp> cigar, int positionOnReference) 
+        Consensus(std::string str, std::vector<CigarOp> cigar, int positionOnReference) 
         : str(str)
         , positionOnReference(positionOnReference)
         , mismatchSum(0)
@@ -331,7 +331,7 @@ private:
         std::string reference;
         GenomeLoc * loc;
         GenomeLocParser * loc_parser;
-        const BamTools::SamSequenceDictionary * sequences;
+        const BamSequenceRecords * sequences;
     public:
         ReadBin() 
         : loc(NULL)
@@ -342,7 +342,7 @@ private:
             clear();
         }
         
-        void initialize(GenomeLocParser * loc_parser, const BamTools::SamSequenceDictionary * sequence_dict) {
+        void initialize(GenomeLocParser * loc_parser, const BamSequenceRecords * sequence_dict) {
             this->loc_parser = loc_parser;
             sequences = sequence_dict;
         }
@@ -402,7 +402,7 @@ private:
     
     IntervalData * loading_interval_data;
     
-    BamTools::SamSequenceDictionary sequence_dictionary;
+    BamSequenceRecords sequence_dictionary;
     
     static const int MAX_QUAL;
     
@@ -432,49 +432,42 @@ private:
     class EmittableRead;
     class EmittableReadList;
     class CleanAndEmitReadList;
-    
-    class CleanJob; //runs clean() for CleanAndEmitReadList objects
 
     std::queue<Emittable *> emit_queue; //queue up reads ready to be emitted so that they are in order, including ReadBins that have been cleaned.
-    pthread_mutex_t emit_mutex; // only one thread should emit() at once
+    mutex emit_mutex; // only one thread should emit() at once
     
     void flushEmitQueue() {
+        // since multiple threads will call this, we need to ensure taht all thread pool workers
+        // don't get stuck waiting for this mutex. It isn't critical for each worker to run this
+        // function, and we will call it over and over at the end to ensure everything is flushed.
+        // We can give some threads an easy-out.
+        if(!emit_mutex.try_lock())
+            return;
         
-        if(0 != pthread_mutex_lock(&emit_mutex) ) {
-            perror("Error locking LR emit mutex.");
-            exit(-1);
-        }
         while(! emit_queue.empty() && emit_queue.front()->canEmit()) {
             emit_queue.front()->emit();
             delete emit_queue.front();
             emit_queue.pop();
         }
         
-        if(0 != pthread_mutex_unlock(&emit_mutex) ) {
-            perror("Error unlocking LR emit mutex.");
-            exit(-1);
-        }
+        emit_mutex.unlock();
     }
             
     void pushToEmitQueue(Emittable * e)
     {
         bool emit_queue_full = true;
         while(emit_queue_full) {
-            if(0 != pthread_mutex_lock(&emit_mutex) ) {
-                perror("Error locking LR emit push mutex.");
-                exit(-1);
-            }
-            emit_queue_full = emit_queue.size() > 1000000;
+            emit_mutex.lock();
+            emit_queue_full = emit_queue.size() > 1000;
             if(!emit_queue_full)
                 emit_queue.push(e);
             
-            if(0 != pthread_mutex_unlock(&emit_mutex) ) {
-                perror("Error unlocking LR emit push mutex.");
-                exit(-1);
-            }
+            emit_mutex.unlock();
             
-            if(emit_queue_full)
+            if(emit_queue_full) {
                 usleep(20000);
+                flushEmitQueue();
+            }
         }
     }
     
@@ -513,10 +506,10 @@ private:
                                              std::set<Consensus *> & altConsensesToPopulate,
                                              const std::string & reference,
                                              const int leftmostIndex);
-    Consensus * createAlternateConsensus(const int indexOnRef, const std::vector<BamTools::CigarOp> & c, const std::string reference, const std::string readStr) const;
+    Consensus * createAlternateConsensus(const int indexOnRef, const std::vector<CigarOp> & c, const std::string reference, const std::string readStr) const;
     Consensus * createAlternateConsensus(const int indexOnRef, const std::string & reference, const std::string & indelStr, VariantContext indel) const;
     std::pair<int, int> findBestOffset(const std::string & ref, AlignedRead read, const int leftmostIndex) const;
-    bool updateRead(const std::vector<BamTools::CigarOp> & altCigar, const int altPosOnRef, const int myPosOnAlt, AlignedRead & aRead, const int leftmostIndex) const;
+    bool updateRead(const std::vector<CigarOp> & altCigar, const int altPosOnRef, const int myPosOnAlt, AlignedRead & aRead, const int leftmostIndex) const;
     bool alternateReducesEntropy(const std::vector<AlignedRead *> & reads, const std::string & reference, const int leftmostIndex) const;
 
 protected:
