@@ -1,5 +1,15 @@
 Open Genomics Engine
 
+Version 0.4 - 31 January 2013
+* Added automated indexing of BAM files - an index is generated every time a BAM is written
+* Removed dependency on BamTools for some internal components
+* Rewritten BAM BGZF code increases performance
+* Reduced memory consumption of many functions
+* Increased performance on machines with a small number of cores (<4)
+* Increased performance of MarkDuplicates
+* Fixed small bugs affecting stability and correctness that were found through automated testing
+* Other bug fixes
+
 Version 0.3 - 31 October 2012
 * New multithreaded IO subsystem increases IO performance. Replaces bamtools-based IO.
 * Add repeatseq function for micro satellite detection. Implements repeatseq algorithm from original repeatseq program (https://github.com/adaptivegenome/repeatseq), with additional parallelization.
