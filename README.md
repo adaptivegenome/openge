@@ -22,10 +22,8 @@ Bug fixes, documentation, and code contributions are welcome. Please feel free t
 To get started with the codebase, check out the developer guide inside the openge/docs/ directory.
 
 ### License
-OpenGE is licensed under the Virginia Tech Non-Commercial Purpose License, which can be found in the openge/LICENSE.txt
+OpenGE is licensed under the Virginia Tech Non-Commercial Purpose License, which can be found in the LICENSE.txt
 Copyright 2012 Virginia Bioinformatics Institute.
-
-OpenGE also depends on a modified version of bamtools, included in the bamtools/ directory. Bamtools is released under the MIT license. Further details can be found in bamtools/LICENSE.
 
 ### Contact
 David Mittelman (Project lead)     <david.mittelman@vt.edu>
