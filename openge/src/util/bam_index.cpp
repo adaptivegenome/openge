@@ -243,6 +243,7 @@ void BamIndex::readFile(const std::string & filename, BgzfInputStream * remapper
 }
 
 void BamIndex::writeFile(const string & filename, BgzfOutputStream * remapper_stream) const {
+    return;
 	ofstream f;
 	f.open(filename.c_str());
     

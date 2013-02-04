@@ -1,7 +1,6 @@
 Open Genomics Engine
 
 Version 0.4 - 31 January 2013
-* Added automated indexing of BAM files - an index is generated every time a BAM is written
 * Removed dependency on BamTools for some internal components
 * Rewritten BAM BGZF code increases performance
 * Reduced memory consumption of many functions
