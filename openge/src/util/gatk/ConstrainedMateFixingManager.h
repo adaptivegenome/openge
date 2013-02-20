@@ -113,7 +113,7 @@ private:
     
     /** read.name -> records */
     std::map<std::string, SAMRecordHashObject> forMateMatching;
-    typedef std::set<OGERead *, BamTools::Algorithms::Sort::ByPosition> waitingReads_t;
+    typedef std::multiset<OGERead *, BamTools::Algorithms::Sort::ByPosition> waitingReads_t;
     waitingReads_t waitingReads;
 
     /**

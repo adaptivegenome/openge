@@ -202,10 +202,8 @@ void setMateInfo( OGERead & rec1, OGERead & rec2) {
 
 OGERead * ConstrainedMateFixingManager::remove(waitingReads_t & treeSet) {
     OGERead * first = *treeSet.begin();
-    if ( !treeSet.erase(first) ) {
-        cerr << "Error caching SAM record " << first->getName() << ", which is usually caused by malformed SAM/BAM files in which multiple identical copies of a read are present." << endl;
-        exit(-1);
-    }
+    assert(!treeSet.empty());
+    treeSet.erase(treeSet.begin());
     return first;
 }
 
