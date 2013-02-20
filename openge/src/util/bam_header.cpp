@@ -171,6 +171,11 @@ BamHeader::BamHeader (const string & text){
 			exit(-1);
 		}
 	}
+
+    if(format_version.empty()) {
+        format_version = "1.4";
+        sort_order = BamHeader::SORT_UNKNOWN;
+    }
 };
 
 //////////////////////////////////////////
