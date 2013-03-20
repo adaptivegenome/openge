@@ -22,6 +22,7 @@ To get started with the codebase, check out the developer guide inside the openg
 
 ### License
 OpenGE is licensed under the Virginia Tech Non-Commercial Purpose License, which can be found in the LICENSE.txt
+
 Copyright 2013 Virginia Bioinformatics Institute.
 
 ### Contact
