@@ -163,7 +163,7 @@ OGERead * BamDeserializer<input_stream_t>::read() {
     }
     
     // read in core alignment data, make sure the right size of data was read
-    char * buffer = (char *) alloca(BlockLength - 4);
+    char * buffer = (char *) alloca(BlockLength);
     input_stream.read(buffer, BlockLength);
     if ( input_stream.fail() ) {
         std::cerr << "Expected more bytes reading BAM core. Is this file truncated or corrupted? Aborting." << std::endl;
