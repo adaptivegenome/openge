@@ -1,16 +1,8 @@
 ## Open Genomics Engine README
 
-OpenGE is a unified and optimized analysis platform that is open source, accelerated for parallel computing, and easily extendible. The most recent major release is 0.4 (January 2013).
+OpenGE is a unified and optimized analysis platform that is open source, accelerated for parallel computing, and easily extendible. The most recent major release is 0.4 (January 2013) and there are no planned future releases at this time.
 
-
-### Getting started
-
-GitHub no longer supports binary downloads so it is necessary to build OpenGE from source.
-
-OpenGE is supported through the SEQanswers forum:
-http://seqanswers.com/forums/forumdisplay.php?f=43
-
-### Contributing
+### Getting Started
 
 Bug fixes, documentation, and code contributions are welcome. Please feel free to email the author, or contact us via the github page:
 
